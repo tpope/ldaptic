@@ -364,7 +364,7 @@ EOF
       end
 
       def object_class
-        if !abstract_class && string = to_s[/[^:>]+$/]
+        @object_class || if !abstract_class && string = to_s[/[^:>]+$/]
           string[0..0] = string[0..0].downcase; string
         end
       end
@@ -428,7 +428,7 @@ EOF
 
       def wrap_object(r)
         subclasses = @subclasses || []
-        if klass = subclasses.find {|c| r["objectClass"].include?(c.object_class)}
+        if klass = subclasses.find {|c| r["objectClass"].to_a.include?(c.object_class)}
           klass.send(:wrap_object,r)
         else
           add_singleton_methods(r) if false
@@ -439,17 +439,32 @@ EOF
       end
       private :wrap_object
 
-      def search(query, scope = LDAP::LDAP_SCOPE_SUBTREE)
+      def search(query, options = {})
+        scope = options[:scope] || LDAP::LDAP_SCOPE_SUBTREE
+        case options[:sort]
+        when Proc, Method, s_attr, s_proc = nil, options[:sort]
+        else s_attr, s_proc = options[:sort], nil
+        end
+        query = "(objectClass=*)" if query.nil? || query == :all
         query = LDAP::Filter(query)
         query &= {:objectClass => object_class} if object_class
-        connection.search2("#{@base_dn}",scope,query.to_s).map do |r|
+        connection.search2(
+          options[:base_dn] || self.base_dn.to_s,
+          scope,
+          query.to_s,
+          options[:attributes],
+          false,
+          options[:timeout].to_i,
+          ((options[:timeout].to_f % 1) * 1e6).round,
+          s_attr,s_proc
+        ).map do |r|
           wrap_object(r)
         end
       end
 
       def find(dn)
         return dn.map {|d| find(d)} if dn.kind_of?(Array)
-        objects = connection.search2(dn,LDAP::LDAP_SCOPE_BASE,LDAP::Filter(:objectClass => object_class || "*").to_s)
+        objects = connection.search2(dn,LDAP::LDAP_SCOPE_BASE,LDAP::Filter(:objectClass => object_class || true).to_s)
         unless objects.size == 1
           raise RecordNotFound, "record not found for #{dn}", caller
         end
