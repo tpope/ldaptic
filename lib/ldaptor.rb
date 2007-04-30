@@ -379,12 +379,12 @@ EOF
         r.instance_variable_set(:@connection,self)
         def r.read_attribute(key)
           values = self[key] || []
-          at = @connection.attribute_types[key]
+          at = connection.attribute_types[key]
           return values unless at
           if syn = SYNTAXES[at.syntax]
             if syn == 'DN'
               values.map! do |value|
-              value.instance_variable_set(:@connection,@connection)
+              value.instance_variable_set(:@connection,connection)
               def value.find
                 @connection.find(self)
               end
@@ -425,14 +425,14 @@ EOF
 
       def search(query, scope = LDAP::LDAP_SCOPE_SUBTREE)
         query &= {:objectClass => object_class} if object_class
-        @connection.search2("#{@base_dn}",scope,LDAP::Filter(query).to_s).map do |r|
+        connection.search2("#{@base_dn}",scope,LDAP::Filter(query).to_s).map do |r|
           wrap_object(r)
         end
       end
 
       def find(dn)
         return dn.map {|d| find(d)} if dn.kind_of?(Array)
-        objects = @connection.search2(dn,LDAP::LDAP_SCOPE_BASE,LDAP::Filter(:objectClass => object_class || "*").to_s)
+        objects = connection.search2(dn,LDAP::LDAP_SCOPE_BASE,LDAP::Filter(:objectClass => object_class || "*").to_s)
         unless objects.size == 1
           raise RecordNotFound, "record not found for #{dn}", caller
         end
