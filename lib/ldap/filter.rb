@@ -167,6 +167,16 @@ module LDAP
       end
     end
 
+    module Conversions
+      def to_ldap_filter
+        LDAP::Filter(self)
+      end
+    end
+
+    ::Hash.send(:include, Conversions)
+    ::String.send(:include, Conversions)
+
   end
 
 end
+

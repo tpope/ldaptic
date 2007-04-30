@@ -7,6 +7,11 @@ class LDAPFilterTest < Test::Unit::TestCase
     assert_equal string, LDAP::Filter(filter).process
   end
 
+  def test_escape
+    assert_equal "\\28Hello\\5c\\2aworld!\\29", LDAP.escape("(Hello\\*world!)")
+    assert_equal "\\28Hello\\5c*world!\\29", LDAP.escape("(Hello\\*world!)",false)
+  end
+
   def test_filter_from_hash
     assert_ldap_filter nil, {}
     assert_ldap_filter "(x=1)", :x => 1
@@ -28,6 +33,10 @@ class LDAPFilterTest < Test::Unit::TestCase
     assert_ldap_filter "(&(a=1)(b=2))", LDAP::Filter(:a => 1) & {:b => 2}
     assert_ldap_filter "(|(a=1)(b=2))", LDAP::Filter(:a => 1) | "(b=2)"
     assert_ldap_filter "(!(a=1))",     ~LDAP::Filter(:a => 1)
+  end
+
+  def test_conversions
+    assert_equal "(a=1)", {:a => 1}.to_ldap_filter.to_s
   end
 
 end

@@ -347,6 +347,8 @@ EOF
 
       inheritable_accessor :connection, :base_dn
 
+      attr_accessor :abstract_class
+
       def schema
         @schema ||= connection.schema
       end
@@ -359,6 +361,18 @@ EOF
           hash
         end
         @attrs
+      end
+
+      def object_class
+        if !abstract_class && string = to_s[/[^:>]+$/]
+          string[0..0] = string[0..0].downcase; string
+        end
+      end
+
+      def object_classes
+        ancestors.select do |ancestor|
+          ancestor.kind_of?(Class) && ancestor != Object && ancestor.respond_to?(:object_class)
+        end.map {|a| a.object_class}.compact.reverse.uniq
       end
 
       def wrap_object(r)
@@ -410,6 +424,7 @@ EOF
       private :wrap_object
 
       def search(query, scope = LDAP::LDAP_SCOPE_SUBTREE)
+        query &= {:objectClass => object_class} if object_class
         @connection.search2("#{@base_dn}",scope,LDAP::Filter(query).to_s).map do |r|
           wrap_object(r)
         end
@@ -417,13 +432,16 @@ EOF
 
       def find(dn)
         return dn.map {|d| find(d)} if dn.kind_of?(Array)
-        objects = @connection.search2(dn,LDAP::LDAP_SCOPE_BASE,"(objectclass=*)")
+        objects = @connection.search2(dn,LDAP::LDAP_SCOPE_BASE,LDAP::Filter(:objectClass => object_class || "*").to_s)
         unless objects.size == 1
           raise RecordNotFound, "record not found for #{dn}", caller
         end
         wrap_object(objects.first)
       end
+
     end
+
+    self.abstract_class = true
 
   end
 
