@@ -169,6 +169,29 @@ EOF
   class RecordNotFound < Error
   end
 
+  def self.build_hierarchy(connection)
+    mod = Module.new
+    klass = Class.new(Base)
+    mod.const_set("Top",klass)
+    klass.connection = connection
+    klasses = klass.schema["objectClasses"].map do |klass|
+      klass.scan(/NAME '(.*?)' SUP (\S+)/).first
+    end.compact
+    add_constants(mod,pairs,"top")
+    nil
+  end
+
+  def self.add_constants(mod,klasses,superclass_name)
+    superclass = mod.const_get(superclass_name.to_s.ldapitalize(true))
+    klasses.each do |(sub,sup)|
+      if sup == superclass_name
+        mod.const_set(sub.ldapitalize(true), Class.new(superclass))
+        add_constants(mod, klasses, sub)
+      end
+    end
+  end
+  private :add_constants
+
   class Base
 
     def initialize(data)
@@ -486,6 +509,18 @@ EOF
 
   end
 
+end
+
+class String
+  def ldapitalize!(upper = false)
+    self[0,1] = self[0,1].send(upper ? :upcase : :downcase)
+    self.gsub!('-','_')
+    self
+  end
+
+  def ldapitalize(upper = false)
+    dup.ldapitalize!(upper)
+  end
 end
 
 if __FILE__ == $0
