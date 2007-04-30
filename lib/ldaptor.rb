@@ -177,8 +177,8 @@ EOF
     klasses = klass.schema["objectClasses"].map do |klass|
       klass.scan(/NAME '(.*?)' SUP (\S+)/).first
     end.compact
-    add_constants(mod,pairs,"top")
-    nil
+    add_constants(mod,klasses,"top")
+    mod
   end
 
   def self.add_constants(mod,klasses,superclass_name)
