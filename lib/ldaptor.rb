@@ -442,7 +442,7 @@ EOF
       def search(query, options = {})
         scope = options[:scope] || LDAP::LDAP_SCOPE_SUBTREE
         case options[:sort]
-        when Proc, Method, s_attr, s_proc = nil, options[:sort]
+        when Proc, Method then s_attr, s_proc = nil, options[:sort]
         else s_attr, s_proc = options[:sort], nil
         end
         query = "(objectClass=*)" if query.nil? || query == :all
@@ -463,13 +463,18 @@ EOF
       end
 
       def find(dn)
-        return dn.map {|d| find(d)} if dn.kind_of?(Array)
+        return dn.map {|d| find_one(d)} if dn.kind_of?(Array)
+        return find_one(dn)
+      end
+
+      def find_one(dn)
         objects = connection.search2(dn,LDAP::LDAP_SCOPE_BASE,LDAP::Filter(:objectClass => object_class || true).to_s)
         unless objects.size == 1
           raise RecordNotFound, "record not found for #{dn}", caller
         end
         wrap_object(objects.first)
       end
+      private :find_one
 
     end
 
