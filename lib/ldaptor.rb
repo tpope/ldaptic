@@ -3,36 +3,13 @@
 # -*- ruby -*- vim:set ft=ruby et sw=2 sts=2:
 
 require 'ldap'
-require 'ldap/schema'
+require 'ldaptor/schema'
 require 'ldap/filter'
-# SYNTAXES = {
-  # "1.3.6.1.4.1.1466.115.121.1.44" => String,
-  # "1.3.6.1.4.1.1466.115.121.1.15" => "DirectoryString"
-# }
-
-module LDAP
-
-  class Schema
-    def aux(oc)
-      self["dITContentRules"].to_a.each do |s|
-        if s =~ /NAME\s+'#{oc}'/
-          case s
-          when /AUX\s+\(([\w\d_\s\$-]+)\)/i
-            return $1.split("$").collect{|attr| attr.strip}
-          when /AUX\s+([\w\d_-]+)/i
-            return $1.split("$").collect{|attr| attr.strip}
-          end
-        end
-      end
-      return nil
-    end
-  end
-end
 
 module Ldaptor
 
   # RFC 2252.  Second column is "Human Readable"
-SYNTAX_STRING = <<EOF unless defined? SYNTAX_STRING
+  SYNTAX_STRING = <<-EOF unless defined? SYNTAX_STRING
 ACI Item                        N  1.3.6.1.4.1.1466.115.121.1.1
 Access Point                    Y  1.3.6.1.4.1.1466.115.121.1.2
 Attribute Type Description      Y  1.3.6.1.4.1.1466.115.121.1.3
@@ -95,8 +72,7 @@ EOF
 
   SYNTAXES = {} unless defined? SYNTAXES
   SYNTAX_STRING.each_line do |line|
-    line.chomp!
-    a, b = line.split(/ [YN]  /)
+    a, b = line.chomp.split(/ [YN]  /)
     a.rstrip!
     SYNTAXES[b] = a
   end
@@ -140,7 +116,7 @@ EOF
         Time.parse(string)
       end
       def self.format(time)
-        time.utc.strftime("%Y%m%d%H%M%S")+".#{time.usec/100_000}Z"
+        time.utc.strftime("%Y%m%d%H%M%S")+".%06dZ" % (time.usec/100_000)
       end
     end
 
@@ -440,6 +416,7 @@ EOF
       end
 
       def find(dn)
+        return dn.map {|d| find(d)} if dn.kind_of?(Array)
         objects = @connection.search2(dn,LDAP::LDAP_SCOPE_BASE,"(objectclass=*)")
         unless objects.size == 1
           raise RecordNotFound, "record not found for #{dn}", caller
