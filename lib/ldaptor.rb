@@ -190,7 +190,6 @@ EOF
       end
     end
   end
-  private :add_constants
 
   class Base
 
