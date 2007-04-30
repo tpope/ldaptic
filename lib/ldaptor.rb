@@ -434,7 +434,7 @@ EOF
       private :wrap_object
 
       def search(query, scope = LDAP::LDAP_SCOPE_SUBTREE)
-        @connection.search2("#{@base_dn}",scope,LDAP::Filter.new(query).to_s).map do |r|
+        @connection.search2("#{@base_dn}",scope,LDAP::Filter(query).to_s).map do |r|
           wrap_object(r)
         end
       end
