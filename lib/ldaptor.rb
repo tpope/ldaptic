@@ -445,7 +445,7 @@ EOF
         when Proc, Method then s_attr, s_proc = nil, options[:sort]
         else s_attr, s_proc = options[:sort], nil
         end
-        query = "(objectClass=*)" if query.nil? || query == :all
+        query = {:objectClass => true} if query.nil? || query == :all
         query = LDAP::Filter(query)
         query &= {:objectClass => object_class} if object_class
         connection.search2(
@@ -456,7 +456,7 @@ EOF
           false,
           options[:timeout].to_i,
           ((options[:timeout].to_f % 1) * 1e6).round,
-          s_attr,s_proc
+          s_attr.to_s, s_proc
         ).map do |r|
           wrap_object(r)
         end
