@@ -375,7 +375,13 @@ EOF
         end.map {|a| a.object_class}.compact.reverse.uniq
       end
 
-      def wrap_object(r)
+      def inherited(subclass)
+        @subclasses ||= []
+        @subclasses << subclass
+        super
+      end
+
+      def add_singleton_methods(r) #:nodoc:
         r.instance_variable_set(:@connection,self)
         def r.read_attribute(key)
           values = self[key] || []
@@ -417,9 +423,19 @@ EOF
             EOS
           end
         end
-        obj = allocate
-        obj.instance_variable_set(:@data,r)
-        obj
+      end
+      private :add_singleton_methods
+
+      def wrap_object(r)
+        subclasses = @subclasses || []
+        if klass = subclasses.find {|c| r["objectClass"].include?(c.object_class)}
+          klass.send(:wrap_object,r)
+        else
+          add_singleton_methods(r) if false
+          obj = allocate
+          obj.instance_variable_set(:@data,r)
+          obj
+        end
       end
       private :wrap_object
 
