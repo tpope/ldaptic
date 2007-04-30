@@ -197,7 +197,11 @@ EOF
       if syn = SYNTAXES[at.syntax]
         if syn == 'DN'
           values = values.map do |value|
-            value.instance_variable_set(:@ldaptor,self.class)
+            ldaptor = self.class
+            while ldaptor.superclass.respond_to?(:connection) && ldaptor.superclass.connection == self.connection
+              ldaptor = ldaptor.superclass
+            end
+            value.instance_variable_set(:@ldaptor,ldaptor)
             def value.find
               @ldaptor.find(self)
             end
