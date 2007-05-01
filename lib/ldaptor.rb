@@ -192,8 +192,8 @@ EOF
       $1 || $&
     end
     def eatstr(string)
-      if eaten = eat(string, /^\(([^)]+)\)/i)
-        eaten.split("$").collect{|attr| attr.strip.sub(/^'(.*)'$/,'\1') }
+      if eaten = eat(string, /^\(\s*'([^)]+)'\s*\)/i)
+        eaten.split("' '").collect{|attr| attr.strip }
       else
         eat(string,/^'([^']*)'\s*/)
       end
