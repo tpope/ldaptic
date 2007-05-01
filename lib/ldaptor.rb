@@ -257,6 +257,8 @@ module Ldaptor
       if attribute[-1] == ?= && self.class.has_attribute?(attribute[0..-2])
         attribute.chop!
         write_attribute(attribute,*args,&block)
+      elsif args.size == 1
+        self["#{method}=#{args.first}"]
       elsif self.class.has_attribute?(attribute)
         read_attribute(attribute,*args,&block)
       elsif @data.respond_to?(method)
