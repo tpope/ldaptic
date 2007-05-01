@@ -4,7 +4,7 @@ module LDAP
   # +false+, asterisks are not escaped.
   def self.escape(string, escape_asterisks = true)
     string = string.utc.strftime("%Y%m%d%H%M%S.0Z") if string.respond_to?(:utc)
-    string.to_s.gsub(/[()#{escape_asterisks ? :* : nil}\\\0-\37]/) {|l| "\\" + l[0].to_s(16) }
+    string.to_s.gsub(/[()#{escape_asterisks ? :* : nil}\\\0-\37,]/) {|l| "\\" + l[0].to_s(16) }
   end
 
   # If the argument is already a valid LDAP::Filter object, return it

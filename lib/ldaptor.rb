@@ -141,6 +141,17 @@ module Ldaptor
       @data["dn"].first
     end
 
+    def parent
+      ary = self.dn.split('=')
+      dn = ary[1][/,([^,=]*)$/,1] + '=' + ary[2..-1].join('=')
+      self.class.root.find(dn)
+    end
+
+    def children(subset = nil)
+      filter = {subset => true} if subset
+      search(:scope => LDAP::LDAP_SCOPE_ONELEVEL, :filter => filter)
+    end
+
     def connection
       self.class.connection
     end
@@ -243,10 +254,10 @@ module Ldaptor
     def method_missing(method,*args,&block)
       method = method.to_s
       attribute = method.gsub('_','-')
-      if attribute[-1] == ?= && @data.has_key?(attribute[0..-2])
+      if attribute[-1] == ?= && self.class.has_attribute?(attribute[0..-2])
         attribute.chop!
         write_attribute(attribute,*args,&block)
-      elsif @data.has_key?(attribute)
+      elsif self.class.has_attribute?(attribute)
         read_attribute(attribute,*args,&block)
       elsif @data.respond_to?(method)
         @data.send(method,*args,&block)
@@ -271,6 +282,24 @@ module Ldaptor
       end
     end
 
+    def search(options)
+      self.class.root.search({:base_dn => self.dn}.merge(options))
+    end
+
+    def [](value)
+      case value
+      when /\(.*=/, Hash, LDAP::Filter
+        search(:filter => value, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
+      when /=/, Array
+        base_dn = Array(value).map {|v|LDAP.escape(v)}.join(',') + ',' + dn
+        search(
+          :base_dn => base_dn,
+          :scope => LDAP::LDAP_SCOPE_BASE
+        ).first
+      else read_attribute(value)
+      end
+    end
+
     def save
       connection.modify(dn, @data.reject {|k,v| k == "dn"})
     end
@@ -281,6 +310,11 @@ module Ldaptor
     end
 
     class << self
+
+      def has_attribute?(attribute)
+        attribute = attribute.to_s.gsub('_','-')
+        may.include?(attribute) || must.include?(attribute)
+      end
 
       def self.inheritable_accessor(*names)
         names.each do |name|
@@ -297,7 +331,7 @@ module Ldaptor
 
       inheritable_accessor :connection, :base_dn
 
-      attr_reader :oid, :name, :desc, :obsolete, :sup, :abstract, :structural, :auxiliary, :must, :may
+      attr_reader :oid, :name, :desc, :sup
       %w(obsolete abstract structural auxiliary).each do |attr|
         class_eval("def #{attr}?; !! @#{attr}; end")
       end
@@ -393,14 +427,15 @@ module Ldaptor
       def wrap_object(r)
         subclasses = @subclasses || []
         if klass = subclasses.find {|c| r["objectClass"].to_a.include?(c.object_class)}
-          klass.send(:wrap_object,r)
+          return klass.send(:wrap_object,r)
         elsif klass = root.const_get(r["objectClass"].last.to_s.ldapitalize(true)) rescue nil
-          klass.send(:wrap_object,r)
-        else
-          obj = allocate
-          obj.instance_variable_set(:@data,r)
-          obj
+          if klass != self
+            return klass.send(:wrap_object,r)
+          end
         end
+        obj = allocate
+        obj.instance_variable_set(:@data,r)
+        obj
       end
       private :wrap_object
 
