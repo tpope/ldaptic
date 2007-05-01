@@ -503,6 +503,8 @@ EOF
         subclasses = @subclasses || []
         if klass = subclasses.find {|c| r["objectClass"].to_a.include?(c.object_class)}
           klass.send(:wrap_object,r)
+        elsif klass = root.const_get(r["objectClass"].last.to_s.ldapitalize(true)) rescue nil
+          klass.send(:wrap_object,r)
         else
           obj = allocate
           obj.instance_variable_set(:@data,r)
