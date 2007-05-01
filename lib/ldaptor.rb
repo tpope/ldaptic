@@ -230,41 +230,23 @@ EOF
     klass = Class.new(Base)
     klass.connection = connection
     klass.base_dn = base_dn
-    klasses = connection.schema["objectClasses"].map do |k|
-      Ldaptor::ObjectClass.new(k)
-    end.compact
-    add_constants(klass,klasses,klass)
-    # klasses.each do |klass|
-      # if klass.sup == nil
-        # klass_obj = mod.const_get(klass.name.to_s.ldapitalize(true))
-        # klass_obj.connection = connection
-        # klass_obj.base_dn = base_dn
-      # end
-    # end
+    klass.send(:build_hierarchy)
     klass.instance_eval(&block) if block_given?
     klass
   end
 
-  def self.add_constants(mod,klasses,superclass)
-    klasses.each do |sub|
-      if Array(superclass.name).include?(sub.sup) || superclass.name == nil && sub.sup == nil
-        klass = Class.new(superclass)
-        %w(oid name desc obsolete sup abstract structural auxiliary must may).each do |prop|
-          klass.instance_variable_set("@#{prop}", sub.send(prop))
-        end
-        klass.instance_variable_set(:@module, mod)
-        Array(sub.name).each do |name|
-          mod.const_set(name.ldapitalize(true), klass)
-        end
-        add_constants(mod, klasses, klass)
-      end
-    end
+  def self.Namespace(connection, base_dn = nil)
+    klass = Class.new(Base)
+    klass.connection = connection
+    klass.base_dn = base_dn
+    klass.instance_variable_set(:@name, false)
+    klass
   end
 
   class Base
 
-    def initialize(data)
-      raise TypeError, "abstract class initialized" if self.class.name.nil? || self.class.abstract?
+    def initialize(data = {})
+      raise TypeError, "abstract class initialized", caller if self.class.name.nil? || self.class.abstract?
       @data = data
     end
 
@@ -430,7 +412,7 @@ EOF
       end
 
       def ldap_ancestors
-        ancestors.select {|o| o.ancestors.include?(Base) && o != Base}
+        ancestors.select {|o| o.ancestors.include?(Base) && o != Base && o.name != false}
       end
 
       def root
@@ -480,16 +462,42 @@ EOF
       end
 
       def object_classes
-        ancestors.select do |ancestor|
-          ancestor.kind_of?(Class) && ancestor != Object && ancestor.respond_to?(:object_class)
-        end.map {|a| a.object_class}.compact.reverse.uniq
+        ldap_ancestors.map {|a| a.object_class}.compact.reverse.uniq
       end
 
       def inherited(subclass)
         @subclasses ||= []
         @subclasses << subclass
+        if name == false
+          subclass.send(:build_hierarchy)
+        end
         super
       end
+
+      def build_hierarchy
+        raise TypeError, "cannot build hierarchy for a named class", caller if name
+        klasses = connection.schema["objectClasses"].map do |k|
+          Ldaptor::ObjectClass.new(k)
+        end.compact
+        add_constants(self,klasses,self)
+      end
+
+      def add_constants(mod,klasses,superclass)
+        klasses.each do |sub|
+          if Array(superclass.name).include?(sub.sup) || superclass.name == nil && sub.sup == nil
+            klass = Class.new(superclass)
+            %w(oid name desc obsolete sup abstract structural auxiliary must may).each do |prop|
+              klass.instance_variable_set("@#{prop}", sub.send(prop))
+            end
+            klass.instance_variable_set(:@module, mod)
+            Array(sub.name).each do |name|
+              mod.const_set(name.ldapitalize(true), klass)
+            end
+            add_constants(mod, klasses, klass)
+          end
+        end
+      end
+      private :add_constants
 
       def wrap_object(r)
         subclasses = @subclasses || []
