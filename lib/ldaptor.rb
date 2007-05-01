@@ -122,32 +122,67 @@ EOF
 
   end
 
-  class AttributeType
+  class SchemaLine
+
+    def self.attr_boolean_schema(*attrs)
+      attr_ldap_reader(*attrs)
+      @hash ||= {}
+      attrs.each do |attr|
+        @hash[attr.to_s.upcase.to_s.gsub('_','-')] = :boolean
+      end
+    end
+
+    def self.attr_string_schema(*attrs)
+      attr_ldap_reader(*attrs)
+      @hash ||= {}
+      attrs.each do |attr|
+        @hash[attr.to_s.upcase.to_s.gsub('_','-')] = :string
+      end
+    end
+
+    def self.attr_array_schema(*attrs)
+      attr_ldap_reader(*attrs)
+      @hash ||= {}
+      attrs.each do |attr|
+        @hash[attr.to_s.upcase.to_s.gsub('_','-')] = :array
+      end
+    end
+
+    def self.attr_ldap_reader(*attrs)
+      attrs.each do |attr|
+        class_eval(<<-EOS)
+          def #{attr.to_s.downcase.gsub('-','_')}
+            @hash[#{attr.to_s.upcase.gsub('_','-').inspect}]
+          end
+        EOS
+      end
+    end
+
+    attr_accessor :oid
+    def self.attributes
+      @hash ||= {}
+    end
+
     def initialize(string)
       @string = string.dup
       string = @string.dup
       # raise string unless string =~ /^\(\s*(\d[.\d]*\d) (.*?)\s*\)\s*$/
       string.gsub!(/^\s*\(\s*(\d[\d.]*\d)\s*(.*?)\s*\)\s*$/,'\\2')
       @oid = $1
+      @hash = {}
       while value = eat(string,/^\s*([A-Z-]+)\s*/)
-        case value
-        when "NAME"         then @name     = eatstr(string)
-        when "DESC"         then @desc     = eatstr(string)
-        when "OBSOLETE"     then @obsolete = true
-        when "SUP"          then @sup      = eatstr(string)
-        when "EQUALITY"     then @equality = eatstr(string)
-        when "ORDERING"     then @ordering = eatstr(string)
-        when "SUBSTR"       then @substr   = eatstr(string)
-        when "SYNTAX"       then @syntax   = eatstr(string)
-        when "SINGLE-VALUE" then @single_value = true
-        when "COLLECTIVE"   then @collective = true
-        when "NO-USER-MODIFICATION" then @no_user_modification = true
-        when "USAGE"        then @usage = eatstr(string)
-        when /^X-/          then eatstr(string)
+        if self.class.attributes[value] == :string
+          @hash[value] = eatstr(string)
+        elsif self.class.attributes[value] == :array
+          @hash[value] = eatary(string)
+        elsif self.class.attributes[value] == :boolean
+          @hash[value] = true
+        elsif value =~ /^X-/
+          eatstr(string)
         end
       end
     end
-    attr_accessor :oid, :syntax, :name, :single_value, :no_user_modification, :string
+
     def to_s
       name
     end
@@ -157,10 +192,32 @@ EOF
       $1 || $&
     end
     def eatstr(string)
-      x = eat(string,/^'([^']*)'\s*/)
-      # p x
-      x
+      if eaten = eat(string, /^\(([^)]+)\)/i)
+        eaten.split("$").collect{|attr| attr.strip.sub(/^'(.*)'$/,'\1') }
+      else
+        eat(string,/^'([^']*)'\s*/)
+      end
     end
+
+    def eatary(string)
+      if eaten = eat(string, /^\(([\w\d_\s\$-]+)\)/i)
+        eaten.split("$").collect{|attr| attr.strip}
+      else
+        eat(string,/^([\w\d_-]+)/i)
+      end
+    end
+
+  end
+
+  class AttributeType < SchemaLine
+    attr_boolean_schema :obsolete, :single_value, :collective, :no_user_modification
+    attr_string_schema  :name, :desc, :sup, :equality, :ordering, :substr, :syntax, :usage
+  end
+
+  class ObjectClass < SchemaLine
+    attr_boolean_schema :structural, :auxiliary, :abstract, :obsolete
+    attr_string_schema  :name, :desc
+    attr_array_schema   :sup, :may, :must
   end
 
   class Error < ::RuntimeError #:nodoc:
@@ -171,23 +228,42 @@ EOF
 
   def self.build_hierarchy(connection,base_dn = nil)
     mod = Module.new
-    klass = Class.new(Base)
-    mod.const_set("Top",klass)
-    klass.connection = connection
-    klass.base_dn = base_dn
-    klasses = klass.schema["objectClasses"].map do |klass|
-      klass.scan(/NAME '(.*?)'.* SUP (\S+)/).first
+    # klass = Class.new(Base)
+    # mod.const_set("Top",klass)
+    # klass.connection = connection
+    # klass.base_dn = base_dn
+    klasses = connection.schema["objectClasses"].map do |klass|
+      # klass.scan(/NAME '(.*?)'.* SUP (\S+)/).first
+      Ldaptor::ObjectClass.new(klass)
     end.compact
-    add_constants(mod,klasses,"top")
+    add_constants(mod,klasses,nil)
+    klasses.each do |klass|
+      if klass.sup == nil
+        klass_obj = mod.const_get(klass.name.to_s.ldapitalize(true))
+        klass_obj.connection = connection
+        klass_obj.base_dn = base_dn
+      end
+    end
     mod
   end
 
   def self.add_constants(mod,klasses,superclass_name)
-    superclass = mod.const_get(superclass_name.to_s.ldapitalize(true))
-    klasses.each do |(sub,sup)|
-      if sup == superclass_name
-        mod.const_set(sub.ldapitalize(true), Class.new(superclass))
-        add_constants(mod, klasses, sub)
+    if superclass_name
+      superclass = mod.const_get(superclass_name.to_s.ldapitalize(true))
+    else
+      superclass = Base
+    end
+    klasses.each do |sub|
+      if sub.sup == superclass_name
+        klass = Class.new(superclass)
+        %w(oid name desc obsolete sup abstract structural auxiliary must may).each do |prop|
+          klass.instance_variable_set("@#{prop}", sub.send(prop))
+        end
+        klass.instance_variable_set(:@module, mod)
+        Array(sub.name).each do |name|
+          mod.const_set(name.ldapitalize(true), klass)
+        end
+        add_constants(mod, klasses, sub.name)
       end
     end
   end
@@ -195,11 +271,6 @@ EOF
   class Base
 
     def initialize(data)
-      # @host, @port = host, port
-      # @base_dn = dn
-      # @login, @password = login, password
-      # @connection = LDAP::Conn.new(@host, @port)
-      # @connection.bind(@login,@password)
       @data = data
     end
 
@@ -249,13 +320,7 @@ EOF
       at = self.class.attribute_types[key]
       unless at
         warn "Unknown attribute type #{key}"
-        if values.nil?
-          @data[key] = []
-        elsif values.respond_to?(:to_ary)
-          @data[key] = values
-        else
-          @data[key] = [values]
-        end
+        @data[key] = Array(values)
         return values
       end
       if at.no_user_modification
@@ -285,6 +350,7 @@ EOF
 
     def must
       must = []
+      return self.class.must
       @data["objectClass"].reverse.each do |oc|
         must += self.class.schema.must(oc).to_a
         aux = self.class.schema.aux(oc).to_a
@@ -297,6 +363,7 @@ EOF
     end
 
     def may
+      return self.class.may
       may = []
       @data["objectClass"].reverse.each do |oc|
         may += self.class.schema.may(oc).to_a
@@ -375,9 +442,41 @@ EOF
       inheritable_accessor :connection, :base_dn
 
       attr_accessor :abstract_class
+      attr_reader :oid, :name, :desc, :obsolete, :sup, :abstract, :structural, :auxiliary, :must, :may
+      %w(obsolete abstract structural auxiliary).each do |attr|
+        class_eval("def #{attr}?; !! @#{attr}; end")
+      end
+
+      def ldap_ancestors
+        ancestors.select {|o| o.class == Class && o != Object}
+      end
+
+      def may(all = true)
+        if all
+          ldap_ancestors.collect do |klass|
+            Array(klass.may(false))
+          end.flatten
+        else
+          @may
+        end
+      end
+
+      def must(all = true)
+        if all
+          ldap_ancestors.collect do |klass|
+            Array(klass.must(false))
+          end.flatten
+        else
+          @must
+        end
+      end
 
       def schema
         @schema ||= connection.schema
+      end
+
+      def attributes(all = true)
+        may(all) + must(all)
       end
 
       def attribute_types
@@ -391,7 +490,7 @@ EOF
       end
 
       def object_class
-        @object_class || if !abstract_class && string = to_s[/[^:>]+$/]
+        @object_class || Array(@name).first || if !abstract_class && string = to_s[/[^:>]+$/]
           string[0..0] = string[0..0].downcase; string
         end
       end
@@ -408,57 +507,11 @@ EOF
         super
       end
 
-      def add_singleton_methods(r) #:nodoc:
-        r.instance_variable_set(:@connection,self)
-        def r.read_attribute(key)
-          values = self[key] || []
-          at = connection.attribute_types[key]
-          return values unless at
-          if syn = SYNTAXES[at.syntax]
-            if syn == 'DN'
-              values.map! do |value|
-              value.instance_variable_set(:@connection,connection)
-              def value.find
-                @connection.find(self)
-              end
-              value
-              end
-            else
-              parser = Ldaptor::Syntaxes.const_get(syn.gsub(' ','')) rescue Ldaptor::Syntaxes::DirectoryString
-              values.map! do |value|
-                parser.parse(value)
-              end
-            end
-          end
-          if at && at.single_value
-            values.first
-          else
-            values
-          end
-        end
-        r["objectClass"].each do |oc|
-          # schema = @connection.schema
-          (schema.may(oc).to_a + schema.must(oc).to_a).each do |attr|
-            at = attribute_types[attr]
-            r.instance_eval(<<-EOS)
-              def #{attr.gsub('-','_')}
-                read_attribute(#{attr.inspect})
-              end
-              def #{attr.gsub('-','_')}=(value)
-                write_attribute(#{attr.inspect},value)
-              end
-            EOS
-          end
-        end
-      end
-      private :add_singleton_methods
-
       def wrap_object(r)
         subclasses = @subclasses || []
         if klass = subclasses.find {|c| r["objectClass"].to_a.include?(c.object_class)}
           klass.send(:wrap_object,r)
         else
-          add_singleton_methods(r) if false
           obj = allocate
           obj.instance_variable_set(:@data,r)
           obj
@@ -472,13 +525,13 @@ EOF
           options = query_or_options
           query_or_options = nil
         end
-        query = query_or_options
+        query = query_or_options || options[:filter]
         scope = options[:scope] || LDAP::LDAP_SCOPE_SUBTREE
         case options[:sort]
         when Proc, Method then s_attr, s_proc = nil, options[:sort]
         else s_attr, s_proc = options[:sort], nil
         end
-        query = {:objectClass => true} if query.nil? || query == :all
+        query = {:objectClass => true} if query.nil?
         query = LDAP::Filter(query)
         query &= {:objectClass => object_class} if object_class
         connection.search2(
@@ -495,17 +548,21 @@ EOF
         end
       end
 
-      def find(dn)
-        return dn.map {|d| find_one(d)} if dn.kind_of?(Array)
-        return find_one(dn)
+      def find(dn,options = {})
+        case dn
+        when :all   then search(options)
+        when :first then search(options).first
+        when Array  then dn.map {|d| find_one(d,options)}
+        else             find_one(dn,options)
+        end
       end
 
-      def find_one(dn)
-        objects = connection.search2(dn,LDAP::LDAP_SCOPE_BASE,LDAP::Filter(:objectClass => object_class || true).to_s)
+      def find_one(dn,options)
+        objects = search(options.merge(:base_dn => dn, :scope => LDAP::LDAP_SCOPE_BASE))
         unless objects.size == 1
           raise RecordNotFound, "record not found for #{dn}", caller
         end
-        wrap_object(objects.first)
+        objects.first
       end
       private :find_one
 
