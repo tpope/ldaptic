@@ -226,35 +226,28 @@ EOF
   class RecordNotFound < Error
   end
 
-  def self.build_hierarchy(connection,base_dn = nil)
-    mod = Module.new
-    # klass = Class.new(Base)
-    # mod.const_set("Top",klass)
-    # klass.connection = connection
-    # klass.base_dn = base_dn
-    klasses = connection.schema["objectClasses"].map do |klass|
-      # klass.scan(/NAME '(.*?)'.* SUP (\S+)/).first
-      Ldaptor::ObjectClass.new(klass)
+  def self.build_hierarchy(connection,base_dn = nil,&block)
+    klass = Class.new(Base)
+    klass.connection = connection
+    klass.base_dn = base_dn
+    klasses = connection.schema["objectClasses"].map do |k|
+      Ldaptor::ObjectClass.new(k)
     end.compact
-    add_constants(mod,klasses,nil)
-    klasses.each do |klass|
-      if klass.sup == nil
-        klass_obj = mod.const_get(klass.name.to_s.ldapitalize(true))
-        klass_obj.connection = connection
-        klass_obj.base_dn = base_dn
-      end
-    end
-    mod
+    add_constants(klass,klasses,klass)
+    # klasses.each do |klass|
+      # if klass.sup == nil
+        # klass_obj = mod.const_get(klass.name.to_s.ldapitalize(true))
+        # klass_obj.connection = connection
+        # klass_obj.base_dn = base_dn
+      # end
+    # end
+    klass.instance_eval(&block) if block_given?
+    klass
   end
 
-  def self.add_constants(mod,klasses,superclass_name)
-    if superclass_name
-      superclass = mod.const_get(superclass_name.to_s.ldapitalize(true))
-    else
-      superclass = Base
-    end
+  def self.add_constants(mod,klasses,superclass)
     klasses.each do |sub|
-      if sub.sup == superclass_name
+      if Array(superclass.name).include?(sub.sup) || superclass.name == nil && sub.sup == nil
         klass = Class.new(superclass)
         %w(oid name desc obsolete sup abstract structural auxiliary must may).each do |prop|
           klass.instance_variable_set("@#{prop}", sub.send(prop))
@@ -263,7 +256,7 @@ EOF
         Array(sub.name).each do |name|
           mod.const_set(name.ldapitalize(true), klass)
         end
-        add_constants(mod, klasses, sub.name)
+        add_constants(mod, klasses, klass)
       end
     end
   end
@@ -271,6 +264,7 @@ EOF
   class Base
 
     def initialize(data)
+      raise TypeError, "abstract class initialized" if self.class.name.nil? || self.class.abstract?
       @data = data
     end
 
@@ -349,21 +343,13 @@ EOF
     end
 
     def must
-      must = []
       return self.class.must
-      @data["objectClass"].reverse.each do |oc|
-        must += self.class.schema.must(oc).to_a
-        aux = self.class.schema.aux(oc).to_a
-        aux.each do |oc2|
-          must += self.class.schema.must(oc2).to_a
-        end
-      end
-      must.uniq!
-      must
     end
 
     def may
+      # TODO: account for AUX
       return self.class.may
+
       may = []
       @data["objectClass"].reverse.each do |oc|
         may += self.class.schema.may(oc).to_a
@@ -378,14 +364,11 @@ EOF
 
     def may_must(attribute)
       attribute = attribute.to_s
-      @data["objectClass"].reverse.each do |oc|
-        if self.class.schema.may(oc).to_a.include?(attribute)
-          return :may
-        elsif self.class.schema.must(oc).to_a.include?(attribute)
-          return :must
-        end
+      if may.include?(attribute)
+        :may
+      elsif must.include?(attribute)
+        :must
       end
-      nil
     end
 
     def method_missing(method,*args,&block)
@@ -441,14 +424,17 @@ EOF
 
       inheritable_accessor :connection, :base_dn
 
-      attr_accessor :abstract_class
       attr_reader :oid, :name, :desc, :obsolete, :sup, :abstract, :structural, :auxiliary, :must, :may
       %w(obsolete abstract structural auxiliary).each do |attr|
         class_eval("def #{attr}?; !! @#{attr}; end")
       end
 
       def ldap_ancestors
-        ancestors.select {|o| o.class == Class && o != Object}
+        ancestors.select {|o| o.ancestors.include?(Base) && o != Base}
+      end
+
+      def root
+        ldap_ancestors.last
       end
 
       def may(all = true)
@@ -490,9 +476,7 @@ EOF
       end
 
       def object_class
-        @object_class || Array(@name).first || if !abstract_class && string = to_s[/[^:>]+$/]
-          string[0..0] = string[0..0].downcase; string
-        end
+        @object_class || Array(@name).first
       end
 
       def object_classes
@@ -519,7 +503,7 @@ EOF
       end
       private :wrap_object
 
-      def search(query_or_options, options = {})
+      def search_raw(query_or_options, options = {})
         if query_or_options.kind_of?(Hash)
           raise unless options == {}
           options = query_or_options
@@ -543,15 +527,18 @@ EOF
           options[:timeout].to_i,
           ((options[:timeout].to_f % 1) * 1e6).round,
           s_attr.to_s, s_proc
-        ).map do |r|
-          wrap_object(r)
-        end
+        )
+      end
+      private :search_raw
+
+      def search(*args)
+        search_raw(*args).map {|r| wrap_object(r)}
       end
 
       def find(dn,options = {})
         case dn
         when :all   then search(options)
-        when :first then search(options).first
+        when :first then search_raw(options).first(1).map {|r| wrap_object(r)}.first
         when Array  then dn.map {|d| find_one(d,options)}
         else             find_one(dn,options)
         end
@@ -567,8 +554,6 @@ EOF
       private :find_one
 
     end
-
-    self.abstract_class = true
 
   end
 
