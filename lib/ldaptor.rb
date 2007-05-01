@@ -169,13 +169,14 @@ EOF
   class RecordNotFound < Error
   end
 
-  def self.build_hierarchy(connection)
+  def self.build_hierarchy(connection,base_dn = nil)
     mod = Module.new
     klass = Class.new(Base)
     mod.const_set("Top",klass)
     klass.connection = connection
+    klass.base_dn = base_dn
     klasses = klass.schema["objectClasses"].map do |klass|
-      klass.scan(/NAME '(.*?)' SUP (\S+)/).first
+      klass.scan(/NAME '(.*?)'.* SUP (\S+)/).first
     end.compact
     add_constants(mod,klasses,"top")
     mod
@@ -465,7 +466,13 @@ EOF
       end
       private :wrap_object
 
-      def search(query, options = {})
+      def search(query_or_options, options = {})
+        if query_or_options.kind_of?(Hash)
+          raise unless options == {}
+          options = query_or_options
+          query_or_options = nil
+        end
+        query = query_or_options
         scope = options[:scope] || LDAP::LDAP_SCOPE_SUBTREE
         case options[:sort]
         when Proc, Method then s_attr, s_proc = nil, options[:sort]
@@ -524,9 +531,9 @@ end
 
 if __FILE__ == $0
   # class LocalLdaptor < Ldaptor::Base
-    # self.connection = LDAP::Conn.new("localhost")
+    # self.connection = LDAP::Conn.new(`hostname -f`.chomp)
     # connection.set_option(LDAP::LDAP_OPT_PROTOCOL_VERSION, 3)
-    # self.base_dn = `hostname -f`.chomp.split(".").map {|x|"dc=#{x}"} * ","
+    # self.base_dn = `hostname -f`.chomp.split(".").map {|x|"dc=#{x}"}[1..-1] * ","
     # connection.bind("cn=admin,#{base_dn}","ldaptor")
   # end
   require 'irb'
