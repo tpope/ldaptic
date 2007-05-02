@@ -3,8 +3,8 @@
 # -*- ruby -*- vim:set ft=ruby et sw=2 sts=2:
 
 require 'ldaptor/core_ext'
-require 'ldap/filter'
 require 'ldap/dn'
+require 'ldap/filter'
 require 'ldap'
 require 'ldaptor/schema'
 require 'ldaptor/syntaxes'
@@ -42,25 +42,36 @@ module Ldaptor
 
   class Base
 
+    def self.clone_ldap_hash(attributes)
+      hash = Hash.new {|h,k| h[k] = [] }
+      attributes.each do |k,v|
+        hash[k.kind_of?(Symbol) ?  k.to_s.gsub('_','-') : k.dup] = Array(v).map {|x| x.dup rescue x}
+      end
+      hash
+    end
+
+
     def initialize(data = {})
       raise TypeError, "abstract class initialized", caller if self.class.name.nil? || self.class.abstract?
-      @data = data.dup
-      @dn = @data.delete('dn')
+      @attributes = self.class.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
+      @dn = @attributes.delete('dn').first
     end
 
     def dn
-      LDAP::DN(@dn || @data['dn'].first)
+      LDAP::DN(@dn || @attributes['dn'].first)
+    end
+
+    def rdn
+      dn && LDAP::DN(dn.to_a.first(1))
     end
 
     def parent
-      ary = self.dn.split('=')
-      dn = ary[1][/,([^,=]*)$/,1] + '=' + ary[2..-1].join('=')
-      self.class.root.find(dn)
+      self.class.root.find(LDAP::DN(dn.to_a[1..-1]))
     end
 
     def children(type = nil, name = nil)
       if name && name != true
-        search(:base_dn => "#{type}=#{LDAP.escape(name)},#{dn}", :scope => LDAP::LDAP_SCOPE_BASE).first
+        search({:base_dn => "#{type}=#{LDAP.escape(name)},#{dn}", :scope => LDAP::LDAP_SCOPE_BASE}).first
       elsif type
         search(:filter => {type => true}, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
       else
@@ -72,24 +83,22 @@ module Ldaptor
       self.class.connection
     end
 
+    def inspect
+      # TODO, base this on the human readability property, not a heuristic
+      "#<#{self.class} #{dn} #{
+        @attributes.reject {|k,v| v.any? {|x| x =~ /[\000-\037]/}}.inspect
+      }>"
+    end
+
     def read_attribute(key)
       key = attributify(key)
-      values = @data[key]
+      values = @attributes[key]
       return nil if values.nil?
       at = self.class.attribute_types[key]
       return values unless at
       if syn = SYNTAXES[at.syntax]
         if syn == 'DN'
           values = values.map do |value|
-            # ldaptor = self.class
-            # while ldaptor.superclass.respond_to?(:connection) && ldaptor.superclass.connection == self.connection
-              # ldaptor = ldaptor.superclass
-            # end
-            # value.instance_variable_set(:@ldaptor,ldaptor)
-            # def value.find
-              # @ldaptor.find(self)
-            # end
-            # value
             ::LDAP::DN(value,self)
           end
         else
@@ -111,14 +120,14 @@ module Ldaptor
       at = self.class.attribute_types[key]
       unless at
         warn "Warning: unknown attribute type for #{key}"
-        @data[key] = Array(values)
+        @attributes[key] = Array(values)
         return values
       end
       if at.no_user_modification
         raise Error, "read-only value", caller
       end
       if at.single_value
-        values = [values].flatten.compact
+        values = Array(values)
       end
       raise TypeError, "array expected", caller unless values.kind_of?(Array)
       if must.include?(key) && values.empty?
@@ -136,23 +145,21 @@ module Ldaptor
           end
         end
       end
-      @data[key] = values
+      @attributes[key] = values
     end
 
-    def attributes
-      @data
+    attr_reader :attributes
+
+    def must(all = true)
+      return self.class.must(all)
     end
 
-    def must
-      return self.class.must
-    end
-
-    def may
+    def may(all = true)
       # TODO: account for AUX
-      return self.class.may
+      return self.class.may(all)
 
       may = []
-      @data["objectClass"].reverse.each do |oc|
+      self["objectClass"].reverse.each do |oc|
         may += self.class.schema.may(oc).to_a
         aux = self.class.schema.aux(oc).to_a
         aux.each do |oc2|
@@ -173,23 +180,21 @@ module Ldaptor
     end
 
     def method_missing(method,*args,&block)
-      method = method.to_s
       attribute = attributify(method)
+      method = method.to_s
       if attribute[-1] == ?= && self.class.has_attribute?(attribute[0..-2])
         attribute.chop!
         write_attribute(attribute,*args,&block)
       elsif args.size == 1
-        children(method,*args)
+        children(method,*args,&block)
       elsif self.class.has_attribute?(attribute)
         read_attribute(attribute,*args,&block)
-      elsif @data.respond_to?(method)
-        @data.send(method,*args,&block)
       else
         super(method.to_sym,*args,&block)
         # Does not work
         extensions = self.class.const_get("Extensions") rescue nil
         if extensions
-          @data["objectClass"].reverse.each do |oc|
+          self["objectClass"].reverse.each do |oc|
             oc[0..0] = oc[0..0].upcase
             if extensions.constants.include?(oc)
               p oc
@@ -203,10 +208,6 @@ module Ldaptor
           end
         end
       end
-    end
-
-    def search(options)
-      self.class.root.search({:base_dn => self.dn}.merge(options))
     end
 
     def [](value)
@@ -223,13 +224,28 @@ module Ldaptor
       end
     end
 
+    def search(options)
+      self.class.root.search({:base_dn => self.dn}.merge(options))
+    end
+
     def save
-      if @new_record
-        connection.add(dn, @data.reject {|k,v| k == "dn"})
-        @new_record = false
+      if @original_attributes
+        updates = @attributes.reject do |k,v|
+          @original_attributes[k] == v
+        end
+        connection.modify(dn,updates) unless updates.empty?
       else
-        connection.modify(dn, @data.reject {|k,v| k == "dn"})
+        connection.add(dn, @attributes)
       end
+      @original_attributes = @attributes
+      @attributes = self.class.clone_ldap_hash(@original_attributes)
+      self
+    end
+
+    def rename(new_rdn)
+      # TODO: how is new_rdn escaped?
+      connection.modrdn(dn,new_rdn,true)
+      @dn = String([new_rdn,LDAP::DN(dn.to_a[1..-1])].join(","))
     end
 
     private
@@ -278,7 +294,7 @@ module Ldaptor
             Array(klass.may(false))
           end.flatten.uniq
         else
-          @may
+          Array(@may)
         end
       end
 
@@ -288,7 +304,7 @@ module Ldaptor
             Array(klass.must(false))
           end.flatten.uniq
         else
-          @must
+          Array(@must)
         end
       end
 
@@ -319,6 +335,8 @@ module Ldaptor
       def object_classes
         ldap_ancestors.map {|a| a.object_class}.compact.reverse.uniq
       end
+
+      alias objectClass object_classes
 
       def inherited(subclass)
         @subclasses ||= []
@@ -364,8 +382,9 @@ module Ldaptor
           end
         end
         obj = allocate
-        obj.instance_variable_set(:@dn,attributes.delete('dn'))
-        obj.instance_variable_set(:@data,attributes)
+        obj.instance_variable_set(:@dn,attributes.delete('dn').first)
+        obj.instance_variable_set(:@original_attributes,attributes)
+        obj.instance_variable_set(:@attributes,clone_ldap_hash(attributes))
         obj
       end
       protected :instantiate
@@ -445,12 +464,6 @@ module Ldaptor
 end
 
 if __FILE__ == $0
-  # class LocalLdaptor < Ldaptor::Base
-    # self.connection = LDAP::Conn.new(`hostname -f`.chomp)
-    # connection.set_option(LDAP::LDAP_OPT_PROTOCOL_VERSION, 3)
-    # self.base_dn = `hostname -f`.chomp.split(".").map {|x|"dc=#{x}"}[1..-1] * ","
-    # connection.bind("cn=admin,#{base_dn}","ldaptor")
-  # end
   require 'irb'
   IRB.start($0)
 end
