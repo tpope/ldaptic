@@ -2,6 +2,7 @@
 # $Id$
 # -*- ruby -*- vim:set ft=ruby et sw=2 sts=2:
 
+require 'ldaptor/core_ext'
 require 'ldap/filter'
 require 'ldap/dn'
 require 'ldap'
@@ -10,103 +11,11 @@ require 'ldaptor/syntaxes'
 
 module Ldaptor
 
-  class SchemaLine # What is the "proper" name for a line of this format?
-
-    def self.attr_boolean_schema(*attrs)
-      attr_ldap_reader(*attrs)
-      @hash ||= {}
-      attrs.each do |attr|
-        @hash[attr.to_s.upcase.to_s.gsub('_','-')] = :boolean
-      end
-    end
-
-    def self.attr_string_schema(*attrs)
-      attr_ldap_reader(*attrs)
-      @hash ||= {}
-      attrs.each do |attr|
-        @hash[attr.to_s.upcase.to_s.gsub('_','-')] = :string
-      end
-    end
-
-    def self.attr_array_schema(*attrs)
-      attr_ldap_reader(*attrs)
-      @hash ||= {}
-      attrs.each do |attr|
-        @hash[attr.to_s.upcase.to_s.gsub('_','-')] = :array
-      end
-    end
-
-    def self.attr_ldap_reader(*attrs)
-      attrs.each do |attr|
-        class_eval(<<-EOS)
-          def #{attr.to_s.downcase.gsub('-','_')}
-            @hash[#{attr.to_s.upcase.gsub('_','-').inspect}]
-          end
-        EOS
-      end
-    end
-
-    attr_accessor :oid
-    def self.attributes
-      @hash ||= {}
-    end
-
-    def initialize(string)
-      @string = string.dup
-      string = @string.dup
-      # raise string unless string =~ /^\(\s*(\d[.\d]*\d) (.*?)\s*\)\s*$/
-      string.gsub!(/^\s*\(\s*(\d[\d.]*\d)\s*(.*?)\s*\)\s*$/,'\\2')
-      @oid = $1
-      @hash = {}
-      while value = eat(string,/^\s*([A-Z-]+)\s*/)
-        if self.class.attributes[value] == :string
-          @hash[value] = eatstr(string)
-        elsif self.class.attributes[value] == :array
-          @hash[value] = eatary(string)
-        elsif self.class.attributes[value] == :boolean
-          @hash[value] = true
-        elsif value =~ /^X-/
-          eatstr(string)
-        end
-      end
-    end
-
-    def to_s
-      name
-    end
-
-    def eat(string,regex)
-      string.gsub!(regex,'')
-      $1 || $&
-    end
-    def eatstr(string)
-      if eaten = eat(string, /^\(\s*'([^)]+)'\s*\)/i)
-        eaten.split("' '").collect{|attr| attr.strip }
-      else
-        eat(string,/^'([^']*)'\s*/)
-      end
-    end
-
-    def eatary(string)
-      if eaten = eat(string, /^\(([\w\d_\s\$-]+)\)/i)
-        eaten.split("$").collect{|attr| attr.strip}
-      else
-        eat(string,/^([\w\d_-]+)/i)
-      end
-    end
-
-  end
-
-  class AttributeType < SchemaLine
-    attr_boolean_schema :obsolete, :single_value, :collective, :no_user_modification
-    attr_string_schema  :name, :desc, :sup, :equality, :ordering, :substr, :syntax, :usage
-  end
-
-  class ObjectClass < SchemaLine
-    attr_boolean_schema :structural, :auxiliary, :abstract, :obsolete
-    attr_string_schema  :name, :desc
-    attr_array_schema   :sup, :may, :must
-  end
+  SCOPES = {
+    :base     => ::LDAP::LDAP_SCOPE_BASE,
+    :onelevel => ::LDAP::LDAP_SCOPE_ONELEVEL,
+    :subtree  => ::LDAP::LDAP_SCOPE_SUBTREE
+  }
 
   class Error < ::RuntimeError #:nodoc:
   end
@@ -140,7 +49,7 @@ module Ldaptor
     end
 
     def dn
-      @dn || @data['dn'].first
+      LDAP::DN(@dn || @data['dn'].first)
     end
 
     def parent
@@ -150,18 +59,13 @@ module Ldaptor
     end
 
     def children(type = nil, name = nil)
-      if name
-        search(:base_dn => "#{type}=#{LDAP.escape(name)},#{base_dn}", :scope => LDAP::LDAP_SCOPE_BASE)
+      if name && name != true
+        search(:base_dn => "#{type}=#{LDAP.escape(name)},#{dn}", :scope => LDAP::LDAP_SCOPE_BASE).first
       elsif type
         search(:filter => {type => true}, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
       else
         search(:scope => LDAP::LDAP_SCOPE_ONELEVEL)
       end
-    end
-
-    def children(subset = nil)
-      filter = {subset => true} if subset
-      search(:scope => LDAP::LDAP_SCOPE_ONELEVEL, :filter => filter)
     end
 
     def connection
@@ -306,7 +210,7 @@ module Ldaptor
       when /\(.*=/, Hash, LDAP::Filter
         search(:filter => value, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
       when /=/, Array
-        base_dn = Array(value).map {|v|LDAP.escape(v)}.join(',') + ',' + dn
+        base_dn = [LDAP::DN(value),dn].join(",")
         search(
           :base_dn => base_dn,
           :scope => LDAP::LDAP_SCOPE_BASE
@@ -316,7 +220,12 @@ module Ldaptor
     end
 
     def save
-      connection.modify(dn, @data.reject {|k,v| k == "dn"})
+      if @new_record
+        connection.add(dn, @data.reject {|k,v| k == "dn"})
+        @new_record = false
+      else
+        connection.modify(dn, @data.reject {|k,v| k == "dn"})
+      end
     end
 
     private
@@ -439,20 +348,21 @@ module Ldaptor
       end
       private :add_constants
 
-      def wrap_object(r)
+      def instantiate(attributes)
         subclasses = @subclasses || []
-        if klass = subclasses.find {|c| r["objectClass"].to_a.include?(c.object_class)}
-          return klass.send(:wrap_object,r)
-        elsif klass = root.const_get(r["objectClass"].last.to_s.ldapitalize(true)) rescue nil
+        if klass = subclasses.find {|c| attributes["objectClass"].to_a.include?(c.object_class)}
+          return klass.send(:instantiate,attributes)
+        elsif klass = root.const_get(attributes["objectClass"].last.to_s.ldapitalize(true)) rescue nil
           if klass != self
-            return klass.send(:wrap_object,r)
+            return klass.send(:instantiate,attributes)
           end
         end
         obj = allocate
-        obj.instance_variable_set(:@data,r)
+        obj.instance_variable_set(:@dn,attributes.delete('dn'))
+        obj.instance_variable_set(:@data,attributes)
         obj
       end
-      private :wrap_object
+      protected :instantiate
 
       def children(type = nil, name = nil)
         if name
@@ -479,7 +389,7 @@ module Ldaptor
           query_or_options = nil
         end
         query = query_or_options || options[:filter]
-        scope = options[:scope] || LDAP::LDAP_SCOPE_SUBTREE
+        scope = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::LDAP::LDAP_SCOPE_SUBTREE
         case options[:sort]
         when Proc, Method then s_attr, s_proc = nil, options[:sort]
         else s_attr, s_proc = options[:sort], nil
@@ -501,13 +411,13 @@ module Ldaptor
       private :search_raw
 
       def search(*args)
-        search_raw(*args).map {|r| wrap_object(r)}
+        search_raw(*args).map {|r| instantiate(r)}
       end
 
       def find(dn,options = {})
         case dn
         when :all   then search(options)
-        when :first then search_raw(options).first(1).map {|r| wrap_object(r)}.first
+        when :first then search_raw(options).first(1).map {|r| instantiate(r)}.first
         when Array  then dn.map {|d| find_one(d,options)}
         else             find_one(dn,options)
         end
@@ -526,18 +436,6 @@ module Ldaptor
 
   end
 
-end
-
-class String
-  def ldapitalize!(upper = false)
-    self[0,1] = self[0,1].send(upper ? :upcase : :downcase)
-    self.gsub!('-','_')
-    self
-  end
-
-  def ldapitalize(upper = false)
-    dup.ldapitalize!(upper)
-  end
 end
 
 if __FILE__ == $0

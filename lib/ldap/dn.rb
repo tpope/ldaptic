@@ -1,6 +1,13 @@
+require 'ldap/escape'
+
 module LDAP
 
-  def DN(dn, source = nil)
+  # Instantiate a new LDAP::DN object with the arguments given.  Unlike
+  # LDAP::DN.new(dn), this method coerces the first argument to a string,
+  # unless it is already a string or an array.
+  def self.DN(dn, source = nil)
+    dn = dn.dn if dn.respond_to?(:dn)
+    return dn if dn.kind_of?(::LDAP::DN)
     unless dn.respond_to?(:to_ary)
       dn = dn.to_s
     end
@@ -11,8 +18,17 @@ module LDAP
 
     attr_accessor :source
 
+    # Create a new LDAP::DN object. dn can either be a string, or an array of
+    # pairs.
+    #
+    #   LDAP::DN([["cn","Thomas, David"],["dc","pragprog"],["dc","com"]])
+    #   # => "cn=Thomas\\, David,dc=pragprog,dc=com"
+    #
+    # The optional second object specifies either an LDAP::Conn object or a
+    # Ldaptor object to be used to find the DN with #find.
     def initialize(dn,source = nil)
       @source = source
+      dn = dn.dn if dn.respond_to?(:dn)
       if dn.respond_to?(:to_ary)
         dn = dn.map do |pair|
           pair.respond_to?(:join) ? pair.join("=") : pair
@@ -23,6 +39,8 @@ module LDAP
       super(dn)
     end
 
+    # If a source object was given, it is used to search for the DN.
+    # Otherwise, an exception is raised.
     def find
       if @source.respond_to?(:search2)
         @source.search2(self,::LDAP::LDAP_SCOPE_BASE,"(objectClass=*)").first
@@ -33,6 +51,10 @@ module LDAP
       end
     end
 
+    # Convert the DN to an array of pairs.
+    #
+    #   LDAP::DN("cn=Thomas\\, David,dc=pragprog,dc=com").to_a
+    #   # => [["cn","Thomas, David"],["dc","pragprog"],["dc","com"]]
     def to_a
       return [] if empty?
       array = [""]
@@ -62,11 +84,35 @@ module LDAP
         end
       end
       array.map! do |entry|
-        entry.match(/(.*?)=(.*)/)[1.2]
+        entry.match(/(.*?)=(.*)/)[1,2]
       end
       array
     rescue
       raise RuntimeError, "error parsing DN", caller
+    end
+
+    def <=>(other)
+      if other.respond_to?(:dn)
+        other = LDAP::DN(other)
+      end
+      if other.kind_of?(LDAP::DN)
+        self.to_a.map do |(k,v)|
+          [k.downcase,v]
+        end <=> other.to_a.map do |(k,v)|
+          [k.downcase,v]
+        end
+      else
+        super
+      end
+    rescue
+      super
+    end
+
+    def ==(other)
+      return super unless other.kind_of?(LDAN::DN)
+      (self <=> other) == 0
+    rescue
+      super
     end
 
   end
