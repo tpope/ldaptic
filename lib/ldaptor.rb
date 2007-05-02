@@ -139,6 +139,10 @@ module Ldaptor
       @data[key] = values
     end
 
+    def attributes
+      @data
+    end
+
     def must
       return self.class.must
     end
@@ -300,7 +304,9 @@ module Ldaptor
         @attrs ||= schema["attributeTypes"].inject({}) do |hash,val|
           at = Ldaptor::AttributeType.new(val)
           hash[at.oid] = at
-          hash[at.name] = at
+          Array(at.name).each do |name|
+            hash[name] = at
+          end
           hash
         end
         @attrs
