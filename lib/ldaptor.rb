@@ -3,6 +3,7 @@
 # -*- ruby -*- vim:set ft=ruby et sw=2 sts=2:
 
 require 'ldap/filter'
+require 'ldap/dn'
 require 'ldap'
 require 'ldaptor/schema'
 require 'ldaptor/syntaxes'
@@ -134,17 +135,28 @@ module Ldaptor
 
     def initialize(data = {})
       raise TypeError, "abstract class initialized", caller if self.class.name.nil? || self.class.abstract?
-      @data = data
+      @data = data.dup
+      @dn = @data.delete('dn')
     end
 
     def dn
-      @data["dn"].first
+      @dn || @data['dn'].first
     end
 
     def parent
       ary = self.dn.split('=')
       dn = ary[1][/,([^,=]*)$/,1] + '=' + ary[2..-1].join('=')
       self.class.root.find(dn)
+    end
+
+    def children(type = nil, name = nil)
+      if name
+        search(:base_dn => "#{type}=#{LDAP.escape(name)},#{base_dn}", :scope => LDAP::LDAP_SCOPE_BASE)
+      elsif type
+        search(:filter => {type => true}, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
+      else
+        search(:scope => LDAP::LDAP_SCOPE_ONELEVEL)
+      end
     end
 
     def children(subset = nil)
@@ -157,7 +169,7 @@ module Ldaptor
     end
 
     def read_attribute(key)
-      key = keyify(key)
+      key = attributify(key)
       values = @data[key]
       return nil if values.nil?
       at = self.class.attribute_types[key]
@@ -165,15 +177,16 @@ module Ldaptor
       if syn = SYNTAXES[at.syntax]
         if syn == 'DN'
           values = values.map do |value|
-            ldaptor = self.class
-            while ldaptor.superclass.respond_to?(:connection) && ldaptor.superclass.connection == self.connection
-              ldaptor = ldaptor.superclass
-            end
-            value.instance_variable_set(:@ldaptor,ldaptor)
-            def value.find
-              @ldaptor.find(self)
-            end
-            value
+            # ldaptor = self.class
+            # while ldaptor.superclass.respond_to?(:connection) && ldaptor.superclass.connection == self.connection
+              # ldaptor = ldaptor.superclass
+            # end
+            # value.instance_variable_set(:@ldaptor,ldaptor)
+            # def value.find
+              # @ldaptor.find(self)
+            # end
+            # value
+            ::LDAP::DN(value,self)
           end
         else
           parser = Ldaptor::Syntaxes.const_get(syn.gsub(' ','')) rescue Ldaptor::Syntaxes::DirectoryString
@@ -190,10 +203,10 @@ module Ldaptor
     end
 
     def write_attribute(key,values)
-      key = keyify(key)
+      key = attributify(key)
       at = self.class.attribute_types[key]
       unless at
-        warn "Unknown attribute type #{key}"
+        warn "Warning: unknown attribute type for #{key}"
         @data[key] = Array(values)
         return values
       end
@@ -253,17 +266,18 @@ module Ldaptor
 
     def method_missing(method,*args,&block)
       method = method.to_s
-      attribute = method.gsub('_','-')
+      attribute = attributify(method)
       if attribute[-1] == ?= && self.class.has_attribute?(attribute[0..-2])
         attribute.chop!
         write_attribute(attribute,*args,&block)
       elsif args.size == 1
-        self["#{method}=#{args.first}"]
+        children(method,*args)
       elsif self.class.has_attribute?(attribute)
         read_attribute(attribute,*args,&block)
       elsif @data.respond_to?(method)
         @data.send(method,*args,&block)
       else
+        super(method.to_sym,*args,&block)
         # Does not work
         extensions = self.class.const_get("Extensions") rescue nil
         if extensions
@@ -280,7 +294,6 @@ module Ldaptor
             end
           end
         end
-        super
       end
     end
 
@@ -307,7 +320,7 @@ module Ldaptor
     end
 
     private
-    def keyify(key)
+    def attributify(key)
       key.kind_of?(Symbol) ? key.to_s.gsub('_','-') : key.dup
     end
 
@@ -440,6 +453,24 @@ module Ldaptor
         obj
       end
       private :wrap_object
+
+      def children(type = nil, name = nil)
+        if name
+          find("#{type}=#{LDAP.escape(name)},#{base_dn}")
+        elsif type
+          search(:filter => {type => true}, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
+        else
+          search(:scope => LDAP::LDAP_SCOPE_ONELEVEL)
+        end
+      end
+
+      def method_missing(method,*args,&block)
+        if args.size == 1
+          children(method.to_s.ldapitalize,*args)
+        else
+          super
+        end
+      end
 
       def search_raw(query_or_options, options = {})
         if query_or_options.kind_of?(Hash)
