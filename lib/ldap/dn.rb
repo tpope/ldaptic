@@ -57,7 +57,7 @@ module LDAP
         end * ','
       end
       if dn.include?(".") && !dn.include?("=")
-        dn = dn.split(".").map {|dc| "DC=#{LDAP.escape(dc)}"} & ","
+        dn = dn.split(".").map {|dc| "DC=#{LDAP.escape(dc)}"} * ","
       end
       super(dn)
     end
@@ -65,23 +65,35 @@ module LDAP
     # If a source object was given, it is used to search for the DN.
     # Otherwise, an exception is raised.
     def find(source = @source)
-      if source.respond_to?(:search2)
-        source.search2(self.to_s,::LDAP::LDAP_SCOPE_BASE,"(objectClass=*)").first
+      scope = 0
+      filter = "(objectClass=*)"
+      if defined?(LDAP::Conn) && source.kind_of?(LDAP::Conn)
+        source.search2(
+          self.to_s,
+          scope,
+          filter
+        )
+      elsif defined?(Net::LDAP) && source.kind_of?(Net::LDAP)
+        source.search(
+          :base => self.to_s,
+          :scope => scope,
+          :filter => filter
+        )
       elsif defined?(Ldaptor) && source.respond_to?(:search)
         source.search(
           :base_dn => self.to_s,
-          :scope => ::LDAP::LDAP_SCOPE_BASE,
-          :filter => "(objectClass=*)"
-        ).first or raise Ldaptor::RecordNotFound
+          :scope => scope,
+          :filter => filter
+        )
       else
         raise RuntimeError, "missing or invalid source for LDAP search", caller
-      end
+      end.first
     end
 
     # Convert the DN to an array of RDNs.
     #
     #   LDAP::DN("cn=Thomas\\, David,dc=pragprog,dc=com").to_a
-    #   # => [["cn","Thomas, David"],["dc","pragprog"],["dc","com"]]
+    #   # => [{"cn"=>"Thomas, David"},{"dc"=>"pragprog"},{"dc"=>"com"}]
     def to_a
       return [] if empty?
       array = [""]

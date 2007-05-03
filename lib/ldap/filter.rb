@@ -53,6 +53,10 @@ module LDAP
         end
       end
 
+      def to_ber #:nodoc:
+        Net::LDAP::Filter.construct(to_str).to_ber
+      end
+
     end
 
     # This class is used for raw LDAP queries.  Note that the outermost set of
@@ -148,7 +152,7 @@ module LDAP
             end
             q = "(&#{q})"
           elsif v == true
-            q = "(#{LDAP;escape(k)}=*)"
+            q = "(#{LDAP.escape(k)}=*)"
           elsif v == false
             q = "(!(#{LDAP.escape(k)}=*))"
           else

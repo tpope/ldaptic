@@ -6,15 +6,16 @@ require 'ldaptor/core_ext'
 require 'ldap/dn'
 require 'ldap/filter'
 require 'ldap'
+require 'ldap/control'
 require 'ldaptor/schema'
 require 'ldaptor/syntaxes'
 
 module Ldaptor
 
   SCOPES = {
-    :base     => ::LDAP::LDAP_SCOPE_BASE,
-    :onelevel => ::LDAP::LDAP_SCOPE_ONELEVEL,
-    :subtree  => ::LDAP::LDAP_SCOPE_SUBTREE
+    :base     => ::LDAP::LDAP_SCOPE_BASE,     # 0
+    :onelevel => ::LDAP::LDAP_SCOPE_ONELEVEL, # 1
+    :subtree  => ::LDAP::LDAP_SCOPE_SUBTREE   # 2
   }
 
   class Error < ::RuntimeError #:nodoc:
@@ -180,7 +181,7 @@ module Ldaptor
     end
 
     def method_missing(method,*args,&block)
-      attribute = LDAP.escape(key)
+      attribute = LDAP.escape(method)
       method = method.to_s
       if attribute[-1] == ?= && self.class.has_attribute?(attribute[0..-2])
         attribute.chop!
@@ -412,31 +413,66 @@ module Ldaptor
         end
       end
 
-      def search_raw(query_or_options, options = {})
-        if query_or_options.kind_of?(Hash)
-          raise unless options == {}
-          options = query_or_options
-          query_or_options = nil
-        end
-        query = query_or_options || options[:filter]
-        scope = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::LDAP::LDAP_SCOPE_SUBTREE
+      def paged_results_control(cookie = "", size = 126)
+        ::LDAP::Control.new(
+          # ::LDAP::LDAP_CONTROL_PAGEDRESULTS,
+          "1.2.840.113556.1.4.319",
+          ::LDAP::Control.encode(size,cookie),
+          false
+        )
+      end
+
+      def search_options(options = {})
+        options = options.dup
+        options[:base_dn] = (options[:base_dn] || base_dn).to_s
+        options[:scope] = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::LDAP::LDAP_SCOPE_SUBTREE
+        query = options[:filter]
+        query = {:objectClass => true} if query.nil?
+        query = LDAP::Filter(query)
+        query &= {:objectClass => object_class} if object_class
+        options[:filter] = query
+        options
+      end
+      private :search_options
+
+      def search_parameters(options = {})
+        options = search_options(options)
         case options[:sort]
         when Proc, Method then s_attr, s_proc = nil, options[:sort]
         else s_attr, s_proc = options[:sort], nil
         end
-        query = {:objectClass => true} if query.nil?
-        query = LDAP::Filter(query)
-        query &= {:objectClass => object_class} if object_class
-        connection.search2(
-          options[:base_dn] || self.base_dn.to_s,
-          scope,
-          query.to_s,
+        [
+          options[:base_dn],
+          options[:scope],
+          options[:filter],
           options[:attributes],
           false,
           options[:timeout].to_i,
           ((options[:timeout].to_f % 1) * 1e6).round,
-          s_attr.to_s, s_proc
-        )
+          s_attr.to_s,
+          s_proc
+        ]
+      end
+
+      def search_raw(options = {},&block)
+        ary = []
+        cookie = ""
+        while cookie
+          ctrl = paged_results_control(cookie)
+          connection.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[ctrl])
+          collect = Proc.new do |entry|
+            ary << entry
+            block.call(entry) if block_given?
+            return ary if ary.size == options[:limit]
+          end
+          result = connection.search2(*search_parameters(options), &collect)
+          ctrl = connection.controls.detect {|c| c.oid == ctrl.oid}
+          cookie = ctrl && ctrl.decode.last
+          cookie = nil if cookie.to_s.empty?
+        end
+        ary
+      ensure
+        connection.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[]) rescue nil
       end
       private :search_raw
 
@@ -447,7 +483,7 @@ module Ldaptor
       def find(dn,options = {})
         case dn
         when :all   then search(options)
-        when :first then search_raw(options).first(1).map {|r| instantiate(r)}.first
+        when :first then search(options.merge(:limit => 1)).first
         when Array  then dn.map {|d| find_one(d,options)}
         else             find_one(dn,options)
         end
