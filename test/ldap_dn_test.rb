@@ -11,9 +11,9 @@ class LDAPDNTest < Test::Unit::TestCase
   end
 
   def test_to_a
-    assert_equal [%w(dc pragprog),%w(dc com)], LDAP::DN("dc=pragprog,dc=com").to_a
-    assert_equal [[["a",","],["b","+"]],["c","\\"]], LDAP::DN("a=\\,+b=\\+,c=\\\\").to_a
-    assert_equal [["a","bcdefg"]], LDAP::DN("a=#626364656667").to_a
+    assert_equal [{"dc"=>"pragprog"},{"dc"=>"com"}], LDAP::DN("dc=pragprog,dc=com").to_a
+    assert_equal [{"a"=>",","b"=>"+"},{"c"=>"\\"}], LDAP::DN("a=\\,+b=\\+,c=\\\\").to_a
+    assert_equal [{"a"=>"bcdefg"}], LDAP::DN("a=#626364656667").to_a
   end
 
   def test_equality

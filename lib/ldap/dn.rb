@@ -34,8 +34,8 @@ module LDAP
     # Create a new LDAP::DN object. dn can either be a string, or an array of
     # pairs.
     #
-    #   LDAP::DN([[:cn,"Thomas, David"],[:dc,"pragprog"],[:dc,"com"]])
-    #   # => "cn=Thomas\\, David,dc=pragprog,dc=com"
+    #   LDAP::DN([{:cn=>"Thomas, David"},{:dc=>"pragprog"},{:dc=>"com"}])
+    #   # => "CN=Thomas\\, David,DC=pragprog,DC=com"
     #
     # The optional second object specifies either an LDAP::Conn object or a
     # Ldaptor object to be used to find the DN with #find.
@@ -48,18 +48,16 @@ module LDAP
             pair = pair.to_a.flatten
             ary = []
             (pair.size/2).times do |i|
-              ary << ([pair[i*2].to_s,LDAP.escape(pair[i*2+1])] * '=')
+              ary << ([LDAP.escape(pair[i*2],true),LDAP.escape(pair[i*2+1])] * '=')
             end
             ary.join("+")
-          elsif pair.kind_of?(DN)
-            pair
           else
-            LDAP.escape(pair).gsub('\\2b','+')
+            pair
           end
         end * ','
       end
       if dn.include?(".") && !dn.include?("=")
-        dn = dn.split(".").map {|dc| "DC=#{LDAP.escape(dc)}"}.join(",")
+        dn = dn.split(".").map {|dc| "DC=#{LDAP.escape(dc)}"} & ","
       end
       super(dn)
     end
@@ -148,9 +146,9 @@ module LDAP
 
       array.map! do |entry|
         if entry.kind_of?(Array)
-          entry.map {|x|x.match(/(.*?)=(.*)/)[1,2]}
+          Hash[*entry.map {|x|x.match(/(.*?)=(.*)/)[1,2]}.flatten]
         else
-          entry.match(/(.*?)=(.*)/)[1,2]
+          Hash[*entry.match(/(.*?)=(.*)/)[1,2].flatten]
         end
       end
 
@@ -162,29 +160,23 @@ module LDAP
 
     # TODO: investigate compliance with
     # RFC4517 - Lightweight Directory Access Protocol (LDAP): Syntaxes and Matching Rules
-    def <=>(other)
+    def ==(other)
       if other.respond_to?(:dn)
         other = LDAP::DN(other)
       end
-      if other.kind_of?(LDAP::DN)
-        self.to_a.map do |(k,v)|
-          [k.downcase,v]
-        end <=> other.to_a.map do |(k,v)|
-          [k.downcase,v]
+      normalize = lambda do |hash|
+        hash.inject({}) do |m,(k,v)|
+          m[LDAP.escape(k).upcase] = v
+          m
         end
-      else
-        super
       end
-    rescue
-      super
-    end
-
-    def ==(other)
       if other.kind_of?(LDAP::DN)
-        (self <=> other) == 0
+        self.to_a.map(&normalize) == other.to_a.map(&normalize)
       else
         super
       end
+    # rescue
+      # super
     end
 
     # Pass in one or more hashes to augment the DN.  Otherwise, this behaves
