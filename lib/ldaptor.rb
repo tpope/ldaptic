@@ -414,6 +414,7 @@ module Ldaptor
       end
 
       def paged_results_control(cookie = "", size = 126)
+        # values above 126 cause problems for slapd, as determined by net/ldap
         ::LDAP::Control.new(
           # ::LDAP::LDAP_CONTROL_PAGEDRESULTS,
           "1.2.840.113556.1.4.319",
@@ -421,6 +422,7 @@ module Ldaptor
           false
         )
       end
+      private :paged_results_control
 
       def search_options(options = {})
         options = options.dup

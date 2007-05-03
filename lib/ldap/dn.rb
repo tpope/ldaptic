@@ -193,13 +193,32 @@ module LDAP
 
     # Pass in one or more hashes to augment the DN.  Otherwise, this behaves
     # the same as String#[]
+
     def [](*args)
       if args.first.kind_of?(Hash) || args.first.kind_of?(LDAP::DN)
-        LDAP::DN(args.map {|x| x.to_a}.reverse + self.to_a, self.source)
+        send(:/,*args)
       else
         super
       end
     end
+
+    # Prepend an RDN to the DN.
+    #
+    #   LDAP::DN(:dc => "com")/{:dc => "foobar"} #=> "DC=foobar,DC=com"
+    def /(*args)
+      LDAP::DN(args.reverse + to_a, source)
+    end
+
+    # With a hash (and only with a Hash), prepends a RDN to the DN, modifying
+    # the receiver in place.  Otherwise, behaves like String#<<.
+    def <<(arg)
+      if arg.kind_of?(Hash)
+        replace(self/arg)
+      else
+        super
+      end
+    end
+
 
   end
 end
