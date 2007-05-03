@@ -21,6 +21,8 @@ module LDAP
   #
   class DN < ::String
 
+    MANDATORY_ATTRIBUTE_TYPES = %w(CN L ST O OU C STREET DC UID)
+
     attr_accessor :source
 
     # Create a new LDAP::DN object. dn can either be a string, or an array of
@@ -32,14 +34,20 @@ module LDAP
     # The optional second object specifies either an LDAP::Conn object or a
     # Ldaptor object to be used to find the DN with #find.
     def initialize(dn,source = nil)
-      # TODO: support multivalued RDNs, e.g. CN=Kurt Zeilenga+L=Redwood Shores
       @source = source
       dn = dn.dn if dn.respond_to?(:dn)
       if dn.respond_to?(:to_ary)
         dn = dn.map do |pair|
-          pair.respond_to?(:join) ? pair.join("=") : pair
-        end.map do |set|
-          LDAP.escape(set)
+          if pair.respond_to?(:to_ary) || pair.kind_of?(Hash)
+            pair = pair.to_a.flatten
+            ary = []
+            (pair.size/2).times do |i|
+              ary << ([pair[i*2].to_s,LDAP.escape(pair[i*2+1])] * '=')
+            end
+            ary.join("+")
+          else
+            LDAP.escape(pair).gsub('\\2b','+')
+          end
         end * ','
       end
       super(dn)
@@ -51,22 +59,26 @@ module LDAP
       if @source.respond_to?(:search2)
         @source.search2(self,::LDAP::LDAP_SCOPE_BASE,"(objectClass=*)").first
       elsif defined?(Ldaptor) && @source.respond_to?(:search)
-        @source.search(:base_dn => self, :scope => ::LDAP::LDAP_SCOPE_BASE, :filter => "(objectClass=*)").first or raise Ldaptor::RecordNotFound
+        @source.search(
+          :base_dn => self,
+          :scope => ::LDAP::LDAP_SCOPE_BASE,
+          :filter => "(objectClass=*)"
+        ).first or raise Ldaptor::RecordNotFound
       else
         raise RuntimeError, "missing or invalid source for LDAP search", caller
       end
     end
 
-    # Convert the DN to an array of pairs.
+    # Convert the DN to an array of RDNs.
     #
     #   LDAP::DN("cn=Thomas\\, David,dc=pragprog,dc=com").to_a
     #   # => [["cn","Thomas, David"],["dc","pragprog"],["dc","com"]]
     def to_a
       return [] if empty?
       array = [""]
-      backslash = nil
-      each_byte do |byte|
+      backslash = hex = nil
 
+      each_byte do |byte|
         dest = array.last.kind_of?(Array) ? array.last.last : array.last
         case backslash
         when true
@@ -77,26 +89,52 @@ module LDAP
             dest << byte
             backslash = nil
           end
+
         when String
           dest << (backslash << char).to_i(16)
           backslash = nil
+
         else
+          backslash = nil
           case byte
           when ?,
             array << ""
+            hex = false
           when ?+
+            hex = false
             if array.last.kind_of?(Array)
               array.last << ""
             else
               array[-1] = [array.last,""]
             end
           when ?\\
+            hex = false
             backslash = true
-          else
+          when ?=
+            hex = true unless dest.include?("=")
             dest << byte
+          when ?#
+            if hex == true
+              hex = ""
+            else
+              hex = false
+              dest << byte
+            end
+          else
+            if hex.kind_of?(String)
+              hex << byte
+              if hex.size == 2
+                dest << hex.to_i(16)
+                hex = ""
+              end
+            else
+              dest << byte
+            end
           end
+
         end
       end
+
       array.map! do |entry|
         if entry.kind_of?(Array)
           entry.map {|x|x.match(/(.*?)=(.*)/)[1,2]}
@@ -104,9 +142,11 @@ module LDAP
           entry.match(/(.*?)=(.*)/)[1,2]
         end
       end
+
       array
-    # rescue
-      # raise RuntimeError, "error parsing DN", caller
+
+    rescue
+      raise RuntimeError, "error parsing DN", caller
     end
 
     # TODO: investigate compliance with
@@ -129,10 +169,11 @@ module LDAP
     end
 
     def ==(other)
-      return super unless other.kind_of?(LDAN::DN)
-      (self <=> other) == 0
-    rescue
-      super
+      if other.kind_of?(LDAP::DN)
+        (self <=> other) == 0
+      else
+        super
+      end
     end
 
   end

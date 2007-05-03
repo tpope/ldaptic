@@ -1,15 +1,11 @@
-require File.dirname(__FILE__)+'/../lib/ldap/filter'
+$:.unshift(File.join(File.dirname(__FILE__),'..','lib')).uniq!
+require 'ldap/filter'
 require 'test/unit'
 
 class LDAPFilterTest < Test::Unit::TestCase
 
   def assert_ldap_filter(string, filter)
     assert_equal string, LDAP::Filter(filter).process
-  end
-
-  def test_escape
-    assert_equal "\\28Hello\\5c\\2aworld!\\29", LDAP.escape("(Hello\\*world!)")
-    assert_equal "\\28Hello\\5c*world!\\29", LDAP.escape("(Hello\\*world!)",false)
   end
 
   def test_filter_from_hash

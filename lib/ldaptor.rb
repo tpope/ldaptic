@@ -210,9 +210,18 @@ module Ldaptor
       end
     end
 
-    def [](value)
+    def [](*values)
+      if !values.empty? && values.all? {|v| v.kind_of?(Hash)}
+        base_dn = [LDAP::DN(values),dn].join(",")
+        return search(
+          :base_dn => base_dn,
+          :scope => LDAP::LDAP_SCOPE_BASE
+        ).first
+      end
+      raise ArgumentError unless values.size == 1
+      value = values.first
       case value
-      when /\(.*=/, Hash, LDAP::Filter
+      when /\(.*=/, LDAP::Filter
         search(:filter => value, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
       when /=/, Array
         base_dn = [LDAP::DN(value),dn].join(",")

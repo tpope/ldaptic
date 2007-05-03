@@ -4,7 +4,8 @@ module LDAP
   def self.escape(string, escape_asterisks = true)
     string = string.utc.strftime("%Y%m%d%H%M%S.0Z") if string.respond_to?(:utc)
     enc = lambda {|l| "\\" + l[0].to_s(16) }
-    string.to_s.gsub(/^[# ]| $/,&enc).
-      gsub(/[()#{escape_asterisks ? :* : nil}\\\0-\37"+,;<>]/,&enc)
+    string.to_s.
+      gsub(/[()#{escape_asterisks ? :* : nil}\\\0-\37"+,;<>]/,&enc).
+      gsub(/\A[# ]| \Z/,&enc)
   end
 end
