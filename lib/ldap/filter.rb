@@ -128,31 +128,31 @@ module LDAP
       end
 
       def process
-        nostar = @escape_asterisks
+        star = !@escape_asterisks
         string = @hash.map {|k,v| [k.to_s,v]}.sort.map do |(k,v)|
           k = k.to_s.dup
           inverse = !!k.sub!(/!$/,'')
           if v.respond_to?(:to_ary)
-            q = "(|" + v.map {|e| "(#{k}=#{LDAP.escape(e,nostar)})"}.join + ")"
+            q = "(|" + v.map {|e| "(#{LDAP.escape(k)}=#{LDAP.escape(e,star)})"}.join + ")"
           elsif v.kind_of?(Range)
             q = []
             if v.first != -1.0/0
-              q << "(#{k}>=#{LDAP.escape(v.first,nostar)})"
+              q << "(#{LDAP.escape(k)}>=#{LDAP.escape(v.first,star)})"
             end
             if v.last != 1.0/0
               if v.exclude_end?
-                q << "(!(#{k}>=#{LDAP.escape(v.last,nostar)}))"
+                q << "(!(#{LDAP.escape(k)}>=#{LDAP.escape(v.last,star)}))"
               else
-                q << "(#{k}<=#{LDAP.escape(v.last,nostar)})"
+                q << "(#{LDAP.escape(k)}<=#{LDAP.escape(v.last,star)})"
               end
             end
             q = "(&#{q})"
           elsif v == true
-            q = "(#{k}=*)"
+            q = "(#{LDAP;escape(k)}=*)"
           elsif v == false
-            q = "(!(#{k}=*))"
+            q = "(!(#{LDAP.escape(k)}=*))"
           else
-            q = "(#{k}=#{LDAP.escape(v,nostar)})"
+            q = "(#{LDAP.escape(k)}=#{LDAP.escape(v,star)})"
           end
           inverse ? "(!#{q})" : q
         end.join
