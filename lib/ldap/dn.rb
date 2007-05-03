@@ -21,6 +21,12 @@ module LDAP
   #
   class DN < ::String
 
+    #   LDAP::DN[{:dc => 'com'},{:dc => 'amazon'}]
+    #   => "dc=amazon,dc=com"
+    def self.[](*args)
+      LDAP::DN(args.reverse)
+    end
+
     MANDATORY_ATTRIBUTE_TYPES = %w(CN L ST O OU C STREET DC UID)
 
     attr_accessor :source
@@ -28,7 +34,7 @@ module LDAP
     # Create a new LDAP::DN object. dn can either be a string, or an array of
     # pairs.
     #
-    #   LDAP::DN([["cn","Thomas, David"],["dc","pragprog"],["dc","com"]])
+    #   LDAP::DN([[:cn,"Thomas, David"],[:dc,"pragprog"],[:dc,"com"]])
     #   # => "cn=Thomas\\, David,dc=pragprog,dc=com"
     #
     # The optional second object specifies either an LDAP::Conn object or a
@@ -45,22 +51,27 @@ module LDAP
               ary << ([pair[i*2].to_s,LDAP.escape(pair[i*2+1])] * '=')
             end
             ary.join("+")
+          elsif pair.kind_of?(DN)
+            pair
           else
             LDAP.escape(pair).gsub('\\2b','+')
           end
         end * ','
+      end
+      if dn.include?(".") && !dn.include?("=")
+        dn = dn.split(".").map {|dc| "DC=#{LDAP.escape(dc)}"}.join(",")
       end
       super(dn)
     end
 
     # If a source object was given, it is used to search for the DN.
     # Otherwise, an exception is raised.
-    def find
-      if @source.respond_to?(:search2)
-        @source.search2(self,::LDAP::LDAP_SCOPE_BASE,"(objectClass=*)").first
-      elsif defined?(Ldaptor) && @source.respond_to?(:search)
-        @source.search(
-          :base_dn => self,
+    def find(source = @source)
+      if source.respond_to?(:search2)
+        source.search2(self.to_s,::LDAP::LDAP_SCOPE_BASE,"(objectClass=*)").first
+      elsif defined?(Ldaptor) && source.respond_to?(:search)
+        source.search(
+          :base_dn => self.to_s,
           :scope => ::LDAP::LDAP_SCOPE_BASE,
           :filter => "(objectClass=*)"
         ).first or raise Ldaptor::RecordNotFound
@@ -171,6 +182,16 @@ module LDAP
     def ==(other)
       if other.kind_of?(LDAP::DN)
         (self <=> other) == 0
+      else
+        super
+      end
+    end
+
+    # Pass in one or more hashes to augment the DN.  Otherwise, this behaves
+    # the same as String#[]
+    def [](*args)
+      if args.first.kind_of?(Hash) || args.first.kind_of?(LDAP::DN)
+        LDAP::DN(args.map {|x| x.to_a}.reverse + self.to_a, self.source)
       else
         super
       end

@@ -71,7 +71,7 @@ module Ldaptor
 
     def children(type = nil, name = nil)
       if name && name != true
-        search({:base_dn => "#{type}=#{LDAP.escape(name)},#{dn}", :scope => LDAP::LDAP_SCOPE_BASE}).first
+        search({:base_dn => dn[{type => name}], :scope => LDAP::LDAP_SCOPE_BASE}).first
       elsif type
         search(:filter => {type => true}, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
       else
@@ -91,7 +91,7 @@ module Ldaptor
     end
 
     def read_attribute(key)
-      key = attributify(key)
+      key = LDAP.escape(key)
       values = @attributes[key]
       return nil if values.nil?
       at = self.class.attribute_types[key]
@@ -116,7 +116,7 @@ module Ldaptor
     end
 
     def write_attribute(key,values)
-      key = attributify(key)
+      key = LDAP.escape(key)
       at = self.class.attribute_types[key]
       unless at
         warn "Warning: unknown attribute type for #{key}"
@@ -180,7 +180,7 @@ module Ldaptor
     end
 
     def method_missing(method,*args,&block)
-      attribute = attributify(method)
+      attribute = LDAP.escape(key)
       method = method.to_s
       if attribute[-1] == ?= && self.class.has_attribute?(attribute[0..-2])
         attribute.chop!
@@ -212,9 +212,8 @@ module Ldaptor
 
     def [](*values)
       if !values.empty? && values.all? {|v| v.kind_of?(Hash)}
-        base_dn = [LDAP::DN(values),dn].join(",")
         return search(
-          :base_dn => base_dn,
+          :base_dn => dn[*values],
           :scope => LDAP::LDAP_SCOPE_BASE
         ).first
       end
@@ -224,9 +223,8 @@ module Ldaptor
       when /\(.*=/, LDAP::Filter
         search(:filter => value, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
       when /=/, Array
-        base_dn = [LDAP::DN(value),dn].join(",")
         search(
-          :base_dn => base_dn,
+          :base_dn => dn[*values],
           :scope => LDAP::LDAP_SCOPE_BASE
         ).first
       else read_attribute(value)
@@ -234,7 +232,7 @@ module Ldaptor
     end
 
     def search(options)
-      self.class.root.search({:base_dn => self.dn}.merge(options))
+      self.class.root.search({:base_dn => dn}.merge(options))
     end
 
     def save
@@ -255,11 +253,6 @@ module Ldaptor
       # TODO: how is new_rdn escaped?
       connection.modrdn(dn,new_rdn,true)
       @dn = String([new_rdn,LDAP::DN(dn.to_a[1..-1])].join(","))
-    end
-
-    private
-    def attributify(key)
-      key.kind_of?(Symbol) ? key.to_s.gsub('_','-') : key.dup
     end
 
     class << self
@@ -283,6 +276,9 @@ module Ldaptor
       end
 
       inheritable_accessor :connection, :base_dn
+      def base_dn=(dn)
+        @base_dn = LDAP::DN(dn)
+      end
 
       attr_reader :oid, :name, :desc, :sup
       %w(obsolete abstract structural auxiliary).each do |attr|
@@ -399,8 +395,8 @@ module Ldaptor
       protected :instantiate
 
       def children(type = nil, name = nil)
-        if name
-          find("#{type}=#{LDAP.escape(name)},#{base_dn}")
+        if name && name != true
+          find(LDAP::DN(base_dn)[{type => name}])
         elsif type
           search(:filter => {type => true}, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
         else

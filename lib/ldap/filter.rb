@@ -38,10 +38,12 @@ module LDAP
         Not.new(self)
       end
 
-      # Generates the filter as a string.  Returns "" for empty filters.
+      # Generates the filter as a string.
       def to_s
-        process.to_s
+        process || "(objectClass=*)"
       end
+
+      alias to_str to_s
 
       def inspect
         if string = process
