@@ -55,7 +55,9 @@ module Ldaptor
     def initialize(data = {})
       raise TypeError, "abstract class initialized", caller if self.class.name.nil? || self.class.abstract?
       @attributes = self.class.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
-      @dn = @attributes.delete('dn').first
+      if @dn = @attributes.delete('dn').first
+        @dn = LDAP::DN(@dn,self)
+      end
     end
 
     def dn
@@ -66,17 +68,21 @@ module Ldaptor
       dn && LDAP::DN(dn.to_a.first(1))
     end
 
+    def /(*args)
+      search(:base_dn => dn.send(:/,*args), :scope => :base).first
+    end
+
     def parent
-      self.class.root.find(LDAP::DN(dn.to_a[1..-1]))
+      search(:base_dn => LDAP::DN(dn.to_a[1..-1]))
     end
 
     def children(type = nil, name = nil)
-      if name && name != true
-        search({:base_dn => dn[{type => name}], :scope => LDAP::LDAP_SCOPE_BASE}).first
+      if name && name != :*
+        search(:base_dn => dn/{type => name}, :scope => :base).first
       elsif type
-        search(:filter => {type => true}, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
+        search(:filter => {type => :*}, :scope => :onlevel)
       else
-        search(:scope => LDAP::LDAP_SCOPE_ONELEVEL)
+        search(:scope => :onelevel)
       end
     end
 
@@ -85,7 +91,7 @@ module Ldaptor
     end
 
     def inspect
-      # TODO, base this on the human readability property, not a heuristic
+      # TODO: base this on the human readability property, not a heuristic
       "#<#{self.class} #{dn} #{
         @attributes.reject {|k,v| v.any? {|x| x =~ /[\000-\037]/}}.inspect
       }>"
@@ -395,13 +401,17 @@ module Ldaptor
       end
       protected :instantiate
 
+      def /(*args)
+        find(base_dn.send(:/,*args))
+      end
+
       def children(type = nil, name = nil)
-        if name && name != true
-          find(LDAP::DN(base_dn)[{type => name}])
+        if name && name != :*
+          self/name
         elsif type
-          search(:filter => {type => true}, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
+          search(:filter => {type => :*}, :scope => :onelevel)
         else
-          search(:scope => LDAP::LDAP_SCOPE_ONELEVEL)
+          search(:scope => :onelevel)
         end
       end
 
@@ -429,7 +439,7 @@ module Ldaptor
         options[:base_dn] = (options[:base_dn] || base_dn).to_s
         options[:scope] = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::LDAP::LDAP_SCOPE_SUBTREE
         query = options[:filter]
-        query = {:objectClass => true} if query.nil?
+        query = {:objectClass => :*} if query.nil?
         query = LDAP::Filter(query)
         query &= {:objectClass => object_class} if object_class
         options[:filter] = query

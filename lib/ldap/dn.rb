@@ -9,7 +9,13 @@ module LDAP
   def self.DN(dn, source = nil)
     return nil if dn.nil?
     dn = dn.dn if dn.respond_to?(:dn)
-    return dn if dn.kind_of?(::LDAP::DN)
+    if dn.kind_of?(::LDAP::DN)
+      if source
+        dn = dn.dup
+        dn.source = source
+      end
+      return dn
+    end
     unless dn.respond_to?(:to_ary)
       dn = dn.to_s
     end

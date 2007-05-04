@@ -151,10 +151,11 @@ module LDAP
               end
             end
             q = "(&#{q})"
-          elsif v == true
+          elsif v == true || v == :*
             q = "(#{LDAP.escape(k)}=*)"
-          elsif v == false
-            q = "(!(#{LDAP.escape(k)}=*))"
+          elsif !v
+            q = "(#{LDAP.escape(k)}=*)"
+            inverse ^= true
           else
             q = "(#{LDAP.escape(k)}=#{LDAP.escape(v,star)})"
           end
