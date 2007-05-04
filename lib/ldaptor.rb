@@ -69,16 +69,16 @@ module Ldaptor
     end
 
     def /(*args)
-      search(:base_dn => dn.send(:/,*args), :scope => :base).first
+      search(:base => dn.send(:/,*args), :scope => :base).first
     end
 
     def parent
-      search(:base_dn => LDAP::DN(dn.to_a[1..-1]))
+      search(:base => LDAP::DN(dn.to_a[1..-1]))
     end
 
     def children(type = nil, name = nil)
       if name && name != :*
-        search(:base_dn => dn/{type => name}, :scope => :base).first
+        search(:base => dn/{type => name}, :scope => :base).first
       elsif type
         search(:filter => {type => :*}, :scope => :onlevel)
       else
@@ -115,7 +115,7 @@ module Ldaptor
           end
         end
       end
-      if at && at.single_value
+      if at && at.single_value?
         values.first
       else
         values
@@ -220,7 +220,7 @@ module Ldaptor
     def [](*values)
       if !values.empty? && values.all? {|v| v.kind_of?(Hash)}
         return search(
-          :base_dn => dn[*values],
+          :base => dn[*values],
           :scope => LDAP::LDAP_SCOPE_BASE
         ).first
       end
@@ -231,7 +231,7 @@ module Ldaptor
         search(:filter => value, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
       when /=/, Array
         search(
-          :base_dn => dn[*values],
+          :base => dn[*values],
           :scope => LDAP::LDAP_SCOPE_BASE
         ).first
       else read_attribute(value)
@@ -239,7 +239,7 @@ module Ldaptor
     end
 
     def search(options)
-      self.class.root.search({:base_dn => dn}.merge(options))
+      self.class.root.search({:base => dn}.merge(options))
     end
 
     def save
@@ -370,7 +370,7 @@ module Ldaptor
       end
 
       def server_default_base_dn
-        result = search_raw(:base_dn => "", :scope => :base, :attributes => %w(defaultNamingContext namingContexts)).first rescue nil
+        result = search_raw(:base => "", :scope => :base, :attributes => %w(defaultNamingContext namingContexts)).first rescue nil
         if result
            result["defaultNamingContext"].to_a.first || result["namingContexts"].to_a.first
         end
@@ -448,7 +448,7 @@ module Ldaptor
 
       def search_options(options = {})
         options = options.dup
-        options[:base_dn] = (options[:base_dn] || base_dn).to_s
+        options[:base] = (options[:base] || options[:base_dn] || base_dn).to_s
         options[:scope] = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::LDAP::LDAP_SCOPE_SUBTREE
         if options[:attributes]
           options[:attributes] = Array(options[:attributes]).map {|x| LDAP.escape(x)}
@@ -469,7 +469,7 @@ module Ldaptor
         else s_attr, s_proc = options[:sort], nil
         end
         [
-          options[:base_dn],
+          options[:base],
           options[:scope],
           options[:filter],
           options[:attributes],
@@ -517,7 +517,7 @@ module Ldaptor
       end
 
       def find_one(dn,options)
-        objects = search(options.merge(:base_dn => dn, :scope => LDAP::LDAP_SCOPE_BASE))
+        objects = search(options.merge(:base => dn, :scope => LDAP::LDAP_SCOPE_BASE))
         unless objects.size == 1
           raise RecordNotFound, "record not found for #{dn}", caller
         end

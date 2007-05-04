@@ -191,8 +191,8 @@ module Ldaptor
       def syntax_name
         Ldaptor::SYNTAXES[syntax_oid]
       end
-      def syntax_handler
-        Ldap::Syntaxes.const_get(syntax_name.delete(' ')) rescue Ldap::Syntaxes::DirectoryString
+      def syntax_object
+        Ldaptor::Syntaxes.const_get(syntax_name.delete(' ')) rescue Ldaptor::Syntaxes::DirectoryString
       end
     end
 

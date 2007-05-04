@@ -79,15 +79,9 @@ module LDAP
           scope,
           filter
         )
-      elsif defined?(Net::LDAP) && source.kind_of?(Net::LDAP)
+      elsif source.respond_to?(:search)
         source.search(
           :base => self.to_s,
-          :scope => scope,
-          :filter => filter
-        )
-      elsif defined?(Ldaptor) && source.respond_to?(:search)
-        source.search(
-          :base_dn => self.to_s,
           :scope => scope,
           :filter => filter
         )
