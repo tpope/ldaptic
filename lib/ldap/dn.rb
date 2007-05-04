@@ -112,7 +112,7 @@ module LDAP
           end
 
         when String
-          dest << (backslash << char).to_i(16)
+          dest << (backslash << byte).to_i(16)
           backslash = nil
 
         else
@@ -166,8 +166,8 @@ module LDAP
 
       array
 
-    rescue
-      raise RuntimeError, "error parsing DN", caller
+    # rescue
+      # raise RuntimeError, "error parsing DN", caller
     end
 
     # TODO: investigate compliance with

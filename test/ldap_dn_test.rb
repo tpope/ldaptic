@@ -5,7 +5,7 @@ require 'test/unit'
 class LDAPDNTest < Test::Unit::TestCase
 
   def test_constructor
-    assert_equal "dc=foo,ba=\\23#\\20", LDAP::DN([["dc","foo"],["ba","## "]])
+    assert_equal "dc=foo,ba=\\23#\\20,zy=x", LDAP::DN([["dc","foo"],["ba","## "],["zy","x"]])
     assert_equal "dc=foo+ba=bar", LDAP::DN([[["dc","foo"],["ba","bar"]]])
     assert_equal nil, LDAP::DN(nil)
   end
