@@ -91,10 +91,23 @@ module Ldaptor
     end
 
     def inspect
-      # TODO: base this on the human readability property, not a heuristic
-      "#<#{self.class} #{dn} #{
-        @attributes.reject {|k,v| v.any? {|x| x =~ /[\000-\037]/}}.inspect
-      }>"
+      str = "#<#{self.class} #{dn}"
+      @attributes.each do |k,values|
+        s = (values.size == 1 ? "" : "s")
+        at = self.class.attribute_types[k]
+        if at.syntax_object && !at.syntax_object.x_not_human_readable? && at.syntax_object.desc != "Octet String"
+          str << " " << k << ": " << values.inspect
+        else
+          str << " " << k << ": "
+          if !at.syntax_object
+            str << "(unknown type)"
+          else
+            str << "(" << values.size.to_s << " binary value" << s << ")"
+          end
+        end
+      end
+      # @attributes.reject {|k,v| v.any? {|x| x =~ /[\000-\037]/}}.inspect
+      str << ">"
     end
 
     def read_attribute(key)
@@ -102,9 +115,12 @@ module Ldaptor
       values = @attributes[key]
       return nil if values.nil?
       at = self.class.attribute_types[key]
-      return values unless at
-      if syn = SYNTAXES[at.syntax]
-        if syn == 'DN'
+      unless at
+        warn "Warning: unknown attribute type for #{key}"
+        return values
+      end
+      if syn = SYNTAXES[at.syntax_oid]
+        if at.syntax_oid == '1.3.6.1.4.1.1466.115.121.1.12' # DN
           values = values.map do |value|
             ::LDAP::DN(value,self)
           end
@@ -114,11 +130,21 @@ module Ldaptor
             parser.parse(value)
           end
         end
+      else
+        warn "Warning: unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
       end
-      if at && at.single_value?
+      if at.single_value?
         values.first
       else
         values
+      end
+    end
+
+    # For testing
+    def read_attributes
+      attributes.keys.inject({}) do |hash,key|
+        hash[key] = read_attribute(key)
+        hash
       end
     end
 
@@ -140,17 +166,19 @@ module Ldaptor
       if must.include?(key) && values.empty?
         raise TypeError, "value required", caller
       end
-      if syn = SYNTAXES[at.syntax]
-        if syn == 'DN'
+      if syn = SYNTAXES[at.syntax_oid]
+        if at.syntax_oid == '1.3.6.1.4.1.1466.115.121.1.12' # DN
           values = values.map do |value|
             value.respond_to?(:dn) ? value.dn : value
           end
         else
-          parser = Ldaptor::Syntaxes.const_get(syn.gsub(' ','')) rescue Ldaptor::Syntaxes::DirectoryString
+          parser = at.syntax_object
           values = values.map do |value|
             parser.format(value)
           end
         end
+      else
+        warn "Warning: unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
       end
       @attributes[key] = values
     end
@@ -179,10 +207,10 @@ module Ldaptor
 
     def may_must(attribute)
       attribute = attribute.to_s
-      if may.include?(attribute)
-        :may
-      elsif must.include?(attribute)
+      if must.include?(attribute)
         :must
+      elsif may.include?(attribute)
+        :may
       end
     end
 
@@ -219,21 +247,15 @@ module Ldaptor
 
     def [](*values)
       if !values.empty? && values.all? {|v| v.kind_of?(Hash)}
-        return search(
-          :base => dn[*values],
-          :scope => LDAP::LDAP_SCOPE_BASE
-        ).first
+        return search(:base => dn[*values], :scope => :base).first
       end
       raise ArgumentError unless values.size == 1
       value = values.first
       case value
       when /\(.*=/, LDAP::Filter
-        search(:filter => value, :scope => LDAP::LDAP_SCOPE_ONELEVEL)
+        search(:filter => value, :scope => :onelevel)
       when /=/, Array
-        search(
-          :base => dn[*values],
-          :scope => LDAP::LDAP_SCOPE_BASE
-        ).first
+        search(:base => dn[*values], :scope => :base).first
       else read_attribute(value)
       end
     end
@@ -259,13 +281,13 @@ module Ldaptor
     def rename(new_rdn)
       # TODO: how is new_rdn escaped?
       connection.modrdn(dn,new_rdn,true)
-      @dn = String([new_rdn,LDAP::DN(dn.to_a[1..-1])].join(","))
+      @dn = LDAP::DN([new_rdn,dn.to_a[1..-1]].join(","),self)
     end
 
     class << self
 
       def has_attribute?(attribute)
-        attribute = attribute.to_s.gsub('_','-')
+        attribute = LDAP.escape(attribute)
         may.include?(attribute) || must.include?(attribute)
       end
 
@@ -321,7 +343,7 @@ module Ldaptor
       end
 
       def schema
-        @schema ||= connection.schema
+        @@schema ||= connection.schema
       end
 
       def attributes(all = true)
@@ -419,7 +441,7 @@ module Ldaptor
 
       def children(type = nil, name = nil)
         if name && name != :*
-          self/name
+          self/{type => name}
         elsif type
           search(:filter => {type => :*}, :scope => :onelevel)
         else
@@ -435,6 +457,7 @@ module Ldaptor
         end
       end
 
+      private
       def paged_results_control(cookie = "", size = 126)
         # values above 126 cause problems for slapd, as determined by net/ldap
         ::LDAP::Control.new(
@@ -444,12 +467,11 @@ module Ldaptor
           false
         )
       end
-      private :paged_results_control
 
       def search_options(options = {})
         options = options.dup
         options[:base] = (options[:base] || options[:base_dn] || base_dn).to_s
-        options[:scope] = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::LDAP::LDAP_SCOPE_SUBTREE
+        options[:scope] = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::Ldaptor::SCOPES[:subtree]
         if options[:attributes]
           options[:attributes] = Array(options[:attributes]).map {|x| LDAP.escape(x)}
         end
@@ -460,7 +482,6 @@ module Ldaptor
         options[:filter] = query
         options
       end
-      private :search_options
 
       def search_parameters(options = {})
         options = search_options(options)
@@ -473,7 +494,7 @@ module Ldaptor
           options[:scope],
           options[:filter],
           options[:attributes],
-          false,
+          options[:attributes_only],
           options[:timeout].to_i,
           ((options[:timeout].to_f % 1) * 1e6).round,
           s_attr.to_s,
@@ -501,12 +522,16 @@ module Ldaptor
       ensure
         connection.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[]) rescue nil
       end
-      private :search_raw
 
-      def search(*args)
-        search_raw(*args).map {|r| instantiate(r)}
+      def find_one(dn,options)
+        objects = search(options.merge(:base => dn, :scope => :base))
+        unless objects.size == 1
+          raise RecordNotFound, "record not found for #{dn}", caller
+        end
+        objects.first
       end
 
+      public
       def find(dn,options = {})
         case dn
         when :all   then search(options)
@@ -516,14 +541,10 @@ module Ldaptor
         end
       end
 
-      def find_one(dn,options)
-        objects = search(options.merge(:base => dn, :scope => LDAP::LDAP_SCOPE_BASE))
-        unless objects.size == 1
-          raise RecordNotFound, "record not found for #{dn}", caller
-        end
-        objects.first
+      def search(options)
+        search_raw(options.reject {|k,v| k == :attributes_only}).
+          map {|r| instantiate(r)}
       end
-      private :find_one
 
     end
 

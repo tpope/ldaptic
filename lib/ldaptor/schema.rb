@@ -188,11 +188,15 @@ module Ldaptor
       def syntax_oid
         syntax[/[0-9.]+/]
       end
+      def syntax_len
+        syntax[/\{.*\}/,1]
+      end
       def syntax_name
-        Ldaptor::SYNTAXES[syntax_oid]
+        Ldaptor::SYNTAXES[syntax_oid].name
       end
       def syntax_object
-        Ldaptor::Syntaxes.const_get(syntax_name.delete(' ')) rescue Ldaptor::Syntaxes::DirectoryString
+        Ldaptor::SYNTAXES[syntax_oid]
+        # Ldaptor::Syntaxes.const_get(syntax_name.delete(' ')) rescue Ldaptor::Syntaxes::DirectoryString
       end
     end
 
@@ -207,6 +211,16 @@ module Ldaptor
     class LdapSyntax < AbstractDefinition
       # No name or obsolete flag
       attr_ldap_qdstring   :desc
+      def parse(value)
+        object.parse(value)
+      end
+      def format(value)
+        object.format(value)
+      end
+      def object
+        require 'ldaptor/syntaxes'
+        Ldaptor::Syntaxes.for(name)
+      end
     end
 
     class DITContentRule < NameDescObsoleteDefiniton

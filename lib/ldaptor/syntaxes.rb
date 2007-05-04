@@ -1,6 +1,7 @@
+require 'ldaptor/schema'
 module Ldaptor
 
-  # RFC 2252.  Second column is "Human Readable"
+  # RFC2252.  Second column is "Human Readable"
   SYNTAX_STRING = <<-EOF unless defined? SYNTAX_STRING
 ACI Item                        N  1.3.6.1.4.1.1466.115.121.1.1
 Access Point                    Y  1.3.6.1.4.1.1466.115.121.1.2
@@ -64,12 +65,24 @@ EOF
 
   SYNTAXES = {} unless defined? SYNTAXES
   SYNTAX_STRING.each_line do |line|
-    a, b = line.chomp.split(/ [YN]  /)
-    a.rstrip!
-    SYNTAXES[b] = a
+    d, h, oid = line.chomp.match(/(.*?)\s+([YN])  (.*)/).to_a[1..-1]
+    hash = {:desc => d}
+    if h == "N"
+      hash[:x_not_human_readable] = "TRUE"
+    elsif h != "Y"
+      raise "#{h} WTF"
+    end
+    syntax = Ldaptor::Schema::LdapSyntax.allocate
+    syntax.instance_variable_set(:@oid,oid)
+    syntax.instance_variable_set(:@attributes,hash)
+    SYNTAXES[oid] = syntax
   end
 
   module Syntaxes
+
+    def self.for(string)
+      const_get(string.delete(' ')) rescue DirectoryString
+    end
 
     module DirectoryString
       def self.parse(string)
