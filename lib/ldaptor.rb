@@ -109,7 +109,7 @@ module Ldaptor
             ::LDAP::DN(value,self)
           end
         else
-          parser = Ldaptor::Syntaxes.const_get(syn.gsub(' ','')) rescue Ldaptor::Syntaxes::DirectoryString
+          parser = at.syntax_object
           values = values.map do |value|
             parser.parse(value)
           end
@@ -130,10 +130,10 @@ module Ldaptor
         @attributes[key] = Array(values)
         return values
       end
-      if at.no_user_modification
+      if at.no_user_modification?
         raise Error, "read-only value", caller
       end
-      if at.single_value
+      if at.single_value?
         values = Array(values)
       end
       raise TypeError, "array expected", caller unless values.kind_of?(Array)
@@ -329,15 +329,15 @@ module Ldaptor
       end
 
       def attribute_types
-        @attrs ||= schema["attributeTypes"].inject({}) do |hash,val|
-          at = Ldaptor::AttributeType.new(val)
+        @@attribute_types ||= schema["attributeTypes"].inject({}) do |hash,val|
+          at = Ldaptor::Schema::AttributeType.new(val)
           hash[at.oid] = at
           Array(at.name).each do |name|
             hash[name] = at
           end
           hash
         end
-        @attrs
+        @@attribute_types
       end
 
       def object_class
@@ -362,17 +362,29 @@ module Ldaptor
       def build_hierarchy
         raise TypeError, "cannot build hierarchy for a named class", caller if name
         klasses = connection.schema["objectClasses"].map do |k|
-          Ldaptor::ObjectClass.new(k)
+          Ldaptor::Schema::ObjectClass.new(k)
         end.compact
         add_constants(self,klasses,self)
+        self.base_dn ||= server_default_base_dn
+        nil
+      end
+
+      def server_default_base_dn
+        result = search_raw(:base_dn => "", :scope => :base, :attributes => %w(defaultNamingContext namingContexts)).first rescue nil
+        if result
+           result["defaultNamingContext"].to_a.first || result["namingContexts"].to_a.first
+        end
       end
 
       def add_constants(mod,klasses,superclass)
         klasses.each do |sub|
           if Array(superclass.name).include?(sub.sup) || superclass.name == nil && sub.sup == nil
             klass = Class.new(superclass)
-            %w(oid name desc obsolete sup abstract structural auxiliary must may).each do |prop|
+            %w(oid name desc sup must may).each do |prop|
               klass.instance_variable_set("@#{prop}", sub.send(prop))
+            end
+            %w(obsolete abstract structural auxiliary).each do |prop|
+              klass.instance_variable_set("@#{prop}", sub.send("#{prop}?"))
             end
             klass.instance_variable_set(:@module, mod)
             Array(sub.name).each do |name|
@@ -438,6 +450,9 @@ module Ldaptor
         options = options.dup
         options[:base_dn] = (options[:base_dn] || base_dn).to_s
         options[:scope] = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::LDAP::LDAP_SCOPE_SUBTREE
+        if options[:attributes]
+          options[:attributes] = Array(options[:attributes]).map {|x| LDAP.escape(x)}
+        end
         query = options[:filter]
         query = {:objectClass => :*} if query.nil?
         query = LDAP::Filter(query)
