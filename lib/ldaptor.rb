@@ -5,7 +5,7 @@
 require 'ldaptor/core_ext'
 require 'ldap/dn'
 require 'ldap/filter'
-require 'ldap'
+# require 'ldap'
 require 'ldap/control'
 require 'ldaptor/schema'
 require 'ldaptor/syntaxes'
@@ -13,9 +13,9 @@ require 'ldaptor/syntaxes'
 module Ldaptor
 
   SCOPES = {
-    :base     => ::LDAP::LDAP_SCOPE_BASE,     # 0
-    :onelevel => ::LDAP::LDAP_SCOPE_ONELEVEL, # 1
-    :subtree  => ::LDAP::LDAP_SCOPE_SUBTREE   # 2
+    :base     => 0, # ::LDAP::LDAP_SCOPE_BASE,
+    :onelevel => 1, # ::LDAP::LDAP_SCOPE_ONELEVEL,
+    :subtree  => 2  # ::LDAP::LDAP_SCOPE_SUBTREE
   }
 
   class Error < ::RuntimeError #:nodoc:
@@ -45,19 +45,19 @@ module Ldaptor
   class Base
 
     def initialize(data = {})
-      raise TypeError, "abstract class initialized", caller if self.class.name.nil? || self.class.abstract?
+      raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
       @attributes = self.class.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
-      if @dn = @attributes.delete('dn').first
-        @dn = LDAP::DN(@dn,self)
+      if dn = @attributes.delete('dn') && !dn.empty?
+        @dn = LDAP::DN(dn.first,self)
       end
     end
 
     def dn
-      LDAP::DN(@dn || @attributes['dn'].first)
+      LDAP::DN(@dn) if @dn
     end
 
     def rdn
-      dn && LDAP::DN(dn.to_a.first(1))
+      dn && LDAP::DN(dn.to_a.first(1)).to_s
     end
 
     def /(*args)
@@ -87,11 +87,13 @@ module Ldaptor
       @attributes.each do |k,values|
         s = (values.size == 1 ? "" : "s")
         at = self.class.attribute_types[k]
-        if at.syntax_object && !at.syntax_object.x_not_human_readable? && at.syntax_object.desc != "Octet String"
+        if at && at.syntax_object && !at.syntax_object.x_not_human_readable? && at.syntax_object.desc != "Octet String"
           str << " " << k << ": " << values.inspect
         else
           str << " " << k << ": "
-          if !at.syntax_object
+          if !at
+            str << "(unknown attribute)"
+          elsif !at.syntax_object
             str << "(unknown type)"
           else
             str << "(" << values.size.to_s << " binary value" << s << ")"
@@ -104,7 +106,7 @@ module Ldaptor
 
     def read_attribute(key)
       key = LDAP.escape(key)
-      values = @attributes[key]
+      values = @attributes[key] || @attributes[key.downcase]
       return nil if values.nil?
       at = self.class.attribute_types[key]
       unless at
@@ -177,24 +179,20 @@ module Ldaptor
 
     attr_reader :attributes
 
+    def ldap_ancestors
+      self.class.ldap_ancestors | objectClass.map {|c| self.class.root.const_get(c.ldapitalize(true))}
+    end
+
+    def aux
+      objectClass.map {|c| self.class.root.const_get(c.ldapitalize(true))} - self.class.ldap_ancestors
+    end
+
     def must(all = true)
-      return self.class.must(all)
+      return self.class.must(all) + aux.map {|a|a.must(false)}.flatten
     end
 
     def may(all = true)
-      # TODO: account for AUX
-      return self.class.may(all)
-
-      may = []
-      self["objectClass"].reverse.each do |oc|
-        may += self.class.schema.may(oc).to_a
-        aux = self.class.schema.aux(oc).to_a
-        aux.each do |oc2|
-          may += self.class.schema.may(oc2).to_a
-        end
-      end
-      may.uniq!
-      may + must
+      return self.class.may(all)  + aux.map {|a|a.may(false) + a.must(false)}.flatten
     end
 
     def may_must(attribute)
@@ -270,6 +268,17 @@ module Ldaptor
       self
     end
 
+    def reload
+      new = search(:scope => :base).first
+      @original_attributes = new.instance_variable_get(:@original_attributes)
+      @attributes          = new.instance_variable_get(:@attributes)
+      self
+    end
+
+    def respond_to?(method)
+      super(method) || (may + must + (may+must).map {|x| "#{a}="}).include?(method.to_s)
+    end
+
     def rename(new_rdn)
       # TODO: how is new_rdn escaped?
       connection.modrdn(dn,new_rdn,true)
@@ -306,20 +315,38 @@ module Ldaptor
 
       inheritable_accessor :connection, :base_dn
       def base_dn=(dn)
-        @base_dn = LDAP::DN(dn)
+        @base_dn = LDAP::DN(dn,self)
       end
 
-      attr_reader :oid, :name, :desc, :sup
+      attr_reader :oid, :desc, :sup
       %w(obsolete abstract structural auxiliary).each do |attr|
         class_eval("def #{attr}?; !! @#{attr}; end")
       end
+      def names
+        Array(@name)
+      end
+      # def name
+        # warn "name is deprecated, use names.first"
+        # return super
+        # names.first
+      # end
+
+      def create_accessors
+        (may(false) + must(false)).each do |attr|
+          method = attr.to_s.tr_s('-_','_-')
+          define_method("#{method}") { read_attribute(attr) }
+          unless attribute_types[attr].no_user_modification?
+            define_method("#{method}="){ |value| write_attribute(attr,value) }
+          end
+        end
+      end
 
       def ldap_ancestors
-        ancestors.select {|o| o.ancestors.include?(Base) && o != Base && o.oid != false}
+        ancestors.select {|o| o.respond_to?(:oid) && o.oid }
       end
 
       def root
-        ancestors.detect {|o| o.oid.nil?}
+        ancestors.detect {|o| o.respond_to?(:oid) && o.oid.nil? }
       end
 
       def may(all = true)
@@ -366,8 +393,53 @@ module Ldaptor
         end
       end
 
+      def root_dse(attrs = nil)
+        attrs ||= %w[
+          objectClass
+          subschemaSubentry
+          namingContexts
+          monitorContext
+          altServer
+          supportedControl
+          supportedExtension
+          supportedFeatures
+          supportedSASLMechanisms
+          supportedLDAPVersion
+        ]
+        result = search(
+          :instantiate => false,
+          :base => "",
+          :scope => :base,
+          :filter => {:objectClass => :*},
+          :attributes => attrs,
+          :limit => true
+        )
+      end
+
+      def raw_schema(attrs = nil)
+        attrs ||= %w[
+          objectClass
+          objectClasses
+          attributeTypes
+          matchingRules
+          matchingRuleUse
+          dITStructureRules
+          dITContentRules
+          nameForms
+          ldapSyntaxes
+        ]
+        result = search(
+          :instantiate => false,
+          :base => root_dse('subschemaSubentry'),
+          :scope => :base,
+          :filter => {:objectClass => "subSchema"},
+          :attributes => attrs,
+          :limit => true
+        )
+      end
+
       def schema
-        @@schema ||= connection.schema
+        instantiate(raw_schema)
       end
 
       def attributes(all = true)
@@ -375,7 +447,8 @@ module Ldaptor
       end
 
       def attribute_types
-        @@attribute_types ||= schema["attributeTypes"].inject({}) do |hash,val|
+        return root.attribute_types unless self == root
+        @attribute_types ||= raw_schema("attributeTypes").inject({}) do |hash,val|
           at = Ldaptor::Schema::AttributeType.new(val)
           hash[at.oid] = at
           Array(at.name).each do |name|
@@ -383,11 +456,12 @@ module Ldaptor
           end
           hash
         end
-        @@attribute_types
+        @attribute_types
       end
 
       def dit_content_rules
-        @@dit_content_rules ||= schema["dITContentRules"].inject({}) do |hash,val|
+        return root.dit_content_rules unless self == root
+        @dit_content_rules ||= raw_schema("dITContentRules").inject({}) do |hash,val|
           dit = Ldaptor::Schema::DITContentRule.new(val)
           hash[dit.oid] = dit
           Array(dit.name).each do |name|
@@ -402,7 +476,7 @@ module Ldaptor
       end
 
       def object_class
-        @object_class || Array(@name).first
+        @object_class || names.first
       end
 
       def object_classes
@@ -421,8 +495,8 @@ module Ldaptor
       end
 
       def build_hierarchy
-        raise TypeError, "cannot build hierarchy for a named class", caller if name
-        klasses = connection.schema["objectClasses"].map do |k|
+        raise TypeError, "cannot build hierarchy for a named class", caller if oid
+        klasses = raw_schema("objectClasses").to_a.map do |k|
           Ldaptor::Schema::ObjectClass.new(k)
         end.compact
         add_constants(self,klasses,self)
@@ -431,15 +505,16 @@ module Ldaptor
       end
 
       def server_default_base_dn
-        result = search_raw(:base => "", :scope => :base, :attributes => %w(defaultNamingContext namingContexts)).first rescue nil
+        result = root_dse(%w(defaultNamingContext namingContexts))
         if result
-           result["defaultNamingContext"].to_a.first || result["namingContexts"].to_a.first
+          result["defaultNamingContext"].to_a.first ||
+            result["namingContexts"].to_a.first
         end
       end
 
       def add_constants(mod,klasses,superclass)
         klasses.each do |sub|
-          if Array(superclass.name).include?(sub.sup) || superclass.name == nil && sub.sup == nil
+          if superclass.names.include?(sub.sup) || superclass.names.empty? && sub.sup == nil
             klass = Class.new(superclass)
             %w(oid name desc sup must may).each do |prop|
               klass.instance_variable_set("@#{prop}", sub.send(prop))
@@ -451,6 +526,7 @@ module Ldaptor
             Array(sub.name).each do |name|
               mod.const_set(name.ldapitalize(true), klass)
             end
+            klass.send(:create_accessors)
             add_constants(mod, klasses, klass)
           end
         end
@@ -467,7 +543,7 @@ module Ldaptor
           end
         end
         obj = allocate
-        obj.instance_variable_set(:@dn,attributes.delete('dn').first)
+        obj.instance_variable_set(:@dn,Array(attributes.delete('dn')).first)
         obj.instance_variable_set(:@original_attributes,attributes)
         obj.instance_variable_set(:@attributes,clone_ldap_hash(attributes))
         obj
@@ -499,13 +575,13 @@ module Ldaptor
         end
       end
 
-      def method_missing(method,*args,&block)
-        if args.size == 1
-          children(method.to_s.ldapitalize,*args)
-        else
-          super
-        end
-      end
+      # def method_missing(method,*args,&block)
+        # if args.size == 1
+          # children(method.to_s.ldapitalize,*args)
+        # else
+          # super
+        # end
+      # end
 
       private
       def paged_results_control(cookie = "", size = 126)
@@ -520,10 +596,14 @@ module Ldaptor
 
       def search_options(options = {})
         options = options.dup
+        options[:instantiate] = true unless options.has_key?(:instantiate)
+        options.delete(:attributes_only) if options[:instantiate]
         options[:base] = (options[:base] || options[:base_dn] || base_dn).to_s
         options[:scope] = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::Ldaptor::SCOPES[:subtree]
-        if options[:attributes]
-          options[:attributes] = Array(options[:attributes]).map {|x| LDAP.escape(x)}
+        if options[:attributes].respond_to?(:to_ary)
+          options[:attributes] = options[:attributes].map {|x| LDAP.escape(x)}
+        elsif options[:attributes]
+          options[:attributes] = LDAP.escape(options[:attributes])
         end
         query = options[:filter]
         query = {:objectClass => :*} if query.nil?
@@ -534,7 +614,6 @@ module Ldaptor
       end
 
       def search_parameters(options = {})
-        options = search_options(options)
         case options[:sort]
         when Proc, Method then s_attr, s_proc = nil, options[:sort]
         else s_attr, s_proc = options[:sort], nil
@@ -543,7 +622,7 @@ module Ldaptor
           options[:base],
           options[:scope],
           options[:filter],
-          options[:attributes],
+          options[:attributes] && Array(options[:attributes]),
           options[:attributes_only],
           options[:timeout].to_i,
           ((options[:timeout].to_f % 1) * 1e6).round,
@@ -552,18 +631,14 @@ module Ldaptor
         ]
       end
 
-      def search_raw(options = {},&block)
-        ary = []
+      def raw_ldap_search(options = {}, &block)
         cookie = ""
+        options = search_options(options)
+        parameters = search_parameters(options)
         while cookie
           ctrl = paged_results_control(cookie)
           connection.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[ctrl])
-          collect = Proc.new do |entry|
-            ary << entry
-            block.call(entry) if block_given?
-            return ary if ary.size == options[:limit]
-          end
-          result = connection.search2(*search_parameters(options), &collect)
+          result = connection.search2(*parameters, &block)
           ctrl = connection.controls.detect {|c| c.oid == ctrl.oid}
           cookie = ctrl && ctrl.decode.last
           cookie = nil if cookie.to_s.empty?
@@ -571,6 +646,36 @@ module Ldaptor
         ary
       ensure
         connection.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[]) rescue nil
+      end
+
+      def raw_net_ldap_search(options = {}, &block)
+        connection.search(options.merge(:return_result => false)) do |entry|
+          hash = {}
+          entry.each do |attr,val|
+            attr = case attr.to_s
+                   when "dn" then "dn"
+                   when "attributetypes" then "attributeTypes"
+                   when "subschemasubentry" then "subschemaSubentry"
+                   else
+                     attribute_types.keys.detect do |x|
+                       x.downcase == attr.to_s
+                       # break(x.name) if x.names.map {|n|n.downcase}.include?(attr.to_s)
+                     end
+                   end
+            hash[attr.to_s] = val
+          end
+          block.call(hash)
+        end
+      end
+
+      def raw_adapter_search(options = {}, &block)
+        if defined?(::LDAP::Conn) && connection.kind_of?(::LDAP::Conn)
+          raw_ldap_search(options,&block)
+        elsif defined?(::Net::LDAP) && connection.kind_of?(::Net::LDAP)
+          raw_net_ldap_search(options,&block)
+        else
+          raise "invalid connection"
+        end
       end
 
       def find_one(dn,options)
@@ -585,15 +690,33 @@ module Ldaptor
       def find(dn,options = {})
         case dn
         when :all   then search(options)
-        when :first then search(options.merge(:limit => 1)).first
+        when :first then search(options.merge(:limit => true))
         when Array  then dn.map {|d| find_one(d,options)}
         else             find_one(dn,options)
         end
       end
 
-      def search(options)
-        search_raw(options.reject {|k,v| k == :attributes_only}).
-          map {|r| instantiate(r)}
+      def search(options = {},&block)
+        ary = []
+        cookie = ""
+        options = search_options(options)
+        if options[:limit] == true
+          options[:limit] = 1
+          first = true
+        end
+        one_attribute = options[:attributes]
+        if one_attribute.respond_to?(:to_ary)
+          one_attribute = nil
+        end
+        raw_adapter_search(options) do |entry|
+          entry = instantiate(entry) if options[:instantiate]
+          entry = entry[one_attribute] if one_attribute
+          ary << entry
+          block.call(entry) if block_given?
+          return entry if first == true
+          return ary   if options[:limit] == ary.size
+        end
+        first ? ary.first : ary
       end
 
     end

@@ -162,6 +162,9 @@ module Ldaptor
       attr_ldap_qdescrs    :name
       attr_ldap_qdstring   :desc
       attr_ldap_boolean    :obsolete
+      def names
+        Array(name)
+      end
     end
 
     class ObjectClass < NameDescObsoleteDefiniton
@@ -186,10 +189,10 @@ module Ldaptor
       attr_ldap_qdescr     :usage  # attr_ldap_usage
 
       def syntax_oid
-        syntax[/[0-9.]+/]
+        @attributes[:syntax][/[0-9.]+/]
       end
       def syntax_len
-        syntax[/\{.*\}/,1]
+        @attributes[:syntax][/\{.*\}/,1]
       end
       def syntax_name
         Ldaptor::SYNTAXES[syntax_oid].name
@@ -198,6 +201,7 @@ module Ldaptor
         Ldaptor::SYNTAXES[syntax_oid]
         # Ldaptor::Syntaxes.const_get(syntax_name.delete(' ')) rescue Ldaptor::Syntaxes::DirectoryString
       end
+      alias syntax syntax_object
     end
 
     class MatchingRule < NameDescObsoleteDefiniton

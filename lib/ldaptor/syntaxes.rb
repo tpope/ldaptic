@@ -69,8 +69,6 @@ EOF
     hash = {:desc => d}
     if h == "N"
       hash[:x_not_human_readable] = "TRUE"
-    elsif h != "Y"
-      raise "#{h} WTF"
     end
     syntax = Ldaptor::Schema::LdapSyntax.allocate
     syntax.instance_variable_set(:@oid,oid)
@@ -126,5 +124,12 @@ EOF
     end
 
   end
+  {
+    "1.2.840.113556.1.4.906" => "1.3.6.1.4.1.1466.115.121.1.27"
+  }.each do |k,v|
+    SYNTAXES[k] = SYNTAXES[v]
+  end
 
 end
+
+
