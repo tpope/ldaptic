@@ -118,7 +118,7 @@ EOF
     module GeneralizedTime
       def self.parse(string)
         require 'time'
-        Time.parse(string)
+        Time.parse(string.sub(/(\.0)(\w)$/,'\\2'))+$1.to_f
       end
       def self.format(time)
         time.utc.strftime("%Y%m%d%H%M%S")+".%06dZ" % (time.usec/100_000)

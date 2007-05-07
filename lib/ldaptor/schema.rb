@@ -219,7 +219,7 @@ module Ldaptor
       end
       def object
         require 'ldaptor/syntaxes'
-        Ldaptor::Syntaxes.for(name)
+        Ldaptor::Syntaxes.for(desc.delete(" "))
       end
     end
 

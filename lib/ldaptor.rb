@@ -38,19 +38,11 @@ module Ldaptor
     klass.connection = connection
     klass.base_dn = base_dn
     klass.instance_variable_set(:@name, false)
+    klass.instance_variable_set(:@oid,  false)
     klass
   end
 
   class Base
-
-    def self.clone_ldap_hash(attributes)
-      hash = Hash.new {|h,k| h[k] = [] }
-      attributes.each do |k,v|
-        hash[k.kind_of?(Symbol) ?  k.to_s.gsub('_','-') : k.dup] = Array(v).map {|x| x.dup rescue x}
-      end
-      hash
-    end
-
 
     def initialize(data = {})
       raise TypeError, "abstract class initialized", caller if self.class.name.nil? || self.class.abstract?
@@ -286,6 +278,14 @@ module Ldaptor
 
     class << self
 
+      def clone_ldap_hash(attributes)
+        hash = Hash.new {|h,k| h[k] = [] }
+        attributes.each do |k,v|
+          hash[k.kind_of?(Symbol) ?  k.to_s.gsub('_','-') : k.dup] = Array(v).map {|x| x.dup rescue x}
+        end
+        hash
+      end
+
       def has_attribute?(attribute)
         attribute = LDAP.escape(attribute)
         may.include?(attribute) || must.include?(attribute)
@@ -315,18 +315,27 @@ module Ldaptor
       end
 
       def ldap_ancestors
-        ancestors.select {|o| o.ancestors.include?(Base) && o != Base && o.name != false}
+        ancestors.select {|o| o.ancestors.include?(Base) && o != Base && o.oid != false}
       end
 
       def root
-        ldap_ancestors.last
+        ancestors.detect {|o| o.oid.nil?}
       end
 
       def may(all = true)
         if all
-          ldap_ancestors.collect do |klass|
-            Array(klass.may(false))
-          end.flatten.uniq
+          nott = []
+          ldap_ancestors.inject([]) do |memo,klass|
+            memo |= Array(klass.may(false))
+            if dit = klass.dit_content_rule
+              memo |= Array(dit.may)
+              nott |= Array(dit.not)
+              # Array(dit.aux).each do |aux|
+                # memo |= root.const_get(aux.ldapitalize(true)).may(false)
+              # end
+            end
+            memo - nott
+          end
         else
           Array(@may)
         end
@@ -334,11 +343,26 @@ module Ldaptor
 
       def must(all = true)
         if all
-          ldap_ancestors.collect do |klass|
-            Array(klass.must(false))
+          ldap_ancestors.inject([]) do |memo,klass|
+            memo |= Array(klass.must(false))
+            if dit = klass.dit_content_rule
+              memo |= Array(dit.must)
+              # Array(dit.aux).each do |aux|
+                # memo |= root.const_get(aux.ldapitalize(true)).must(false)
+              # end
+            end
+            memo
           end.flatten.uniq
         else
           Array(@must)
+        end
+      end
+
+      def aux
+        if dit_content_rule
+          Array(dit_content_rule.aux)
+        else
+          []
         end
       end
 
@@ -362,6 +386,21 @@ module Ldaptor
         @@attribute_types
       end
 
+      def dit_content_rules
+        @@dit_content_rules ||= schema["dITContentRules"].inject({}) do |hash,val|
+          dit = Ldaptor::Schema::DITContentRule.new(val)
+          hash[dit.oid] = dit
+          Array(dit.name).each do |name|
+            hash[name] = dit
+          end
+          hash
+        end
+      end
+
+      def dit_content_rule
+        dit_content_rules[oid]
+      end
+
       def object_class
         @object_class || Array(@name).first
       end
@@ -375,7 +414,7 @@ module Ldaptor
       def inherited(subclass)
         @subclasses ||= []
         @subclasses << subclass
-        if name == false
+        if oid == false
           subclass.send(:build_hierarchy)
         end
         super
@@ -437,6 +476,17 @@ module Ldaptor
 
       def /(*args)
         find(base_dn.send(:/,*args))
+      end
+
+      def [](*args)
+        find(base_dn[*args])
+      end
+
+      def *(filter)
+        search(:filter => filter, :scope => :onelevel)
+      end
+      def **(filter)
+        search(:filter => filter, :scope => :subtree)
       end
 
       def children(type = nil, name = nil)
