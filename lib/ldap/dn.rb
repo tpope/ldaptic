@@ -26,7 +26,7 @@ module LDAP
   # RFC4514 - Lightweight Directory Access Protocol (LDAP): String Representation of Distinguished Names
   #
   class DN < ::String
-
+    OID = '1.3.6.1.4.1.1466.115.121.1.12' unless defined? OID
     #   LDAP::DN[{:dc => 'com'},{:dc => 'amazon'}]
     #   => "dc=amazon,dc=com"
     def self.[](*args)

@@ -50,22 +50,126 @@ module Ldaptor
     klass = Class.new(Base)
     klass.connection = connection
     klass.base_dn = base_dn
-    klass.instance_variable_set(:@oid,  false)
+    klass.instance_variable_set(:@parent,  true)
     klass
   end
 
-  class Base
+  module ObjectClassMethods
+    attr_reader :oid, :desc, :sup
+    %w(obsolete abstract structural auxiliary).each do |attr|
+      class_eval("def #{attr}?; !! @#{attr}; end")
+    end
+    def names
+      Array(@name)
+    end
 
-    def initialize(data = {})
-      raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
-      @attributes = Ldaptor.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
-      if dn = @attributes.delete('dn')
-        @dn = LDAP::DN(dn.first,self) if dn.first
+    def instantiate(attributes, namespace = nil)
+      if klass = @subclasses.to_a.find {|c| attributes["objectClass"].to_a.include?(c.object_class)}
+        return klass.send(:instantiate,attributes)
+      elsif klass = self.namespace.const_get(attributes["objectClass"].last.to_s.ldapitalize(true)) rescue nil
+        if klass != self
+          return klass.send(:instantiate,attributes)
+        end
+      end
+      obj = allocate
+      obj.instance_variable_set(:@dn,Array(attributes.delete('dn')).first)
+      obj.instance_variable_set(:@original_attributes,attributes)
+      obj.instance_variable_set(:@attributes,Ldaptor.clone_ldap_hash(attributes))
+      obj.instance_variable_set(:@namespace, namespace || @namespace)
+      obj
+    end
+    protected :instantiate
+
+    def has_attribute?(attribute)
+      attribute = LDAP.escape(attribute)
+      may.include?(attribute) || must.include?(attribute)
+    end
+
+    def create_accessors
+      (may(false) + must(false)).each do |attr|
+        method = attr.to_s.tr_s('-_','_-')
+        define_method("#{method}") { read_attribute(attr) }
+        unless attribute_types[attr].no_user_modification?
+          define_method("#{method}="){ |value| write_attribute(attr,value) }
+        end
       end
     end
 
+    def ldap_ancestors
+      ancestors.select {|o| o.respond_to?(:oid) && o.oid }
+    end
+
+    def namespace
+      @namespace || ancestors.detect {|o| o.respond_to?(:oid) && o.oid.nil? }
+    end
+
+    def may(all = true)
+      if all
+        nott = []
+        ldap_ancestors.inject([]) do |memo,klass|
+          memo |= Array(klass.may(false))
+          if dit = klass.dit_content_rule
+            memo |= Array(dit.may)
+            nott |= Array(dit.not)
+            # Array(dit.aux).each do |aux|
+            # memo |= self.namespace.const_get(aux.ldapitalize(true)).may(false)
+            # end
+          end
+          memo - nott
+        end
+      else
+        Array(@may)
+      end
+    end
+
+    def must(all = true)
+      if all
+        ldap_ancestors.inject([]) do |memo,klass|
+          memo |= Array(klass.must(false))
+          if dit = klass.dit_content_rule
+            memo |= Array(dit.must)
+            # Array(dit.aux).each do |aux|
+            # memo |= self.namespace.const_get(aux.ldapitalize(true)).must(false)
+            # end
+          end
+          memo
+        end.flatten.uniq
+      else
+        Array(@must)
+      end
+    end
+
+    def aux
+      if dit_content_rule
+        Array(dit_content_rule.aux)
+      else
+        []
+      end
+    end
+
+    def attributes(all = true)
+      may(all) + must(all)
+    end
+
+    def dit_content_rule
+      dit_content_rules[oid]
+    end
+
+    def object_class
+      @object_class || names.first
+    end
+
+    def object_classes
+      ldap_ancestors.map {|a| a.object_class}.compact.reverse.uniq
+    end
+
+    alias objectClass object_classes
+  end
+
+  module ObjectMethods
+
     def dn
-      LDAP::DN(@dn) if @dn
+      LDAP::DN(@dn,self) if @dn
     end
 
     def rdn
@@ -91,8 +195,9 @@ module Ldaptor
     end
 
     def namespace
-      self.class.namespace
+      @namespace || self.class.namespace
     end
+
     def connection
       self.class.connection
     end
@@ -129,7 +234,7 @@ module Ldaptor
         return values
       end
       if syn = SYNTAXES[at.syntax_oid]
-        if at.syntax_oid == '1.3.6.1.4.1.1466.115.121.1.12' # DN
+        if at.syntax_oid == ::LDAP::DN::OID # DN
           values = values.map do |value|
             ::LDAP::DN(value,self)
           end
@@ -176,7 +281,7 @@ module Ldaptor
         raise TypeError, "value required", caller
       end
       if syn = SYNTAXES[at.syntax_oid]
-        if at.syntax_oid == '1.3.6.1.4.1.1466.115.121.1.12' # DN
+        if at.syntax_oid == LDAP::DN::OID
           values = values.map do |value|
             value.respond_to?(:dn) ? value.dn : value
           end
@@ -302,133 +407,69 @@ module Ldaptor
       connection.modrdn(dn,new_rdn,true)
       @dn = LDAP::DN([new_rdn,dn.to_a[1..-1]].join(","),self)
     end
+  end
+
+  class Object
+    extend ObjectClassMethods
+    include ObjectMethods
+    def self.inherited(subclass)
+      @subclasses ||= []
+      @subclasses << subclass
+    end
+
+    def self.attribute_types
+      self.namespace.attribute_types
+    end
+
+    def self.dit_content_rules
+      self.namespace.dit_content_rules
+    end
+
+    def initialize(data = {})
+      raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
+      @attributes = Ldaptor.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
+      if dn = @attributes.delete('dn')
+        @dn = LDAP::DN(dn.first,self) if dn.first
+      end
+    end
+  end
+
+  class Base
+
+    # include ObjectMethods
+
+    def initialize(data = {})
+      raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
+      @attributes = Ldaptor.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
+      if dn = @attributes.delete('dn')
+        @dn = LDAP::DN(dn.first,self) if dn.first
+      end
+    end
 
     class << self
 
-      def instantiate(attributes, namespace = nil) # ObjectClass
-        if klass = @subclasses.to_a.find {|c| attributes["objectClass"].to_a.include?(c.object_class)}
-          return klass.send(:instantiate,attributes)
-        elsif klass = self.namespace.const_get(attributes["objectClass"].last.to_s.ldapitalize(true)) rescue nil
-          if klass != self
-            return klass.send(:instantiate,attributes)
-          end
-        end
-        obj = allocate
-        obj.instance_variable_set(:@dn,Array(attributes.delete('dn')).first)
-        obj.instance_variable_set(:@original_attributes,attributes)
-        obj.instance_variable_set(:@attributes,Ldaptor.clone_ldap_hash(attributes))
-        obj.instance_variable_set(:@namespace, namespace || @namespace)
-        obj
-      end
-      protected :instantiate
-
-      def has_attribute?(attribute) # ObjectClass
-        attribute = LDAP.escape(attribute)
-        may.include?(attribute) || must.include?(attribute)
-      end
-
-      def create_accessors # ObjectClass
-        (may(false) + must(false)).each do |attr|
-          method = attr.to_s.tr_s('-_','_-')
-          define_method("#{method}") { read_attribute(attr) }
-          unless attribute_types[attr].no_user_modification?
-            define_method("#{method}="){ |value| write_attribute(attr,value) }
-          end
-        end
-      end
-
-      def ldap_ancestors # ObjectClass
-        ancestors.select {|o| o.respond_to?(:oid) && o.oid }
-      end
-
-      def root # ObjectClass
-        @namespace || ancestors.detect {|o| o.respond_to?(:oid) && o.oid.nil? }
-      end
-
-      def namespace
-        root
-      end
-
-      def may(all = true) # ObjectClass
-        if all
-          nott = []
-          ldap_ancestors.inject([]) do |memo,klass|
-            memo |= Array(klass.may(false))
-            if dit = klass.dit_content_rule
-              memo |= Array(dit.may)
-              nott |= Array(dit.not)
-              # Array(dit.aux).each do |aux|
-                # memo |= self.namespace.const_get(aux.ldapitalize(true)).may(false)
-              # end
-            end
-            memo - nott
-          end
-        else
-          Array(@may)
-        end
-      end
-
-      def must(all = true) # ObjectClass
-        if all
-          ldap_ancestors.inject([]) do |memo,klass|
-            memo |= Array(klass.must(false))
-            if dit = klass.dit_content_rule
-              memo |= Array(dit.must)
-              # Array(dit.aux).each do |aux|
-                # memo |= self.namespace.const_get(aux.ldapitalize(true)).must(false)
-              # end
-            end
-            memo
-          end.flatten.uniq
-        else
-          Array(@must)
-        end
-      end
-
-      def aux # ObjectClass
-        if dit_content_rule
-          Array(dit_content_rule.aux)
-        else
-          []
-        end
-      end
-
-      def attributes(all = true) # ObjectClass
-        may(all) + must(all)
-      end
-
-      def object_class # ObjectClass
-        @object_class || names.first
-      end
-
-      def object_classes # ObjectClass
-        ldap_ancestors.map {|a| a.object_class}.compact.reverse.uniq
-      end
-
-      alias objectClass object_classes # ObjectClass
+      # include ObjectClassMethods
 
       def inherited(subclass)
-        # ObjectClass
-        @subclasses ||= []
-        @subclasses << subclass
         # Namespace
-        if oid == false
+        if @parent
           subclass.send(:build_hierarchy)
         end
         super
       end
 
-      def build_hierarchy # ?????
-        raise TypeError, "cannot build hierarchy for a named class", caller if oid
+      def build_hierarchy
+        # raise TypeError, "cannot build hierarchy for a named class", caller if oid
         klasses = raw_schema("objectClasses").to_a.map do |k|
           Ldaptor::Schema::ObjectClass.new(k)
-        end.compact
-        add_constants(self,klasses,self)
+        end
+        add_constants(klasses,Ldaptor::Object) # Ldaptor::Object
         self.base_dn ||= server_default_base_dn
         nil
       end
 
-      def add_constants(mod,klasses,superclass) # ?????
+      def add_constants(klasses,superclass) # Namespace
+        mod = self
         klasses.each do |sub|
           if superclass.names.include?(sub.sup) || superclass.names.empty? && sub.sup == nil
             klass = Class.new(superclass)
@@ -443,7 +484,7 @@ module Ldaptor
               mod.const_set(name.ldapitalize(true), klass)
             end
             klass.send(:create_accessors)
-            add_constants(self, klasses, klass)
+            add_constants(klasses, klass)
           end
         end
       end
@@ -466,20 +507,6 @@ module Ldaptor
       def base_dn=(dn) # Namespace
         @base_dn = LDAP::DN(dn,self)
       end
-
-      # Namespace
-      attr_reader :oid, :desc, :sup
-      %w(obsolete abstract structural auxiliary).each do |attr|
-        class_eval("def #{attr}?; !! @#{attr}; end")
-      end
-      def names
-        Array(@name)
-      end
-      # def name
-        # warn "name is deprecated, use names.first"
-        # return super
-        # names.first
-      # end
 
       def root_dse(attrs = nil) # Namespace
         attrs ||= %w[
@@ -531,7 +558,6 @@ module Ldaptor
       end
 
       def attribute_types # Namespace
-        return self.namespace.attribute_types unless self == self.namespace
         @attribute_types ||= raw_schema("attributeTypes").inject({}) do |hash,val|
           at = Ldaptor::Schema::AttributeType.new(val)
           hash[at.oid] = at
@@ -544,7 +570,6 @@ module Ldaptor
       end
 
       def dit_content_rules # Namespace
-        return self.namespace.dit_content_rules unless self == self.namespace
         @dit_content_rules ||= raw_schema("dITContentRules").inject({}) do |hash,val|
           dit = Ldaptor::Schema::DITContentRule.new(val)
           hash[dit.oid] = dit
@@ -553,10 +578,6 @@ module Ldaptor
           end
           hash
         end
-      end
-
-      def dit_content_rule # Namespace
-        dit_content_rules[oid]
       end
 
       def server_default_base_dn # Namespace
@@ -611,7 +632,7 @@ module Ldaptor
         query = options[:filter]
         query = {:objectClass => :*} if query.nil?
         query = LDAP::Filter(query)
-        query &= {:objectClass => object_class} if object_class
+        # query &= {:objectClass => object_class} if object_class
         options[:filter] = query
         options
       end
@@ -711,7 +732,10 @@ module Ldaptor
           one_attribute = nil
         end
         raw_adapter_search(options) do |entry|
-          entry = instantiate(entry,self.namespace) if options[:instantiate]
+          if options[:instantiate]
+            klass = const_get("Top")
+            entry = klass.send(:instantiate,entry,self)
+          end
           entry = entry[one_attribute] if one_attribute
           ary << entry
           block.call(entry) if block_given?
