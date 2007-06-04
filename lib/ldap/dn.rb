@@ -209,7 +209,7 @@ module LDAP
       LDAP::DN(args.reverse + to_a, source)
     end
 
-    # With a hash (and only with a Hash), prepends a RDN to the DN, modifying
+    # With a Hash (and only with a Hash), prepends a RDN to the DN, modifying
     # the receiver in place.  Otherwise, behaves like String#<<.
     def <<(arg)
       if arg.kind_of?(Hash)
@@ -218,7 +218,7 @@ module LDAP
         super
       end
     end
-
+f
 
   end
 end
