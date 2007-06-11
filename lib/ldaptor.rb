@@ -199,7 +199,7 @@ module Ldaptor
     end
 
     def connection
-      self.class.connection
+      namespace.connection
     end
 
     def inspect
@@ -404,8 +404,8 @@ module Ldaptor
 
     def rename(new_rdn)
       # TODO: how is new_rdn escaped?
-      connection.modrdn(dn,new_rdn,true)
-      @dn = LDAP::DN([new_rdn,dn.to_a[1..-1]].join(","),self)
+      connection.modrdn(dn,LDAP::DN([new_rdn]),true)
+      @dn = LDAP::DN([new_rdn]+dn.to_a[1..-1],self)
     end
   end
 
