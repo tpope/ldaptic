@@ -9,6 +9,7 @@ require 'ldap/filter'
 require 'ldap/control'
 require 'ldaptor/schema'
 require 'ldaptor/syntaxes'
+require 'ldaptor/adapters'
 
 module Ldaptor
 
@@ -199,7 +200,11 @@ module Ldaptor
     end
 
     def connection
-      namespace.connection
+      self.class.connection
+    end
+
+    def adapter
+      self.class.namespace.adapter
     end
 
     def inspect
@@ -382,13 +387,18 @@ module Ldaptor
         updates = @attributes.reject do |k,v|
           @original_attributes[k] == v
         end
-        connection.modify(dn,updates) unless updates.empty?
+        adapter.modify(dn,updates) unless updates.empty?
       else
-        connection.add(dn, @attributes)
+        adapter.add(dn, @attributes)
       end
       @original_attributes = @attributes
       @attributes = Ldaptor.clone_ldap_hash(@original_attributes)
       self
+    end
+
+    def destroy
+      adapter.delete(dn)
+      freeze
     end
 
     def reload
@@ -404,8 +414,8 @@ module Ldaptor
 
     def rename(new_rdn)
       # TODO: how is new_rdn escaped?
-      connection.modrdn(dn,LDAP::DN([new_rdn]),true)
-      @dn = LDAP::DN([new_rdn]+dn.to_a[1..-1],self)
+      connection.modrdn(dn,new_rdn,true)
+      @dn = LDAP::DN([new_rdn,dn.to_a[1..-1]].join(","),self)
     end
   end
 
@@ -418,11 +428,11 @@ module Ldaptor
     end
 
     def self.attribute_types
-      self.namespace.attribute_types
+      self.namespace.adapter.attribute_types
     end
 
     def self.dit_content_rules
-      self.namespace.dit_content_rules
+      self.namespace.adapter.dit_content_rules
     end
 
     def initialize(data = {})
@@ -436,19 +446,7 @@ module Ldaptor
 
   class Base
 
-    # include ObjectMethods
-
-    def initialize(data = {})
-      raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
-      @attributes = Ldaptor.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
-      if dn = @attributes.delete('dn')
-        @dn = LDAP::DN(dn.first,self) if dn.first
-      end
-    end
-
     class << self
-
-      # include ObjectClassMethods
 
       def inherited(subclass)
         # Namespace
@@ -459,12 +457,9 @@ module Ldaptor
       end
 
       def build_hierarchy
-        # raise TypeError, "cannot build hierarchy for a named class", caller if oid
-        klasses = raw_schema("objectClasses").to_a.map do |k|
-          Ldaptor::Schema::ObjectClass.new(k)
-        end
+        klasses = adapter.object_classes.values.uniq
         add_constants(klasses,Ldaptor::Object) # Ldaptor::Object
-        self.base_dn ||= server_default_base_dn
+        self.base_dn ||= adapter.server_default_base_dn
         nil
       end
 
@@ -490,109 +485,40 @@ module Ldaptor
       end
       private :add_constants
 
-      def self.inheritable_accessor(*names) # Namespace
+      def self.inheritable_reader(*names) # Namespace
         names.each do |name|
           define_method name do
             val = instance_variable_get("@#{name}")
             return val unless val.nil?
             return superclass.send(name) if superclass.respond_to?(name)
           end
-          define_method "#{name}=" do |value|
-            instance_variable_set("@#{name}",value)
-          end
         end
       end
 
-      inheritable_accessor :connection, :base_dn
-      def base_dn=(dn) # Namespace
+      inheritable_reader :connection, :base_dn, :adapter
+      def base_dn=(dn)
         @base_dn = LDAP::DN(dn,self)
       end
-
-      def root_dse(attrs = nil) # Namespace
-        attrs ||= %w[
-          objectClass
-          subschemaSubentry
-          namingContexts
-          monitorContext
-          altServer
-          supportedControl
-          supportedExtension
-          supportedFeatures
-          supportedSASLMechanisms
-          supportedLDAPVersion
-        ]
-        result = search(
-          :instantiate => false,
-          :base => "",
-          :scope => :base,
-          :filter => {:objectClass => :*},
-          :attributes => attrs,
-          :limit => true
-        )
-      end
-
-      def raw_schema(attrs = nil) # Namespace
-        attrs ||= %w[
-          objectClass
-          objectClasses
-          attributeTypes
-          matchingRules
-          matchingRuleUse
-          dITStructureRules
-          dITContentRules
-          nameForms
-          ldapSyntaxes
-        ]
-        result = search(
-          :instantiate => false,
-          :base => root_dse('subschemaSubentry'),
-          :scope => :base,
-          :filter => {:objectClass => "subSchema"},
-          :attributes => attrs,
-          :limit => true
-        )
-      end
-
-      def schema # Namespace
-        instantiate(raw_schema,self.namespace)
-      end
-
-      def attribute_types # Namespace
-        @attribute_types ||= raw_schema("attributeTypes").inject({}) do |hash,val|
-          at = Ldaptor::Schema::AttributeType.new(val)
-          hash[at.oid] = at
-          Array(at.name).each do |name|
-            hash[name] = at
-          end
-          hash
-        end
-        @attribute_types
-      end
-
-      def dit_content_rules # Namespace
-        @dit_content_rules ||= raw_schema("dITContentRules").inject({}) do |hash,val|
-          dit = Ldaptor::Schema::DITContentRule.new(val)
-          hash[dit.oid] = dit
-          Array(dit.name).each do |name|
-            hash[name] = dit
-          end
-          hash
+      def connection=(connection)
+        @connection = connection
+        if defined?(::LDAP::Conn) && connection.kind_of?(::LDAP::Conn)
+          @adapter = ::Ldaptor::Adapters::LDAPAdapter.new(@connection)
+        elsif defined?(::Net::LDAP) && connection.kind_of?(::Net::LDAP)
+          @adapter = ::Ldaptor::Adapters::NetLDAPAdapter.new(@connection)
+        else
+          raise TypeError, "#{@connection.class} is not a valid connection type"
         end
       end
 
-      def server_default_base_dn # Namespace
-        result = root_dse(%w(defaultNamingContext namingContexts))
-        if result
-          result["defaultNamingContext"].to_a.first ||
-            result["namingContexts"].to_a.first
-        end
-      end
+      # def schema
+        # instantiate(adapter.schema,self.namespace)
+      # end
 
-      def /(*args) # Namespace
+      def /(*args)
         find(base_dn.send(:/,*args))
       end
 
-      def [](*args) # Namespace
+      def [](*args)
         if args.empty?
           find(base_dn)
         else
@@ -600,108 +526,24 @@ module Ldaptor
         end
       end
 
-      def *(filter) # Namespace
+      def *(filter)
         search(:filter => filter, :scope => :onelevel)
       end
-      def **(filter) # Namespace
+      def **(filter)
         search(:filter => filter, :scope => :subtree)
       end
 
       private
-      def paged_results_control(cookie = "", size = 126) # Namespace
-        # values above 126 cause problems for slapd, as determined by net/ldap
-        ::LDAP::Control.new(
-          # ::LDAP::LDAP_CONTROL_PAGEDRESULTS,
-          "1.2.840.113556.1.4.319",
-          ::LDAP::Control.encode(size,cookie),
-          false
-        )
-      end
 
-      def search_options(options = {}) # Namespace
+      def search_options(options = {})
         options = options.dup
         options[:instantiate] = true unless options.has_key?(:instantiate)
         options.delete(:attributes_only) if options[:instantiate]
         options[:base] = (options[:base] || options[:base_dn] || base_dn).to_s
-        options[:scope] = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::Ldaptor::SCOPES[:subtree]
-        if options[:attributes].respond_to?(:to_ary)
-          options[:attributes] = options[:attributes].map {|x| LDAP.escape(x)}
-        elsif options[:attributes]
-          options[:attributes] = LDAP.escape(options[:attributes])
-        end
-        query = options[:filter]
-        query = {:objectClass => :*} if query.nil?
-        query = LDAP::Filter(query)
-        # query &= {:objectClass => object_class} if object_class
-        options[:filter] = query
         options
       end
 
-      def search_parameters(options = {}) # Namespace
-        case options[:sort]
-        when Proc, Method then s_attr, s_proc = nil, options[:sort]
-        else s_attr, s_proc = options[:sort], nil
-        end
-        [
-          options[:base],
-          options[:scope],
-          options[:filter],
-          options[:attributes] && Array(options[:attributes]),
-          options[:attributes_only],
-          options[:timeout].to_i,
-          ((options[:timeout].to_f % 1) * 1e6).round,
-          s_attr.to_s,
-          s_proc
-        ]
-      end
-
-      def raw_ldap_search(options = {}, &block) # Namespace
-        cookie = ""
-        options = search_options(options)
-        parameters = search_parameters(options)
-        while cookie
-          ctrl = paged_results_control(cookie)
-          connection.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[ctrl])
-          result = connection.search2(*parameters, &block)
-          ctrl = connection.controls.detect {|c| c.oid == ctrl.oid}
-          cookie = ctrl && ctrl.decode.last
-          cookie = nil if cookie.to_s.empty?
-        end
-      ensure
-        connection.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[]) rescue nil
-      end
-
-      def raw_net_ldap_search(options = {}, &block) # Namespace
-        connection.search(options.merge(:return_result => false)) do |entry|
-          hash = {}
-          entry.each do |attr,val|
-            attr = case attr.to_s
-                   when "dn" then "dn"
-                   when "attributetypes" then "attributeTypes"
-                   when "subschemasubentry" then "subschemaSubentry"
-                   else
-                     attribute_types.keys.detect do |x|
-                       x.downcase == attr.to_s
-                       # break(x.name) if x.names.map {|n|n.downcase}.include?(attr.to_s)
-                     end
-                   end
-            hash[attr.to_s] = val
-          end
-          block.call(hash)
-        end
-      end
-
-      def raw_adapter_search(options = {}, &block) # Namespace
-        if defined?(::LDAP::Conn) && connection.kind_of?(::LDAP::Conn)
-          raw_ldap_search(options,&block)
-        elsif defined?(::Net::LDAP) && connection.kind_of?(::Net::LDAP)
-          raw_net_ldap_search(options,&block)
-        else
-          raise "invalid connection"
-        end
-      end
-
-      def find_one(dn,options) # Namespace
+      def find_one(dn,options)
         objects = search(options.merge(:base => dn, :scope => :base))
         unless objects.size == 1
           raise RecordNotFound, "record not found for #{dn}", caller
@@ -721,7 +563,6 @@ module Ldaptor
 
       def search(options = {},&block)
         ary = []
-        cookie = ""
         options = search_options(options)
         if options[:limit] == true
           options[:limit] = 1
@@ -731,7 +572,7 @@ module Ldaptor
         if one_attribute.respond_to?(:to_ary)
           one_attribute = nil
         end
-        raw_adapter_search(options) do |entry|
+        adapter.search(options) do |entry|
           if options[:instantiate]
             klass = const_get("Top")
             entry = klass.send(:instantiate,entry,self)
