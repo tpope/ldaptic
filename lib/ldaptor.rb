@@ -409,7 +409,7 @@ module Ldaptor
     end
 
     def respond_to?(method)
-      super(method) || (may + must + (may+must).map {|x| "#{a}="}).include?(method.to_s)
+      super(method) || (may + must + (may+must).map {|x| "#{x}="}).include?(method.to_s)
     end
 
     def rename(new_rdn)

@@ -129,21 +129,39 @@ module Ldaptor
         @connection.delete(:dn => dn)
       end
 
+      DEFAULT_TRANSFORMATIONS = %w[
+        dn
+        objectClass
+        subschemaSubentry
+        namingContexts
+        monitorContext
+        altServer
+        supportedControl
+        supportedExtension
+        supportedFeatures
+        supportedSASLMechanisms
+        supportedLDAPVersion
+        defaultNamingContext
+        objectClasses
+        attributeTypes
+        matchingRules
+        matchingRuleUse
+        dITStructureRules
+        dITContentRules
+        nameForms
+        ldapSyntaxes
+      ].inject({}) { |h,k| h[k.downcase] = k; h }
+
       def search(options = {}, &block)
         options = search_options(options).merge(:return_result => false)
         @connection.search(options) do |entry|
           hash = {}
           entry.each do |attr,val|
-            attr = case attr.to_s
-                   when "dn" then "dn"
-                   when "attributetypes" then "attributeTypes"
-                   when "subschemasubentry" then "subschemaSubentry"
-                   else
-                     attribute_types.keys.detect do |x|
-                       x.downcase == attr.to_s
-                       # break(x.name) if x.names.map {|n|n.downcase}.include?(attr.to_s)
-                     end
-                   end
+            attr = DEFAULT_TRANSFORMATIONS[attr.to_s] ||
+              attribute_types.keys.detect do |x|
+              x.downcase == attr.to_s.downcase
+              # break(x.name) if x.names.map {|n|n.downcase}.include?(attr.to_s)
+              end
             hash[attr.to_s] = val
           end
           block.call(hash)
