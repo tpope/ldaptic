@@ -185,6 +185,10 @@ module Ldaptor
         @connection.delete(dn)
       end
 
+      def rename(dn, new_rdn, delete_old)
+        @connection.modrdn(dn,new_rdn, delete_old)
+      end
+
       def search(options = {}, &block)
         cookie = ""
         options = search_options(options)

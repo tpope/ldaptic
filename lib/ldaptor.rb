@@ -40,7 +40,7 @@ module Ldaptor
 
   def self.build_hierarchy(connection,base_dn = nil,&block)
     klass = Class.new(Base)
-    klass.connection = connection
+    klass.send(:connection=, connection)
     klass.base_dn = base_dn
     klass.send(:build_hierarchy)
     klass.instance_eval(&block) if block_given?
@@ -49,7 +49,7 @@ module Ldaptor
 
   def self.Namespace(connection, base_dn = nil)
     klass = Class.new(Base)
-    klass.connection = connection
+    klass.send(:connection=, connection)
     klass.base_dn = base_dn
     klass.instance_variable_set(:@parent,  true)
     klass
@@ -414,14 +414,15 @@ module Ldaptor
 
     def rename(new_rdn)
       # TODO: how is new_rdn escaped?
-      connection.modrdn(dn,new_rdn,true)
-      @dn = LDAP::DN([new_rdn,dn.to_a[1..-1]].join(","),self)
+      adapter.rename(dn,LDAP::DN[new_rdn],true)
+      @dn = LDAP::DN([new_rdn]+dn.to_a[1..-1],self)
     end
   end
 
   class Object
     extend ObjectClassMethods
     include ObjectMethods
+
     def self.inherited(subclass)
       @subclasses ||= []
       @subclasses << subclass
@@ -439,7 +440,12 @@ module Ldaptor
       raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
       @attributes = Ldaptor.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
       if dn = @attributes.delete('dn')
-        @dn = LDAP::DN(dn.first,self) if dn.first
+        if dn.first
+          @dn = LDAP::DN(dn.first,self)
+          (@dn.to_a.first||{}).each do |k,v|
+            @attributes[k.downcase] |= [v]
+          end
+        end
       end
     end
   end
@@ -448,6 +454,7 @@ module Ldaptor
 
     class << self
 
+      private
       def inherited(subclass)
         # Namespace
         if @parent
@@ -458,15 +465,17 @@ module Ldaptor
 
       def build_hierarchy
         klasses = adapter.object_classes.values.uniq
-        add_constants(klasses,Ldaptor::Object) # Ldaptor::Object
+        hash = klasses.inject(Hash.new {|h,k|h[k]=[]}) do |hash,k|
+          hash[k.sup] << k; hash
+        end
+        add_constants(hash,Ldaptor::Object)
         self.base_dn ||= adapter.server_default_base_dn
         nil
       end
 
-      def add_constants(klasses,superclass) # Namespace
-        mod = self
-        klasses.each do |sub|
-          if superclass.names.include?(sub.sup) || superclass.names.empty? && sub.sup == nil
+      def add_constants(klasses,superclass)
+        (superclass.names.empty? ? [nil] : superclass.names).each do |myname|
+          klasses[myname].each do |sub|
             klass = Class.new(superclass)
             %w(oid name desc sup must may).each do |prop|
               klass.instance_variable_set("@#{prop}", sub.send(prop))
@@ -474,16 +483,15 @@ module Ldaptor
             %w(obsolete abstract structural auxiliary).each do |prop|
               klass.instance_variable_set("@#{prop}", sub.send("#{prop}?"))
             end
-            klass.instance_variable_set(:@namespace, mod)
+            klass.instance_variable_set(:@namespace, self)
             Array(sub.name).each do |name|
-              mod.const_set(name.ldapitalize(true), klass)
+              self.const_set(name.ldapitalize(true), klass)
             end
             klass.send(:create_accessors)
             add_constants(klasses, klass)
           end
         end
       end
-      private :add_constants
 
       def self.inheritable_reader(*names) # Namespace
         names.each do |name|
@@ -495,10 +503,6 @@ module Ldaptor
         end
       end
 
-      inheritable_reader :connection, :base_dn, :adapter
-      def base_dn=(dn)
-        @base_dn = LDAP::DN(dn,self)
-      end
       def connection=(connection)
         @connection = connection
         if defined?(::LDAP::Conn) && connection.kind_of?(::LDAP::Conn)
@@ -509,6 +513,13 @@ module Ldaptor
           raise TypeError, "#{@connection.class} is not a valid connection type"
         end
       end
+
+      public
+      inheritable_reader :connection, :base_dn, :adapter
+      def base_dn=(dn)
+        @base_dn = LDAP::DN(dn,self)
+      end
+      alias dn base_dn
 
       # def schema
         # instantiate(adapter.schema,self.namespace)

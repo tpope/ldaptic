@@ -82,22 +82,6 @@ module Ldaptor
         array
       end
 
-      def old_eat(string)
-        # hash = {}
-        # while value = eat(string,/^\s*([A-Z-]+)\s*/)
-          # if self.class.attributes[value] == :string
-            # hash[value] = eatstr(string)
-          # elsif self.class.attributes[value] == :array
-            # hash[value] = eatary(string)
-          # elsif self.class.attributes[value] == :boolean
-            # hash[value] = true
-          # elsif value =~ /^X-/
-            # eatstr(string)
-          # end
-        # end
-        # hash
-      end
-
       def array_to_hash(array)
         last = nil
         hash = {}
@@ -248,26 +232,3 @@ module Ldaptor
 
   end
 end
-
-require 'ldap/schema'
-
-module LDAP
-
-  class Schema
-    def aux(oc)
-      self["dITContentRules"].to_a.each do |s|
-        if s =~ /NAME\s+'#{oc}'/
-          case s
-          when /AUX\s+\(([\w\d_\s\$-]+)\)/i
-            return $1.split("$").collect{|attr| attr.strip}
-          when /AUX\s+([\w\d_-]+)/i
-            return $1.split("$").collect{|attr| attr.strip}
-          end
-        end
-      end
-      return nil
-    end
-  end
-
-end
-
