@@ -14,7 +14,7 @@ module LDAP
     when String then Filter::String.new(argument)
     when Proc, Method
       LDAP::Filter(if argument.arity > 0
-        yield Filter::Spawner
+        argument.call(Filter::Spawner)
       else
         Filter::Spawner.instance_eval(&argument)
       end)

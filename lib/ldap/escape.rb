@@ -6,15 +6,24 @@ module LDAP
   # encoded LDAP style.  If a symbol is passed in, underscores are replaced by
   # dashes, aiding in bridging the gap between LDAP and Ruby conventions.
   def self.escape(string, allow_asterisks = false)
-    string = string.utc.strftime("%Y%m%d%H%M%S.0Z") if string.respond_to?(:utc)
-    string = string.to_s.upcase if [true,false].include?(string)
+    if string.respond_to?(:utc)
+      string = string.utc.strftime("%Y%m%d%H%M%S.0Z")
+    elsif [true,false].include?(string)
+      string = string.to_s.upcase
+    end
     if string.kind_of?(Symbol)
       string = string.to_s.gsub('_','-')
       string.upcase! if allow_asterisks
     end
-    enc = lambda {|l| "\\" + l[0].to_s(16) }
-    string.to_s.
-      gsub(/[()#{allow_asterisks ? nil : :*}\\\0-\37"+,;<>]/,&enc).
-      gsub(/\A[# ]| \Z/,&enc)
+    string = string.to_s
+    enc = lambda {|l| "\\%02x" % l[0] }
+    string.gsub!(/[()\\\0-\37"+,;<>]/,&enc)
+    string.gsub!(/\A[# ]| \Z/,&enc)
+    if allow_asterisks
+      string.gsub!('**','\\\\2a')
+    else
+      string.gsub!('*','\\\\2a')
+    end
+    string
   end
 end

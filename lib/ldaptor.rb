@@ -29,6 +29,7 @@ module Ldaptor
     hash = Hash.new {|h,k| h[k] = [] }
     attributes.each do |k,v|
       k = k.kind_of?(Symbol) ?  k.to_s.gsub('_','-') : k.dup
+      # LDAP::DN objects have a special to_a method
       if v.kind_of?(LDAP::DN)
         hash[k] = [v.dup]
       else
@@ -109,6 +110,7 @@ module Ldaptor
         nott = []
         ldap_ancestors.inject([]) do |memo,klass|
           memo |= Array(klass.may(false))
+          nott |= Array(klass.must(false))
           if dit = klass.dit_content_rule
             memo |= Array(dit.may)
             nott |= Array(dit.not)
@@ -167,29 +169,54 @@ module Ldaptor
     alias objectClass object_classes
   end
 
-  module ObjectMethods
+  class Object
+    extend ObjectClassMethods
+
+    def self.inherited(subclass)
+      @subclasses ||= []
+      @subclasses << subclass
+    end
+
+    def self.attribute_types
+      self.namespace.adapter.attribute_types
+    end
+
+    def self.dit_content_rules
+      self.namespace.adapter.dit_content_rules
+    end
+
+    def initialize(data = {})
+      raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
+      @attributes = Ldaptor.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
+      if dn = Array(@attributes.delete('dn')).first
+        @dn = LDAP::DN(dn,self)
+        (@dn.to_a.first||{}).each do |k,v|
+          @attributes[k.to_s.downcase] |= [v]
+        end
+      end
+    end
 
     def dn
       LDAP::DN(@dn,self) if @dn
     end
 
     def rdn
-      dn && LDAP::DN(dn.to_a.first(1)).to_s
+      dn && dn.rdn
     end
 
     def /(*args)
-      search(:base => dn.send(:/,*args), :scope => :base).first
+      search(:base => dn.send(:/,*args), :scope => :base, :limit => true)
     end
 
     def parent
-      search(:base => LDAP::DN(dn.to_a[1..-1]))
+      search(:base => LDAP::DN(dn.parent), :scope => :base, :limit => true)
     end
 
     def children(type = nil, name = nil)
       if name && name != :*
         search(:base => dn/{type => name}, :scope => :base).first
       elsif type
-        search(:filter => {type => :*}, :scope => :onlevel)
+        search(:filter => {type => :*}, :scope => :onelevel)
       else
         search(:scope => :onelevel)
       end
@@ -197,10 +224,6 @@ module Ldaptor
 
     def namespace
       @namespace || self.class.namespace
-    end
-
-    def connection
-      self.class.connection
     end
 
     def adapter
@@ -335,28 +358,29 @@ module Ldaptor
     def method_missing(method,*args,&block)
       attribute = LDAP.escape(method)
       method = method.to_s
-      if attribute[-1] == ?= && self.class.has_attribute?(attribute[0..-2])
+      if attribute[-1] == ?=
         attribute.chop!
-        write_attribute(attribute,*args,&block)
+        if may_must(attribute)
+          return write_attribute(attribute,*args,&block)
+        end
       elsif args.size == 1
-        children(method,*args,&block)
-      elsif self.class.has_attribute?(attribute)
-        read_attribute(attribute,*args,&block)
-      else
-        super(method.to_sym,*args,&block)
-        # Does not work
-        extensions = self.class.const_get("Extensions") rescue nil
-        if extensions
-          self["objectClass"].reverse.each do |oc|
-            oc[0..0] = oc[0..0].upcase
-            if extensions.constants.include?(oc)
-              p oc
-              extension = extensions.const_get(oc)
-              if extension.instance_methods.include?(method)
-                p method
-                im = extension.instance_method(method).bind(self)
-                im.call(*args)
-              end
+        return children(method,*args,&block)
+      elsif may_must(attribute)
+        return read_attribute(attribute,*args,&block)
+      end
+      super(method.to_sym,*args,&block)
+      # Does not work
+      extensions = self.class.const_get("Extensions") rescue nil
+      if extensions
+        self["objectClass"].reverse.each do |oc|
+          oc[0..0] = oc[0..0].upcase
+          if extensions.constants.include?(oc)
+            p oc
+            extension = extensions.const_get(oc)
+            if extension.instance_methods.include?(method)
+              p method
+              im = extension.instance_method(method).bind(self)
+              im.call(*args)
             end
           end
         end
@@ -414,39 +438,8 @@ module Ldaptor
 
     def rename(new_rdn)
       # TODO: how is new_rdn escaped?
-      adapter.rename(dn,LDAP::DN[new_rdn],true)
-      @dn = LDAP::DN([new_rdn]+dn.to_a[1..-1],self)
-    end
-  end
-
-  class Object
-    extend ObjectClassMethods
-    include ObjectMethods
-
-    def self.inherited(subclass)
-      @subclasses ||= []
-      @subclasses << subclass
-    end
-
-    def self.attribute_types
-      self.namespace.adapter.attribute_types
-    end
-
-    def self.dit_content_rules
-      self.namespace.adapter.dit_content_rules
-    end
-
-    def initialize(data = {})
-      raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
-      @attributes = Ldaptor.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
-      if dn = @attributes.delete('dn')
-        if dn.first
-          @dn = LDAP::DN(dn.first,self)
-          (@dn.to_a.first||{}).each do |k,v|
-            @attributes[k.downcase] |= [v]
-          end
-        end
-      end
+      adapter.rename(dn,LDAP::DN([new_rdn]),true)
+      @dn = dn.parent/new_rdn
     end
   end
 
@@ -509,6 +502,8 @@ module Ldaptor
           @adapter = ::Ldaptor::Adapters::LDAPAdapter.new(@connection)
         elsif defined?(::Net::LDAP) && connection.kind_of?(::Net::LDAP)
           @adapter = ::Ldaptor::Adapters::NetLDAPAdapter.new(@connection)
+        elsif connection.kind_of?(::Ldaptor::Adapters::AbstractAdapter)
+          @adapter = @connection
         else
           raise TypeError, "#{@connection.class} is not a valid connection type"
         end
@@ -602,9 +597,3 @@ module Ldaptor
   end
 
 end
-
-if __FILE__ == $0
-  require 'irb'
-  IRB.start($0)
-end
-

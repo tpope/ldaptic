@@ -6,7 +6,7 @@ module Ldaptor
         @connection = connection
       end
 
-      def root_dse(attrs = nil) # Namespace
+      def root_dse(attrs = nil)
         attrs ||= %w[
           objectClass
           subschemaSubentry
@@ -32,7 +32,7 @@ module Ldaptor
         end
       end
 
-      def schema(attrs = nil) # Namespace
+      def schema(attrs = nil)
         attrs ||= %w[
           objectClass
           objectClasses
@@ -157,16 +157,20 @@ module Ldaptor
         @connection.search(options) do |entry|
           hash = {}
           entry.each do |attr,val|
-            attr = DEFAULT_TRANSFORMATIONS[attr.to_s] ||
-              attribute_types.keys.detect do |x|
-              x.downcase == attr.to_s.downcase
-              # break(x.name) if x.names.map {|n|n.downcase}.include?(attr.to_s)
-              end
-            hash[attr.to_s] = val
+            attr = recapitalize(attr)
+            hash[attr] = val
           end
           block.call(hash)
         end
         nil
+      end
+
+      private
+      def recapitalize(attribute)
+        DEFAULT_TRANSFORMATIONS[attribute.to_s] ||
+          attribute_types.keys.detect do |x|
+            x.downcase == attribute.to_s.downcase
+          end
       end
 
     end

@@ -16,7 +16,9 @@ module LDAP
       end
       return dn
     end
-    unless dn.respond_to?(:to_ary)
+    if dn.respond_to?(:to_hash)
+      dn = [dn]
+    elsif ! dn.respond_to?(:to_ary)
       dn = dn.to_s
     end
     DN.new(dn,source)
@@ -73,18 +75,18 @@ module LDAP
     def find(source = @source)
       scope = 0
       filter = "(objectClass=*)"
-      if defined?(LDAP::Conn) && source.kind_of?(LDAP::Conn)
+      if source.respond_to?(:search2_ext)
         source.search2(
           self.to_s,
           scope,
           filter
         )
       elsif source.respond_to?(:search)
-        source.search(
+        Array(source.search(
           :base => self.to_s,
           :scope => scope,
           :filter => filter
-        )
+        ))
       else
         raise RuntimeError, "missing or invalid source for LDAP search", caller
       end.first
@@ -166,8 +168,16 @@ module LDAP
 
       array
 
-    # rescue
-      # raise RuntimeError, "error parsing DN", caller
+    rescue
+      raise RuntimeError, "error parsing DN", caller
+    end
+
+    def parent
+      LDAP::DN(to_a[1..-1], source)
+    end
+
+    def rdn
+      LDAP::DN(to_a.first(1)).to_s
     end
 
     # TODO: investigate compliance with

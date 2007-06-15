@@ -1,4 +1,5 @@
 module Ldaptor
+  # RFC 4512
   module Schema
 
     class ParseError < RuntimeError
@@ -76,10 +77,12 @@ module Ldaptor
           elsif string =~ /\A(\(\s*)?[\w-]/
             array << eatary(string)
           else
-            raise ParseError, "failed to parse schema entry #{@string.inspect}", caller[1..-1]
+            raise ParseError
           end
         end
         array
+      rescue ParseError
+        raise ParseError, "failed to parse schema entry #{@string.inspect}", caller[1..-1]
       end
 
       def array_to_hash(array)
@@ -119,8 +122,10 @@ module Ldaptor
       def eatary(string)
         if eaten = eat(string, /^\(([\w\d_\s\$-]+)\)/i)
           eaten.split("$").collect{|attr| attr.strip}
+        elsif eaten = eat(string,/^([\w\d_-]+)/i)
+          eaten
         else
-          eat(string,/^([\w\d_-]+)/i)
+          raise ParseError
         end
       end
 
@@ -176,10 +181,7 @@ module Ldaptor
         @attributes[:syntax][/[0-9.]+/]
       end
       def syntax_len
-        @attributes[:syntax][/\{.*\}/,1]
-      end
-      def syntax_name
-        Ldaptor::SYNTAXES[syntax_oid].name
+        @attributes[:syntax][/\{(.*)\}/,1].to_i
       end
       def syntax_object
         Ldaptor::SYNTAXES[syntax_oid]
@@ -232,3 +234,5 @@ module Ldaptor
 
   end
 end
+
+require 'ldaptor/syntaxes'
