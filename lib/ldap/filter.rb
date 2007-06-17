@@ -22,6 +22,8 @@ module LDAP
     end
   end
 
+  # See LDAP.Filter for the contructor and LDAP::Filter::Abstract for methods
+  # common to all filters.
   module Filter
 
     # The filter class from which all others derive.

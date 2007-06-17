@@ -25,6 +25,8 @@ module Ldaptor
   class RecordNotFound < Error
   end
 
+  # Constructs a deep copy of a set of LDAP attributes, normalizing them to
+  # arrays as appropriate.  The returned hash has a default value of [].
   def self.clone_ldap_hash(attributes)
     hash = Hash.new {|h,k| h[k] = [] }
     attributes.each do |k,v|
@@ -39,7 +41,7 @@ module Ldaptor
     hash
   end
 
-  def self.build_hierarchy(connection,base_dn = nil,&block)
+  def self.build_hierarchy(connection,base_dn = nil,&block) #:nodoc:
     klass = Class.new(Base)
     klass.send(:connection=, connection)
     klass.base_dn = base_dn
@@ -48,6 +50,15 @@ module Ldaptor
     klass
   end
 
+  # The core method of Ldaptor.
+  #
+  #   $conn = LDAP::Conn.new("mycompany.com")
+  #   $conn.bind("CN=Name\\, My,DC=mycompany,DC=com","password")
+  #
+  #   class MyCompany < Ldaptor::Namespace($conn)
+  #   end
+  #
+  #   me = MyCompany.search(:filter => {:cn => "Name, My"})
   def self.Namespace(connection, base_dn = nil)
     klass = Class.new(Base)
     klass.send(:connection=, connection)
@@ -91,7 +102,7 @@ module Ldaptor
       (may(false) + must(false)).each do |attr|
         method = attr.to_s.tr_s('-_','_-')
         define_method("#{method}") { read_attribute(attr) }
-        unless attribute_types[attr].no_user_modification?
+        unless namespace.adapter.attribute_types[attr].no_user_modification?
           define_method("#{method}="){ |value| write_attribute(attr,value) }
         end
       end
@@ -155,7 +166,7 @@ module Ldaptor
     end
 
     def dit_content_rule
-      dit_content_rules[oid]
+      namespace.adapter.dit_content_rules[oid]
     end
 
     def object_class
@@ -169,20 +180,15 @@ module Ldaptor
     alias objectClass object_classes
   end
 
+  # When a new Ldaptor::Namespace is created, a Ruby class hierarchy is
+  # contructed that mirrors the server's object classes.  Ldaptor::Object
+  # serves as the base class for this hierarchy.
   class Object
     extend ObjectClassMethods
 
-    def self.inherited(subclass)
+    def self.inherited(subclass) #:nodoc:
       @subclasses ||= []
       @subclasses << subclass
-    end
-
-    def self.attribute_types
-      self.namespace.adapter.attribute_types
-    end
-
-    def self.dit_content_rules
-      self.namespace.adapter.dit_content_rules
     end
 
     def initialize(data = {})
@@ -196,10 +202,12 @@ module Ldaptor
       end
     end
 
+    # The objects distinguished name.
     def dn
       LDAP::DN(@dn,self) if @dn
     end
 
+    # The first (relative) component of the distinguished name.
     def rdn
       dn && dn.rdn
     end
@@ -208,6 +216,7 @@ module Ldaptor
       search(:base => dn.send(:/,*args), :scope => :base, :limit => true)
     end
 
+    # The parent object containing this one.
     def parent
       search(:base => LDAP::DN(dn.parent), :scope => :base, :limit => true)
     end
@@ -222,6 +231,7 @@ module Ldaptor
       end
     end
 
+    # A link back to the namespace.
     def namespace
       @namespace || self.class.namespace
     end
@@ -234,7 +244,7 @@ module Ldaptor
       str = "#<#{self.class} #{dn}"
       @attributes.each do |k,values|
         s = (values.size == 1 ? "" : "s")
-        at = self.class.attribute_types[k]
+        at = adapter.attribute_types[k]
         if at && at.syntax_object && !at.syntax_object.x_not_human_readable? && at.syntax_object.desc != "Octet String"
           str << " " << k << ": " << values.inspect
         else
@@ -256,7 +266,7 @@ module Ldaptor
       key = LDAP.escape(key)
       values = @attributes[key] || @attributes[key.downcase]
       return nil if values.nil?
-      at = self.class.attribute_types[key]
+      at = adapter.attribute_types[key]
       unless at
         warn "Warning: unknown attribute type for #{key}"
         return values
@@ -281,6 +291,7 @@ module Ldaptor
         values
       end
     end
+    protected :read_attribute
 
     # For testing
     def read_attributes
@@ -292,7 +303,7 @@ module Ldaptor
 
     def write_attribute(key,values)
       key = LDAP.escape(key)
-      at = self.class.attribute_types[key]
+      at = adapter.attribute_types[key]
       unless at
         warn "Warning: unknown attribute type for #{key}"
         @attributes[key] = Array(values)
@@ -324,6 +335,7 @@ module Ldaptor
       end
       @attributes[key] = values
     end
+    protected :write_attribute
 
     attr_reader :attributes
     def attribute_names

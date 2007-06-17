@@ -152,12 +152,21 @@ module LDAP
   # ideal setup for an Active Directory connection.
   class ADConn < AutoConn
 
+    # Check whether a set of credentials is valid.  Returns a boolean.
+    def authenticate(dn, password, method=LDAP::LDAP_AUTH_SIMPLE)
+      @connection.writer.bind(dn, password, method) {}
+      true
+    rescue
+      false
+    end
+
     def initialize(host)
       @host = host
       connection = new_unbound_connection
       super(connection)
     end
 
+    private
     def new_unbound_connection
       connection = LDAP::DualConn.new(@host,3268)
       connection.writer = LDAP::Conn.new(@host,389)
@@ -165,6 +174,7 @@ module LDAP
       connection
     end
 
+    protected
     def while_bound
       if !@connection.bound?
         @connection.send(:initialize, @host, 3268)
@@ -174,22 +184,18 @@ module LDAP
       super
     end
 
-    # Check whether a set of credentials is valid.  Returns a boolean.
-    def authenticate(dn, password, method=LDAP::LDAP_AUTH_SIMPLE)
-      @connection.writer.bind(dn, password, method) {}
-      true
-    rescue
-      false
-    end
-
   end
 
 end
 
+# Converts an integer representing the number of microseconds since January 1,
+# 1600 to a DateTime.
 def DateTime.microsoft(tinies)
   new(1601,1,1).new_offset(Time.now.utc_offset/60/60/24.0) + tinies/1e7/60/60/24
 end
 
+# Converts an integer representing the number of microseconds since January 1,
+# 1600 to a Time.
 def Time.microsoft(tinies)
   dt = DateTime.microsoft(tinies)
   Time.local(dt.year,dt.mon,dt.day,dt.hour,dt.min,dt.sec,dt.sec_fraction*60*60*24*1e6)
