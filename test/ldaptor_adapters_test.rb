@@ -1,5 +1,7 @@
 $:.unshift(File.join(File.dirname(__FILE__),'..','lib')).uniq!
 require 'ldaptor/adapters'
+require 'ldaptor/adapters/net_ldap_adapter'
+require 'ldaptor/adapters/ldap_adapter'
 require 'test/unit'
 
 class LdaptorHierarchyTest < Test::Unit::TestCase

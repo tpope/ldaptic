@@ -1,5 +1,5 @@
 $:.unshift(File.join(File.dirname(__FILE__),'..','lib')).uniq!
-require 'ldaptor/adapters'
+require 'ldaptor/adapters/abstract_adapter'
 
 class Ldaptor::Adapters::MockAdapter < Ldaptor::Adapters::AbstractAdapter
   def initialize

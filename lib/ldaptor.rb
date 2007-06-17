@@ -6,7 +6,6 @@ require 'ldaptor/core_ext'
 require 'ldap/dn'
 require 'ldap/filter'
 # require 'ldap'
-require 'ldap/control'
 require 'ldaptor/schema'
 require 'ldaptor/syntaxes'
 require 'ldaptor/adapters'
@@ -498,7 +497,7 @@ module Ldaptor
         end
       end
 
-      def self.inheritable_reader(*names) # Namespace
+      def self.inheritable_reader(*names)
         names.each do |name|
           define_method name do
             val = instance_variable_get("@#{name}")
@@ -508,17 +507,8 @@ module Ldaptor
         end
       end
 
-      def connection=(connection)
-        @connection = connection
-        if defined?(::LDAP::Conn) && connection.kind_of?(::LDAP::Conn)
-          @adapter = ::Ldaptor::Adapters::LDAPAdapter.new(@connection)
-        elsif defined?(::Net::LDAP) && connection.kind_of?(::Net::LDAP)
-          @adapter = ::Ldaptor::Adapters::NetLDAPAdapter.new(@connection)
-        elsif connection.kind_of?(::Ldaptor::Adapters::AbstractAdapter)
-          @adapter = @connection
-        else
-          raise TypeError, "#{@connection.class} is not a valid connection type"
-        end
+      def connection=(options)
+        @adapter = Ldaptor::Adapters.for(options)
       end
 
       public
