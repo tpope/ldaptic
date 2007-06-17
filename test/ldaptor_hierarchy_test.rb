@@ -49,6 +49,13 @@ class LdaptorHierarchyTest < Test::Unit::TestCase
     assert_equal %w(cn description distinguishedName objectClass), Mock::Top.attributes
   end
 
+  def test_search
+    assert_kind_of Hash,   Mock.search(:limit => true, :instantiate => false)
+    assert_kind_of Array,  Mock.search(:limit => false)
+    assert_kind_of String, Mock.search(:attributes => :filter).first
+    assert_kind_of Array,  Mock.search(:attributes => :filter, :instantiate => false).first
+  end
+
   def test_find
     assert defined? Mock::SearchResult
     result = Mock.find("CN=Matz,DC=org")
@@ -68,5 +75,6 @@ class LdaptorHierarchyTest < Test::Unit::TestCase
     assert_equal "DC=org", matz.parent.dn
     assert_equal "(objectClass=*)", matz.children.first.filter
   end
+
 end
 

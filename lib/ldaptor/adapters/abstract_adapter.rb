@@ -97,11 +97,11 @@ module Ldaptor
       def search_options(options = {})
         options = options.dup
         options[:scope] = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::Ldaptor::SCOPES[:subtree]
-        if options[:attributes].respond_to?(:to_ary)
-          options[:attributes] = options[:attributes].map {|x| LDAP.escape(x)}
-        elsif options[:attributes]
-          options[:attributes] = LDAP.escape(options[:attributes])
-        end
+        #if options[:attributes].respond_to?(:to_ary)
+        #  options[:attributes] = options[:attributes].map {|x| LDAP.escape(x)}
+        #elsif options[:attributes]
+        #  options[:attributes] = LDAP.escape(options[:attributes])
+        #end
         query = options[:filter]
         query = {:objectClass => :*} if query.nil?
         query = LDAP::Filter(query)

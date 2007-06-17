@@ -518,10 +518,6 @@ module Ldaptor
       end
       alias dn base_dn
 
-      # def schema
-        # instantiate(adapter.schema,self.namespace)
-      # end
-
       def /(*args)
         find(base_dn.send(:/,*args))
       end
@@ -576,21 +572,21 @@ module Ldaptor
 
       def search(options = {},&block)
         ary = []
+        one_attribute = options[:attributes]
+        if one_attribute.respond_to?(:to_ary)
+          one_attribute = nil
+        end
         options = search_options(options)
         if options[:limit] == true
           options[:limit] = 1
           first = true
-        end
-        one_attribute = options[:attributes]
-        if one_attribute.respond_to?(:to_ary)
-          one_attribute = nil
         end
         adapter.search(options) do |entry|
           if options[:instantiate]
             klass = const_get("Top")
             entry = klass.send(:instantiate,entry,self)
           end
-          entry = entry[one_attribute] if one_attribute
+          entry = entry[LDAP.escape(one_attribute)] if one_attribute
           ary << entry
           block.call(entry) if block_given?
           return entry if first == true
