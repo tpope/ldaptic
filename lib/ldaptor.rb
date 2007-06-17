@@ -545,6 +545,11 @@ module Ldaptor
 
       def search_options(options = {})
         options = options.dup
+        if options[:attributes].respond_to?(:to_ary)
+          options[:attributes] = options[:attributes].map {|x| LDAP.escape(x)}
+        elsif options[:attributes]
+          options[:attributes] = LDAP.escape(options[:attributes])
+        end
         options[:instantiate] = true unless options.has_key?(:instantiate)
         options.delete(:attributes_only) if options[:instantiate]
         options[:base] = (options[:base] || options[:base_dn] || base_dn).to_s

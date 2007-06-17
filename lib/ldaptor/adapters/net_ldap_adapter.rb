@@ -4,19 +4,58 @@ module Ldaptor
   module Adapters
     class NetLDAPAdapter < AbstractAdapter
 
-      def add(dn,attr)
-        @connection.add(:dn => dn, :attributes => attr)
+      register_as(:net_ldap)
+
+      def initialize(options)
+        require 'net/ldap'
+        if defined?(::Net::LDAP) && options.kind_of?(::Net::LDAP)
+          options = {:adapter => :net_ldap, :connection => option}
+        end
+        options = (options || {}).dup
+        if connection = options[:connection]
+          auth       = connection.instance_variable_get(:@auth) || {}
+          encryption = connection.instance_variable_get(:@encryption)
+          options = {
+            :adapter => :net_ldap,
+            :host => connection.host,
+            :port => connection.port,
+            :username => auth[:username],
+            :password => auth[:password]
+          }.merge(options)
+          if encryption
+            options[:encryption] ||= encryption
+          end
+        else
+          options[:connection] ||= ::Net::LDAP.new(
+            :host => options[:host],
+            :port => options[:port],
+            :encryption => options[:encryption],
+            :auth => {:method => :simple, :username => options[:username], :password => options[:password]}
+          )
+        end
+        @options = options
+        @connection = options[:connection]
+      end
+
+      attr_reader :connection
+
+      def add(dn, attributes)
+        connection.add(:dn => dn, :attributes => attributes)
       end
 
       def modify(dn, attributes)
-        @connection.modify(
+        connection.modify(
           :dn => dn,
           :operations => attributes.map {|k,v| [:replace, k, v]}
         )
       end
 
       def delete(dn)
-        @connection.delete(:dn => dn)
+        connection.delete(:dn => dn)
+      end
+
+      def rename(dn, new_rdn, delete_old)
+        connection.rename(:olddn => dn, :newrdn => new_rdn, :delete_attributes => delete_old)
       end
 
       DEFAULT_TRANSFORMATIONS = %w[
@@ -44,7 +83,7 @@ module Ldaptor
 
       def search(options = {}, &block)
         options = search_options(options).merge(:return_result => false)
-        @connection.search(options) do |entry|
+        connection.search(options) do |entry|
           hash = {}
           entry.each do |attr,val|
             attr = recapitalize(attr)
@@ -53,6 +92,16 @@ module Ldaptor
           block.call(hash)
         end
         nil
+      end
+
+      def authenticate(dn, password)
+        conn = Net::LDAP.new(
+          :host => connection.host,
+          :port => connection.port,
+          :encryption => connection.instance_variable_get(:@encryption),
+          :auth => {:method => :simple, :username => dn, :password => password}
+        )
+        conn.bind
       end
 
       private
@@ -64,5 +113,6 @@ module Ldaptor
       end
 
     end
+
   end
 end

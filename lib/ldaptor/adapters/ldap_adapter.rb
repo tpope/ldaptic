@@ -3,6 +3,20 @@ require 'ldaptor/adapters/abstract_adapter'
 module Ldaptor
   module Adapters
     class LDAPAdapter < AbstractAdapter
+      register_as(:ldap)
+
+      def initialize(options)
+        require 'ldap'
+        if defined?(::LDAP::Conn) && options.kind_of?(::LDAP::Conn)
+          options = {:adapter => :ldap, :connection => options}
+        end
+        unless options[:connection]
+          options[:connection] = ::LDAP::Conn.new(options[:host], options[:port])
+          options[:connection].bind(options[:username], options[:password])
+        end
+        @options = options
+        @connection = options[:connection]
+      end
 
       def add(dn, attributes)
         @connection.add(dn, attributes)

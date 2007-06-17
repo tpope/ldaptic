@@ -6,11 +6,11 @@ require 'test/unit'
 
 class LdaptorHierarchyTest < Test::Unit::TestCase
   def setup
-    @ldap     = Ldaptor::Adapters::LDAPAdapter.new(nil)
-    @net_ldap = Ldaptor::Adapters::NetLDAPAdapter.new(nil)
+    @ldap     = Ldaptor::Adapters::LDAPAdapter.allocate
+    @net_ldap = Ldaptor::Adapters::NetLDAPAdapter.allocate
   end
 
-  def test_search_options
+  def test_search_parameters
     assert_equal(
       ["DC=org",0,"(objectClass=*)",nil,false,1,10_000,"", nil],
       @ldap.send(:search_parameters,

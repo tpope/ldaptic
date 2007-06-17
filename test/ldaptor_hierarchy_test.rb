@@ -4,7 +4,7 @@ require File.join(File.dirname(__FILE__),"/mock_adapter")
 require 'test/unit'
 
 class LdaptorHierarchyTest < Test::Unit::TestCase
-  class Mock < Ldaptor::Namespace(Ldaptor::Adapters::MockAdapter.new)
+  class Mock < Ldaptor::Namespace(:adapter => :mock)
   end
 
   def test_inheritance

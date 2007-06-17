@@ -2,8 +2,8 @@ module Ldaptor
   module Adapters
     class AbstractAdapter
 
-      def initialize(connection)
-        @connection = connection
+      def initialize(options)
+        @options = options
       end
 
       def root_dse(attrs = nil)
@@ -107,6 +107,11 @@ module Ldaptor
         query = LDAP::Filter(query)
         options[:filter] = query
         options
+      end
+
+      def self.register_as(name)
+        require 'ldaptor/adapters'
+        Ldaptor::Adapters.register(name, self)
       end
 
       # search, add, modify, rename
