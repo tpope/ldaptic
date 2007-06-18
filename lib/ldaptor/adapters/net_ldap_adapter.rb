@@ -109,7 +109,7 @@ module Ldaptor
       end
 
       def default_base_dn
-        options[:base] || server_default_base_dn
+        @options[:base] || server_default_base_dn
       end
 
       private
