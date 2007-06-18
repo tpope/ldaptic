@@ -40,10 +40,14 @@ module Ldaptor
     hash
   end
 
-  def self.build_hierarchy(connection,base_dn = nil,&block) #:nodoc:
+  def self.build_hierarchy(options,base_dn = nil,&block) #:nodoc:
     klass = Class.new(Base)
-    klass.send(:connection=, connection)
-    klass.base_dn = base_dn
+    if options.kind_of?(Hash) && options[:base]
+      self.base_dn = options[:base]
+    else
+      klass.base_dn = base_dn
+    end
+    klass.send(:instantiate_adapter, options)
     klass.send(:build_hierarchy)
     klass.instance_eval(&block) if block_given?
     klass
@@ -58,10 +62,14 @@ module Ldaptor
   #   end
   #
   #   me = MyCompany.search(:filter => {:cn => "Name, My"})
-  def self.Namespace(connection, base_dn = nil)
+  def self.Namespace(options, base_dn = nil)
     klass = Class.new(Base)
-    klass.send(:connection=, connection)
-    klass.base_dn = base_dn
+    if options.kind_of?(Hash) && options[:base]
+      klass.base_dn = options[:base]
+    else
+      klass.base_dn = base_dn
+    end
+    klass.send(:instantiate_adapter, options)
     klass.instance_variable_set(:@parent,  true)
     klass
   end
@@ -473,7 +481,7 @@ module Ldaptor
           hash[k.sup] << k; hash
         end
         add_constants(hash,Ldaptor::Object)
-        self.base_dn ||= adapter.server_default_base_dn
+        self.base_dn ||= adapter.default_base_dn
         nil
       end
 
@@ -507,7 +515,7 @@ module Ldaptor
         end
       end
 
-      def connection=(options)
+      def instantiate_adapter(options)
         @adapter = Ldaptor::Adapters.for(options)
       end
 

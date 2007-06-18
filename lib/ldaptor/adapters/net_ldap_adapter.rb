@@ -7,11 +7,12 @@ module Ldaptor
       register_as(:net_ldap)
 
       def initialize(options)
-        require 'net/ldap'
+        require 'net/ldap' if defined?(::Net::LDAP) && options.kind_of?(::Net::LDAP)
         if defined?(::Net::LDAP) && options.kind_of?(::Net::LDAP)
           options = {:adapter => :net_ldap, :connection => option}
+        else
+          options = (options || {}).dup
         end
-        options = (options || {}).dup
         if connection = options[:connection]
           auth       = connection.instance_variable_get(:@auth) || {}
           encryption = connection.instance_variable_get(:@encryption)
@@ -19,6 +20,7 @@ module Ldaptor
             :adapter => :net_ldap,
             :host => connection.host,
             :port => connection.port,
+            :base => connection.base == "dc=com" ? nil : connection.base,
             :username => auth[:username],
             :password => auth[:password]
           }.merge(options)
@@ -94,14 +96,20 @@ module Ldaptor
         nil
       end
 
+      # Convenience method which returns true if the credentials are valid, and
+      # false otherwise.  The credentials are discarded afterwards.
       def authenticate(dn, password)
         conn = Net::LDAP.new(
-          :host => connection.host,
-          :port => connection.port,
-          :encryption => connection.instance_variable_get(:@encryption),
+          :host => @options[:host],
+          :port => @options[:port],
+          :encryption => @options[:encryption],
           :auth => {:method => :simple, :username => dn, :password => password}
         )
         conn.bind
+      end
+
+      def default_base_dn
+        options[:base] || server_default_base_dn
       end
 
       private

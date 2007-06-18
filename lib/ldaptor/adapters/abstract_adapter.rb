@@ -94,6 +94,8 @@ module Ldaptor
         end
       end
 
+      alias default_base_dn server_default_base_dn
+
       def search_options(options = {})
         options = options.dup
         options[:scope] = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::Ldaptor::SCOPES[:subtree]

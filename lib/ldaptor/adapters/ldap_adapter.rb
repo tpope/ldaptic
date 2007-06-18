@@ -9,49 +9,76 @@ module Ldaptor
         require 'ldap'
         if defined?(::LDAP::Conn) && options.kind_of?(::LDAP::Conn)
           options = {:adapter => :ldap, :connection => options}
+        else
+          options = options.dup
         end
         unless options[:connection]
+          options[:version] ||= 3
           options[:connection] = ::LDAP::Conn.new(options[:host], options[:port])
-          options[:connection].bind(options[:username], options[:password])
+          options[:connection].set_option(::LDAP::LDAP_OPT_PROTOCOL_VERSION, options[:version])
+          pw = options[:password]
+          pw = pw.call if pw.respond_to?(:call)
+          options[:connection].bind(options[:username], pw)
         end
         @options = options
         @connection = options[:connection]
       end
 
       def add(dn, attributes)
-        @connection.add(dn, attributes)
+        with_writer do |conn|
+          conn.add(dn, attributes)
+        end
       end
 
       def modify(dn, attributes)
-        @connection.modify(dn, attributes)
+        with_writer do |conn|
+          conn.modify(dn, attributes)
+        end
       end
 
       def delete(dn)
-        @connection.delete(dn)
+        with_writer do |conn|
+          conn.delete(dn)
+        end
       end
 
       def rename(dn, new_rdn, delete_old)
-        @connection.modrdn(dn,new_rdn, delete_old)
+        with_writer do |conn|
+          conn.modrdn(dn,new_rdn, delete_old)
+        end
       end
 
       def search(options = {}, &block)
-        cookie = ""
         options = search_options(options)
         parameters = search_parameters(options)
-        while cookie
-          ctrl = paged_results_control(cookie)
-          @connection.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[ctrl])
-          result = @connection.search2(*parameters, &block)
-          ctrl = @connection.controls.detect {|c| c.oid == ctrl.oid}
-          cookie = ctrl && ctrl.decode.last
-          cookie = nil if cookie.to_s.empty?
+        with_reader do |conn|
+          begin
+            cookie = ""
+            while cookie
+              ctrl = paged_results_control(cookie)
+              conn.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[ctrl])
+              result = conn.search2(*parameters, &block)
+              ctrl   = conn.controls.detect {|c| c.oid == ctrl.oid}
+              cookie = ctrl && ctrl.decode.last
+              cookie = nil if cookie.to_s.empty?
+            end
+          ensure
+            conn.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[]) rescue nil
+          end
         end
-      ensure
-        @connection.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[]) rescue nil
       end
 
       private
-      def paged_results_control(cookie = "", size = 126) # Namespace
+
+      def with_reader
+        yield @connection
+      end
+
+      def with_writer
+        yield @connection
+      end
+
+      def paged_results_control(cookie = "", size = 126)
         require 'ldap/control'
         # values above 126 cause problems for slapd, as determined by net/ldap
         ::LDAP::Control.new(
@@ -62,7 +89,7 @@ module Ldaptor
         )
       end
 
-      def search_parameters(options = {}) # Namespace
+      def search_parameters(options = {})
         case options[:sort]
         when Proc, Method then s_attr, s_proc = nil, options[:sort]
         else s_attr, s_proc = options[:sort], nil
