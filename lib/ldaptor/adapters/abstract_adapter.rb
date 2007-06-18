@@ -1,11 +1,31 @@
+require 'ldap/escape'
+
 module Ldaptor
   module Adapters
+    # Subclasse must implement search, add, modify, delete, and rename.  These
+    # methods should return 0 on success and non-zero on failure.  The failure
+    # code is intended to be the server error code.  If this is unavailable,
+    # return -1.
     class AbstractAdapter
+
+      # When implementing an adapter, +register_as+ must be called to associate
+      # the adapter with a name.  The adapter name must mimic the filename.
+      # The following might be found in ldaptor/adapters/some_adapter.rb.
+      #
+      #   class SomeAdapter < AbstractAdapter
+      #     register_as(:some)
+      #   end
+      def self.register_as(name)
+        require 'ldaptor/adapters'
+        Ldaptor::Adapters.register(name, self)
+      end
 
       def initialize(options)
         @options = options
       end
 
+      # The server's RootDSE.  +attrs+ is an array specifying which attributes
+      # to return.
       def root_dse(attrs = nil)
         attrs ||= %w[
           objectClass
@@ -21,10 +41,11 @@ module Ldaptor
         ]
         result = search(
           :base => "",
-          :scope => :base,
+          :scope => Ldaptor::SCOPES[:base],
           :filter => "(objectClass=*)",
-          :attributes => Array(attrs)
+          :attributes => Array(attrs).map {|a| LDAP.escape(a)}
         ) { |x| break x }
+        return nil if result.kind_of?(Fixnum)
         if attrs.kind_of?(Array)
           result
         else
@@ -46,46 +67,15 @@ module Ldaptor
         ]
         search(
           :base => root_dse(['subschemaSubentry'])['subschemaSubentry'].first,
-          :scope => :base,
+          :scope => Ldaptor::SCOPES[:base],
           :filter => "(objectClass=subSchema)",
           :attributes => attrs
-        ) { |x| break x }
+        ) { |x| return x }
+        nil
       end
 
-      def attribute_types
-        @attribute_types ||= schema(['attributeTypes'])['attributeTypes'].inject({}) do |hash,val|
-          at = Ldaptor::Schema::AttributeType.new(val)
-          hash[at.oid] = at
-          Array(at.name).each do |name|
-            hash[name] = at
-          end
-          hash
-        end
-        @attribute_types
-      end
-
-      def dit_content_rules
-        @dit_content_rules ||= schema(['dITContentRules'])['dITContentRules'].inject({}) do |hash,val|
-          dit = Ldaptor::Schema::DITContentRule.new(val)
-          hash[dit.oid] = dit
-          Array(dit.name).each do |name|
-            hash[name] = dit
-          end
-          hash
-        end
-      end
-
-      def object_classes
-        @object_classes ||= schema(['objectClasses'])['objectClasses'].inject({}) do |hash,val|
-          ocl = Ldaptor::Schema::ObjectClass.new(val)
-          hash[ocl.oid] = ocl
-          Array(ocl.name).each do |name|
-            hash[name] = ocl
-          end
-          hash
-        end
-      end
-
+      # Returns either the +defaultNamingContext+ (Active Directory specific)
+      # or the first of the +namingContexts+ found in the RootDSE.
       def server_default_base_dn
         result = root_dse(%w(defaultNamingContext namingContexts))
         if result
@@ -96,27 +86,38 @@ module Ldaptor
 
       alias default_base_dn server_default_base_dn
 
-      def search_options(options = {})
-        options = options.dup
-        options[:scope] = ::Ldaptor::SCOPES[options[:scope]] || options[:scope] || ::Ldaptor::SCOPES[:subtree]
-        #if options[:attributes].respond_to?(:to_ary)
-        #  options[:attributes] = options[:attributes].map {|x| LDAP.escape(x)}
-        #elsif options[:attributes]
-        #  options[:attributes] = LDAP.escape(options[:attributes])
-        #end
-        query = options[:filter]
-        query = {:objectClass => :*} if query.nil?
-        query = LDAP::Filter(query)
-        options[:filter] = query
-        options
+      # Returns a hash of attribute types, keyed by both OID and name.
+      def attribute_types
+        @attribute_types ||= construct_schema_hash('attributeTypes',
+          Ldaptor::Schema::AttributeType)
       end
 
-      def self.register_as(name)
-        require 'ldaptor/adapters'
-        Ldaptor::Adapters.register(name, self)
+      # Returns a hash of DIT content rules, keyed by both OID and name.
+      def dit_content_rules
+        @dit_content_rules || construct_schema_hash('dITContentRules',
+          Ldaptor::Schema::DITContentRule)
       end
 
-      # search, add, modify, rename
+      # Returns a hash of object classes, keyed by both OID and name.
+      def object_classes
+        @object_classes ||= construct_schema_hash('objectClasses',
+          Ldaptor::Schema::ObjectClass)
+      end
+
+      private
+
+      def construct_schema_hash(element,klass)
+        @schema_hash ||= schema(['attributeTypes','dITContentRules','objectClasses'])
+        @schema_hash[element.to_s].inject({}) do |hash,val|
+          object = klass.new(val)
+          hash[object.oid] = object
+          Array(object.name).each do |name|
+            hash[name] = object
+          end
+          hash
+        end
+      end
+
     end
   end
 end

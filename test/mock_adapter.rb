@@ -35,12 +35,12 @@ class Ldaptor::Adapters::MockAdapter < Ldaptor::Adapters::AbstractAdapter
 
   # Returns a mock object which encapsulates the search query.
   def search(options)
-    options = search_options(options)
     yield({
       'objectClass' => %w(top searchResult),
       'filter' => [options[:filter].to_s],
       'scope' => [options[:scope].to_s],
       'dn' => [options[:base]]
     })
+    0
   end
 end

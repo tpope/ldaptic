@@ -43,6 +43,7 @@ module Ldaptor
 
       def add(dn, attributes)
         connection.add(:dn => dn, :attributes => attributes)
+        connection.get_operation_result.code
       end
 
       def modify(dn, attributes)
@@ -50,17 +51,20 @@ module Ldaptor
           :dn => dn,
           :operations => attributes.map {|k,v| [:replace, k, v]}
         )
+        connection.get_operation_result.code
       end
 
       def delete(dn)
         connection.delete(:dn => dn)
+        connection.get_operation_result.code
       end
 
       def rename(dn, new_rdn, delete_old)
         connection.rename(:olddn => dn, :newrdn => new_rdn, :delete_attributes => delete_old)
+        connection.get_operation_result.code
       end
 
-      DEFAULT_TRANSFORMATIONS = %w[
+      DEFAULT_CAPITALIZATIONS = %w[
         dn
         objectClass
         subschemaSubentry
@@ -84,7 +88,7 @@ module Ldaptor
       ].inject({}) { |h,k| h[k.downcase] = k; h }
 
       def search(options = {}, &block)
-        options = search_options(options).merge(:return_result => false)
+        options = options.merge(:return_result => false)
         connection.search(options) do |entry|
           hash = {}
           entry.each do |attr,val|
@@ -93,7 +97,7 @@ module Ldaptor
           end
           block.call(hash)
         end
-        nil
+        connection.get_operation_result.code
       end
 
       # Convenience method which returns true if the credentials are valid, and
@@ -114,7 +118,8 @@ module Ldaptor
 
       private
       def recapitalize(attribute)
-        DEFAULT_TRANSFORMATIONS[attribute.to_s] ||
+        @cached_capitalizations ||= DEFAULT_CAPITALIZATIONS
+        @cached_capitalizations[attribute.to_s] ||=
           attribute_types.keys.detect do |x|
             x.downcase == attribute.to_s.downcase
           end

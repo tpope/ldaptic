@@ -40,61 +40,75 @@ module Ldaptor
     hash
   end
 
-  def self.build_hierarchy(options,base_dn = nil,&block) #:nodoc:
+  def self.build_hierarchy(options,&block) #:nodoc:
     klass = Class.new(Base)
-    if options.kind_of?(Hash) && options[:base]
-      self.base_dn = options[:base]
-    else
-      klass.base_dn = base_dn
-    end
     klass.send(:instantiate_adapter, options)
     klass.send(:build_hierarchy)
     klass.instance_eval(&block) if block_given?
     klass
   end
 
-  # The core method of Ldaptor.
+  # The core constructor of Ldaptor.  This method returns an anonymous class
+  # which can then be inherited from.
   #
-  #   $conn = LDAP::Conn.new("mycompany.com")
-  #   $conn.bind("CN=Name\\, My,DC=mycompany,DC=com","password")
+  #   options = {
+  #     :adapter  => :active_directory,
+  #     :host     => "mycompany.com",
+  #     :username => "MYCOMPANY\\mylogin",
+  #     :password => "mypassword"
+  #   }
   #
-  #   class MyCompany < Ldaptor::Namespace($conn)
+  #   class MyCompany < Ldaptor::Namespace(options)
+  #     # This class and many others are created automatically based on
+  #     # information from the server.
+  #     class User
+  #       alias login sAMAccountName
+  #     end
   #   end
   #
-  #   me = MyCompany.search(:filter => {:cn => "Name, My"})
-  def self.Namespace(options, base_dn = nil)
+  #   me = MyCompany.search(:filter => {:cn => "Name, My"}).first
+  #   puts me.login
+  #
+  # Options include
+  # * <tt>:adapter</tt>: The LDAP connection adapter to use.
+  # * <tt>:base</tt>: The default base DN for searches.  If unspecified, this
+  #   is guessed by querying the server.
+  # All other options are passed along to the adapter.
+  def self.Namespace(options)
     klass = Class.new(Base)
-    if options.kind_of?(Hash) && options[:base]
-      klass.base_dn = options[:base]
-    else
-      klass.base_dn = base_dn
-    end
     klass.send(:instantiate_adapter, options)
     klass.instance_variable_set(:@parent,  true)
     klass
   end
 
-  module ObjectClassMethods
+  # When a new Ldaptor::Namespace is created, a Ruby class hierarchy is
+  # contructed that mirrors the server's object classes.  Ldaptor::Object
+  # serves as the base class for this hierarchy.
+  class Object
+    class << self
     attr_reader :oid, :desc, :sup
     %w(obsolete abstract structural auxiliary).each do |attr|
       class_eval("def #{attr}?; !! @#{attr}; end")
     end
+
+    # Returns an array of all names for the object class.  Typically the number
+    # of names is one, but it is possible for an object class to have aliases.
     def names
       Array(@name)
     end
 
-    def instantiate(attributes, namespace = nil)
+    def instantiate(attributes, namespace = nil) #:nodoc:
       if klass = @subclasses.to_a.find {|c| attributes["objectClass"].to_a.include?(c.object_class)}
-        return klass.send(:instantiate,attributes)
+        return klass.instantiate(attributes)
       elsif klass = self.namespace.const_get(attributes["objectClass"].last.to_s.ldapitalize(true)) rescue nil
         if klass != self
-          return klass.send(:instantiate,attributes)
+          return klass.instantiate(attributes)
         end
       end
       obj = allocate
-      obj.instance_variable_set(:@dn,Array(attributes.delete('dn')).first)
-      obj.instance_variable_set(:@original_attributes,attributes)
-      obj.instance_variable_set(:@attributes,Ldaptor.clone_ldap_hash(attributes))
+      obj.instance_variable_set(:@dn, Array(attributes.delete('dn')).first)
+      obj.instance_variable_set(:@original_attributes, attributes)
+      obj.instance_variable_set(:@attributes, Ldaptor.clone_ldap_hash(attributes))
       obj.instance_variable_set(:@namespace, namespace || @namespace)
       obj
     end
@@ -109,9 +123,11 @@ module Ldaptor
       (may(false) + must(false)).each do |attr|
         method = attr.to_s.tr_s('-_','_-')
         define_method("#{method}") { read_attribute(attr) }
-        unless namespace.adapter.attribute_types[attr].no_user_modification?
+        # If we skip this check we can delay the attribute_types initialization
+        # and improve startup speed.
+        # unless namespace.adapter.attribute_types[attr].no_user_modification?
           define_method("#{method}="){ |value| write_attribute(attr,value) }
-        end
+        # end
       end
     end
 
@@ -185,13 +201,7 @@ module Ldaptor
     end
 
     alias objectClass object_classes
-  end
-
-  # When a new Ldaptor::Namespace is created, a Ruby class hierarchy is
-  # contructed that mirrors the server's object classes.  Ldaptor::Object
-  # serves as the base class for this hierarchy.
-  class Object
-    extend ObjectClassMethods
+    end
 
     def self.inherited(subclass) #:nodoc:
       @subclasses ||= []
@@ -209,7 +219,7 @@ module Ldaptor
       end
     end
 
-    # The objects distinguished name.
+    # The object's distinguished name.
     def dn
       LDAP::DN(@dn,self) if @dn
     end
@@ -230,7 +240,7 @@ module Ldaptor
 
     def children(type = nil, name = nil)
       if name && name != :*
-        search(:base => dn/{type => name}, :scope => :base).first
+        search(:base => dn/{type => name}, :scope => :base, :limit => true)
       elsif type
         search(:filter => {type => :*}, :scope => :onelevel)
       else
@@ -243,15 +253,11 @@ module Ldaptor
       @namespace || self.class.namespace
     end
 
-    def adapter
-      self.class.namespace.adapter
-    end
-
     def inspect
       str = "#<#{self.class} #{dn}"
       @attributes.each do |k,values|
         s = (values.size == 1 ? "" : "s")
-        at = adapter.attribute_types[k]
+        at = namespace.adapter.attribute_types[k]
         if at && at.syntax_object && !at.syntax_object.x_not_human_readable? && at.syntax_object.desc != "Octet String"
           str << " " << k << ": " << values.inspect
         else
@@ -269,11 +275,18 @@ module Ldaptor
       str << ">"
     end
 
+    # Reads an attribute and typecasts it if neccessary.  If the server
+    # indicates the attribute is <tt>SINGLE-VALUE</tt>, the sole attribute or
+    # +nil+ is returned.  Otherwise, an array is returned.
+    #
+    # If the argument given is a symbol, underscores are translated into
+    # hyphens.  Since #method_missing delegates to this method, method names
+    # with underscores map to attributes with hyphens.
     def read_attribute(key)
       key = LDAP.escape(key)
       values = @attributes[key] || @attributes[key.downcase]
       return nil if values.nil?
-      at = adapter.attribute_types[key]
+      at = namespace.adapter.attribute_types[key]
       unless at
         warn "Warning: unknown attribute type for #{key}"
         return values
@@ -300,17 +313,23 @@ module Ldaptor
     end
     protected :read_attribute
 
-    # For testing
-    def read_attributes
+    # For testing.
+    def read_attributes #:nodoc:
       attributes.keys.inject({}) do |hash,key|
         hash[key] = read_attribute(key)
         hash
       end
     end
 
+    # Change an attribute.  This is called by #method_missing and
+    # <tt>[]=</tt>.  Exceptions are raised if certain server dictated criteria
+    # are violated.  For example, a TypeError is raised if you try to assign
+    # multiple values to an attribute marked <tt>SINGLE-VALUE</tt>.
+    #
+    # Changes are not committed to the server until #save is called.
     def write_attribute(key,values)
       key = LDAP.escape(key)
-      at = adapter.attribute_types[key]
+      at = namespace.adapter.attribute_types[key]
       unless at
         warn "Warning: unknown attribute type for #{key}"
         @attributes[key] = Array(values)
@@ -374,6 +393,7 @@ module Ldaptor
       end
     end
 
+    # Delegates to +read_attribute+ or +write_attribute+.
     def method_missing(method,*args,&block)
       attribute = LDAP.escape(method)
       method = method.to_s
@@ -406,44 +426,56 @@ module Ldaptor
       end
     end
 
+    # If a Hash or a String containing "=" is given, the argument is treated as
+    # an RDN and a search for a child is performed.  +nil+ is returned if no
+    # match is found.
+    #
+    # For a singular String or Symbol argument, that attribute is read with
+    # read_attribute.
     def [](*values)
       if !values.empty? && values.all? {|v| v.kind_of?(Hash)}
-        return search(:base => dn[*values], :scope => :base).first
+        return search(:base => dn[*values], :scope => :base, :limit => true)
       end
       raise ArgumentError unless values.size == 1
       value = values.first
       case value
-      when /\(.*=/, LDAP::Filter
-        search(:filter => value, :scope => :onelevel)
+      # when /\(.*=/, LDAP::Filter
+        # search(:filter => value, :scope => :onelevel)
       when /=/, Array
-        search(:base => dn[*values], :scope => :base).first
+        search(:base => dn[*values], :scope => :base, :limit => true)
       else read_attribute(value)
       end
     end
 
+    # Searches for children.  This is identical to Ldaptor::Base#search, only
+    # the default base is the current object's DN.
     def search(options)
-      self.namespace.search({:base => dn}.merge(options))
+      namespace.search({:base => dn}.merge(options))
     end
 
+    # For new objects, does an LDAP add.  For existing objects, does an LDAP
+    # modify.  This only sends the modified attributes to the server.
     def save
       if @original_attributes
         updates = @attributes.reject do |k,v|
           @original_attributes[k] == v
         end
-        adapter.modify(dn,updates) unless updates.empty?
+        namespace.adapter.modify(dn,updates) unless updates.empty?
       else
-        adapter.add(dn, @attributes)
+        namespace.adapter.add(dn, @attributes)
       end
       @original_attributes = @attributes
       @attributes = Ldaptor.clone_ldap_hash(@original_attributes)
       self
     end
 
+    # Deletes the object from the server and freezes it locally.
     def destroy
-      adapter.delete(dn)
+      namespace.adapter.delete(dn)
       freeze
     end
 
+    # Refetches the attributes from the server.
     def reload
       new = search(:scope => :base).first
       @original_attributes = new.instance_variable_get(:@original_attributes)
@@ -451,13 +483,13 @@ module Ldaptor
       self
     end
 
-    def respond_to?(method)
+    def respond_to?(method) #:nodoc:
       super(method) || (may + must + (may+must).map {|x| "#{x}="}).include?(method.to_s)
     end
 
     def rename(new_rdn)
       # TODO: how is new_rdn escaped?
-      adapter.rename(dn,LDAP::DN([new_rdn]),true)
+      namespace.adapter.rename(dn,LDAP::DN([new_rdn]),true)
       @dn = dn.parent/new_rdn
     end
   end
@@ -476,7 +508,8 @@ module Ldaptor
       end
 
       def build_hierarchy
-        klasses = adapter.object_classes.values.uniq
+        klasses = adapter.object_classes.values
+        klasses.uniq!
         hash = klasses.inject(Hash.new {|h,k|h[k]=[]}) do |hash,k|
           hash[k.sup] << k; hash
         end
@@ -516,20 +549,36 @@ module Ldaptor
       end
 
       def instantiate_adapter(options)
+        if options.kind_of?(Hash)
+          self.base_dn ||= options[:base] || options['base']
+        end
         @adapter = Ldaptor::Adapters.for(options)
       end
 
       public
-      inheritable_reader :connection, :base_dn, :adapter
+      inheritable_reader :base_dn, :adapter
       def base_dn=(dn)
         @base_dn = LDAP::DN(dn,self)
       end
       alias dn base_dn
 
+      # Verifies the given credentials are authorized to connect to the server,
+      # by temborarily binding with them.  Returns a boolean.
+      def authenticate(dn, password)
+        adapter.authenticate(dn, password)
+      end
+
+      # Identical to #[].
       def /(*args)
         find(base_dn.send(:/,*args))
       end
 
+      # Search for an RDN relative to the base.
+      #
+      #   class MyCompany < Ldaptor::Namespace(:base => "DC=org", ...)
+      #   end
+      #
+      #   MyCompany[:dc => "ruby-lang"].dn #=> "DC=ruby-lang,DC=org"
       def [](*args)
         if args.empty?
           find(base_dn)
@@ -538,10 +587,12 @@ module Ldaptor
         end
       end
 
-      def *(filter)
+      # Does a search with the given filter and a scope of onelevel.
+      def *(filter) #:nodoc:
         search(:filter => filter, :scope => :onelevel)
       end
-      def **(filter)
+      # Does a search with the given filter and a scope of subtree.
+      def **(filter) #:nodoc:
         search(:filter => filter, :scope => :subtree)
       end
 
@@ -549,19 +600,35 @@ module Ldaptor
 
       def search_options(options = {})
         options = options.dup
+
+        options[:base] = (options[:base] || options[:base_dn] || base_dn).to_s
+
+        original_scope = options[:scope]
+        options[:scope] ||= :subtree
+        if options[:scope].respond_to?(:to_sym)
+          options[:scope] = Ldaptor::SCOPES[options[:scope].to_sym]
+        end
+        raise ArgumentError, "invalid scope #{original_scope.inspect}", caller[1..-1] unless Ldaptor::SCOPES.values.include?(options[:scope])
+
+        options[:filter] ||= {:objectClass => :*}
+        if [Hash, Proc, Method].include?(options[:filter].class)
+          options[:filter] = LDAP::Filter(options[:filter])
+        end
+
         if options[:attributes].respond_to?(:to_ary)
           options[:attributes] = options[:attributes].map {|x| LDAP.escape(x)}
         elsif options[:attributes]
           options[:attributes] = LDAP.escape(options[:attributes])
         end
-        options[:instantiate] = true unless options.has_key?(:instantiate)
+
         options.delete(:attributes_only) if options[:instantiate]
-        options[:base] = (options[:base] || options[:base_dn] || base_dn).to_s
+        options[:instantiate] = true unless options.has_key?(:instantiate)
+
         options
       end
 
       def find_one(dn,options)
-        objects = search(options.merge(:base => dn, :scope => :base))
+        objects = search(options.merge(:base => dn, :scope => :base, :limit => false))
         unless objects.size == 1
           raise RecordNotFound, "record not found for #{dn}", caller
         end
@@ -569,6 +636,10 @@ module Ldaptor
       end
 
       public
+
+      # Find an absolute DN, raising an error when no results are found.
+      # Equivalent to
+      #   .search(:base => dn, :scope => :base, :limit => true) or raise ...
       def find(dn,options = {})
         case dn
         when :all   then search(options)
@@ -578,6 +649,37 @@ module Ldaptor
         end
       end
 
+      # * <tt>:base</tt>: The base DN of the search.  The default is derived
+      #   from either the <tt>:base</tt> option of the adapter configuration or
+      #   by querying the server.
+      # * <tt>:scope</tt>: The scope of the search.  Valid values are
+      #   <tt>:base</tt> (find the base only), <tt>:onelevel</tt> (children of
+      #   the base), and <tt>:subtree</tt> (children and descendents of those
+      #   children).  The default is <tt>:subtree</tt>.
+      # * <tt>:filter</tt>: A standard LDAP filter.  This can be a string, an
+      #   LDAP::Filter object, or parameters for LDAP::Filter().
+      # * <tt>:limit</tt>: Maximum number of results to return.  If the value
+      #   is a literal +true+, the first item is returned directly (or +nil+ if
+      #   nothing was found).  For a literal +false+, an array always returned
+      #   (the default).
+      # * <tt>:attributes</tt>: Specifies an Array of attributes to return.
+      #   When unspecified, all attributes are returned.  If this is not an
+      #   Array but rather a String or a Symbol, an array of attributes is
+      #   returned rather than an array of objects.
+      # * <tt>:instantiate</tt>: If this is false, a raw hash is returned
+      #   rather than an Ldaptor object.  Combined with a String or Symbol
+      #   argument to <tt>:attributes</tt>, a +false+ value here causes the
+      #   attribute not to be typecast.
+      #
+      # Option examples:
+      #   # Returns all people.
+      #   MyCompany.search(:filter => {:objectClass => "person"})
+      #   # Returns an array of strings because givenName is marked as a singular value on this server.
+      #   MyCompany.search(:attribute => :givenName)
+      #   # Returns an array of arrays of strings.
+      #   MyCompany.search(:attribute => :givenName, :instantiate => false)
+      #   # Returns the first object found.
+      #   MyCompany.search(:limit => true)
       def search(options = {},&block)
         ary = []
         one_attribute = options[:attributes]
@@ -592,7 +694,7 @@ module Ldaptor
         adapter.search(options) do |entry|
           if options[:instantiate]
             klass = const_get("Top")
-            entry = klass.send(:instantiate,entry,self)
+            entry = klass.instantiate(entry,self)
           end
           entry = entry[LDAP.escape(one_attribute)] if one_attribute
           ary << entry

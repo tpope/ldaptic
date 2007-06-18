@@ -2,26 +2,22 @@ require 'ldaptor/adapters/abstract_adapter'
 
 module Ldaptor
   module Adapters
-    class LDAPAdapter < AbstractAdapter
-      register_as(:ldap)
+    class LDAPConnAdapter < AbstractAdapter
+      register_as(:ldap_conn)
 
       def initialize(options)
         require 'ldap'
         if defined?(::LDAP::Conn) && options.kind_of?(::LDAP::Conn)
-          options = {:adapter => :ldap, :connection => options}
+          @options = {:adapter => :ldap_conn, :connection => options}
         else
-          options = options.dup
+          @options = options.dup
         end
-        unless options[:connection]
-          options[:version] ||= 3
-          options[:connection] = ::LDAP::Conn.new(options[:host], options[:port])
-          options[:connection].set_option(::LDAP::LDAP_OPT_PROTOCOL_VERSION, options[:version])
-          pw = options[:password]
-          pw = pw.call if pw.respond_to?(:call)
-          options[:connection].bind(options[:username], pw)
+        @options[:version] ||= 3
+        unless @options[:connection]
+          @options[:connection] = new_connection
+          bind_connection(@options[:connection], @options[:username], @options[:password])
         end
-        @options = options
-        @connection = options[:connection]
+        @connection = @options[:connection]
       end
 
       def add(dn, attributes)
@@ -49,9 +45,9 @@ module Ldaptor
       end
 
       def search(options = {}, &block)
-        options = search_options(options)
         parameters = search_parameters(options)
         with_reader do |conn|
+          raise "AW FUCK" if conn.nil?
           begin
             cookie = ""
             while cookie
@@ -68,15 +64,47 @@ module Ldaptor
         end
       end
 
+      def authenticate(dn, password)
+        conn = new_connection
+        bind_connection(conn, dn, password)
+        true
+      rescue LDAP::ResultError
+        false
+      ensure
+        conn.unbind rescue nil
+      end
+
       private
 
-      def with_reader
-        yield @connection
+      def connection_class
+        ::LDAP::Conn
       end
 
-      def with_writer
-        yield @connection
+      def new_connection(default_port = nil)
+        conn = connection_class.new(
+          @options[:host]||"localhost",
+          *[@options[:port] || default_port].compact
+        )
+        conn.set_option(::LDAP::LDAP_OPT_PROTOCOL_VERSION, @options[:version])
+        conn
       end
+
+      def bind_connection(conn, dn, password)
+        password = password.call if password.respond_to?(:call)
+        conn.bind(dn, password, *[@options[:method]].compact)
+      end
+
+      def with_reader
+        err = 0
+        begin
+          yield @connection
+        rescue ::LDAP::ResultError
+          err = -1
+        end
+        @connection.err.to_i.zero? ? err : conn.err.to_i
+      end
+
+      alias with_writer with_reader
 
       def paged_results_control(cookie = "", size = 126)
         require 'ldap/control'
