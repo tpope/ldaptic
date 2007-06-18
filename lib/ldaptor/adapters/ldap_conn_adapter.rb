@@ -94,17 +94,27 @@ module Ldaptor
         conn.bind(dn, password, *[@options[:method]].compact)
       end
 
-      def with_reader
-        err = 0
-        begin
-          yield @connection
-        rescue ::LDAP::ResultError
-          err = -1
-        end
-        @connection.err.to_i.zero? ? err : conn.err.to_i
+      def with_reader(&block)
+        with_conn(@connection,&block)
       end
 
       alias with_writer with_reader
+
+      def with_conn(conn,&block)
+        err, message = 0, nil
+        begin
+          yield conn
+        rescue ::LDAP::ResultError => exception
+          message = exception.message
+          err = error_for_message(message)
+        end
+        conn_err = conn.err.to_i
+        if err.zero? && !conn_err.zero?
+          err = conn_err
+          message = conn.err2string(err) rescue "error code #{err}"
+        end
+        err
+      end
 
       def paged_results_control(cookie = "", size = 126)
         require 'ldap/control'
@@ -133,6 +143,20 @@ module Ldaptor
           s_attr.to_s,
           s_proc
         ]
+      end
+
+      # LDAP::Conn only gives us a worthless string rather than a real error
+      # code on exceptions.
+      def error_for_message(msg)
+        unless @errors
+          with_reader do |conn|
+            @errors = (0..127).inject({}) do |h,err|
+              h[conn.err2string(err)] = err; h
+            end
+          end
+          @errors.delete("Unknown error")
+        end
+        @errors[msg]
       end
 
     end

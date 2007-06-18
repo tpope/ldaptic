@@ -43,7 +43,7 @@ module Ldaptor
 
       def add(dn, attributes)
         connection.add(:dn => dn, :attributes => attributes)
-        connection.get_operation_result.code
+        handle_errors
       end
 
       def modify(dn, attributes)
@@ -51,17 +51,17 @@ module Ldaptor
           :dn => dn,
           :operations => attributes.map {|k,v| [:replace, k, v]}
         )
-        connection.get_operation_result.code
+        handle_errors
       end
 
       def delete(dn)
         connection.delete(:dn => dn)
-        connection.get_operation_result.code
+        handle_errors
       end
 
       def rename(dn, new_rdn, delete_old)
         connection.rename(:olddn => dn, :newrdn => new_rdn, :delete_attributes => delete_old)
-        connection.get_operation_result.code
+        handle_errors
       end
 
       DEFAULT_CAPITALIZATIONS = %w[
@@ -97,7 +97,7 @@ module Ldaptor
           end
           block.call(hash)
         end
-        connection.get_operation_result.code
+        handle_errors
       end
 
       # Convenience method which returns true if the credentials are valid, and
@@ -123,6 +123,11 @@ module Ldaptor
           attribute_types.keys.detect do |x|
             x.downcase == attribute.to_s.downcase
           end
+      end
+
+      def handle_errors
+        yield if block_given?
+        @connection.get_operation_result.code
       end
 
     end

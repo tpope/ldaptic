@@ -691,7 +691,7 @@ module Ldaptor
           options[:limit] = 1
           first = true
         end
-        adapter.search(options) do |entry|
+        err = adapter.search(options) do |entry|
           if options[:instantiate]
             klass = const_get("Top")
             entry = klass.instantiate(entry,self)
@@ -702,6 +702,7 @@ module Ldaptor
           return entry if first == true
           return ary   if options[:limit] == ary.size
         end
+        raise Ldaptor::Error, "error #{err}" unless err.zero?
         first ? ary.first : ary
       end
 

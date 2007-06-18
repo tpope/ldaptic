@@ -22,16 +22,10 @@ module Ldaptor
 
       private
 
-      def with_port(port)
+      def with_port(port,&block)
         conn = new_connection(port)
         bind_connection(conn,@options[:username],@options[:password])
-        err = 0
-        begin
-          yield conn
-        rescue ::LDAP::ResultError
-          err = -1
-        end
-        conn.err.to_i.zero? ? err : conn.err.to_i
+        with_conn(conn,&block)
       ensure
         conn.unbind rescue nil
       end
