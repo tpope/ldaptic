@@ -5,7 +5,7 @@
 require 'ldaptor/core_ext'
 require 'ldap/dn'
 require 'ldap/filter'
-# require 'ldap'
+require 'ldaptor/errors'
 require 'ldaptor/schema'
 require 'ldaptor/syntaxes'
 require 'ldaptor/adapters'
@@ -17,12 +17,6 @@ module Ldaptor
     :onelevel => 1, # ::LDAP::LDAP_SCOPE_ONELEVEL,
     :subtree  => 2  # ::LDAP::LDAP_SCOPE_SUBTREE
   }
-
-  class Error < ::RuntimeError #:nodoc:
-  end
-
-  class RecordNotFound < Error
-  end
 
   # Constructs a deep copy of a set of LDAP attributes, normalizing them to
   # arrays as appropriate.  The returned hash has a default value of [].
@@ -135,25 +129,27 @@ module Ldaptor
       ancestors.select {|o| o.respond_to?(:oid) && o.oid }
     end
 
-    def namespace
-      @namespace || ancestors.detect {|o| o.respond_to?(:oid) && o.oid.nil? }
-    end
+    attr_reader :namespace
 
     def may(all = true)
       if all
+        core = []
         nott = []
-        ldap_ancestors.inject([]) do |memo,klass|
-          memo |= Array(klass.may(false))
+        ldap_ancestors.reverse.each do |klass|
+          core |= Array(klass.may(false))
           nott |= Array(klass.must(false))
-          if dit = klass.dit_content_rule
-            memo |= Array(dit.may)
-            nott |= Array(dit.not)
-            # Array(dit.aux).each do |aux|
-            # memo |= self.namespace.const_get(aux.ldapitalize(true)).may(false)
-            # end
-          end
-          memo - nott
+          # if dit = klass.dit_content_rule
+            # memo |= Array(dit.may)
+            # nott |= Array(dit.not)
+          # end
         end
+        if dit = dit_content_rule
+          core.push(*Array(dit.may))
+          core -= Array(dit.must)
+          core -= Array(dit.not)
+        end
+        core -= nott
+        core
       else
         Array(@may)
       end
@@ -161,16 +157,17 @@ module Ldaptor
 
     def must(all = true)
       if all
-        ldap_ancestors.inject([]) do |memo,klass|
+        core = ldap_ancestors.inject([]) do |memo,klass|
           memo |= Array(klass.must(false))
-          if dit = klass.dit_content_rule
-            memo |= Array(dit.must)
-            # Array(dit.aux).each do |aux|
-            # memo |= self.namespace.const_get(aux.ldapitalize(true)).must(false)
-            # end
-          end
+          # if dit = klass.dit_content_rule
+            # memo |= Array(dit.must)
+          # end
           memo
-        end.flatten.uniq
+        end
+        if dit = dit_content_rule
+          core.push(*Array(dit.must))
+        end
+        core
       else
         Array(@must)
       end
@@ -630,7 +627,7 @@ module Ldaptor
       def find_one(dn,options)
         objects = search(options.merge(:base => dn, :scope => :base, :limit => false))
         unless objects.size == 1
-          raise RecordNotFound, "record not found for #{dn}", caller
+          raise Ldaptor::Errors::NoSuchObject, "record not found for #{dn}", caller
         end
         objects.first
       end
@@ -691,7 +688,7 @@ module Ldaptor
           options[:limit] = 1
           first = true
         end
-        err = adapter.search(options) do |entry|
+        adapter.search(options) do |entry|
           if options[:instantiate]
             klass = const_get("Top")
             entry = klass.instantiate(entry,self)
@@ -702,7 +699,6 @@ module Ldaptor
           return entry if first == true
           return ary   if options[:limit] == ary.size
         end
-        raise Ldaptor::Error, "error #{err}" unless err.zero?
         first ? ary.first : ary
       end
 

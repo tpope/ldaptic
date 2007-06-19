@@ -68,7 +68,12 @@ module Ldaptor
         conn = new_connection
         bind_connection(conn, dn, password)
         true
-      rescue LDAP::ResultError
+      rescue ::LDAP::ResultError => exception
+        message = exception.message
+        err = error_for_message(message)
+        unless err == 49 # Invalid credentials
+          Ldaptor::Errors.raise_unless_zero(err, message)
+        end
         false
       ensure
         conn.unbind rescue nil
@@ -101,9 +106,9 @@ module Ldaptor
       alias with_writer with_reader
 
       def with_conn(conn,&block)
-        err, message = 0, nil
+        err, message, result = 0, nil, nil
         begin
-          yield conn
+          result = yield conn
         rescue ::LDAP::ResultError => exception
           message = exception.message
           err = error_for_message(message)
@@ -111,9 +116,10 @@ module Ldaptor
         conn_err = conn.err.to_i
         if err.zero? && !conn_err.zero?
           err = conn_err
-          message = conn.err2string(err) rescue "error code #{err}"
+          message = conn.err2string(err) rescue nil
         end
-        err
+        Ldaptor::Errors.raise_unless_zero(err, message)
+        result
       end
 
       def paged_results_control(cookie = "", size = 126)

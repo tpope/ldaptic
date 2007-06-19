@@ -7,7 +7,7 @@ module Ldaptor
       register_as(:net_ldap)
 
       def initialize(options)
-        require 'net/ldap' if defined?(::Net::LDAP) && options.kind_of?(::Net::LDAP)
+        require 'net/ldap'
         if defined?(::Net::LDAP) && options.kind_of?(::Net::LDAP)
           options = {:adapter => :net_ldap, :connection => option}
         else
@@ -116,6 +116,10 @@ module Ldaptor
         @options[:base] || server_default_base_dn
       end
 
+      def inspect
+        "#<#{self.class} #{@connection.inspect}>"
+      end
+
       private
       def recapitalize(attribute)
         @cached_capitalizations ||= DEFAULT_CAPITALIZATIONS
@@ -126,8 +130,10 @@ module Ldaptor
       end
 
       def handle_errors
-        yield if block_given?
-        @connection.get_operation_result.code
+        result = yield if block_given?
+        err = @connection.get_operation_result
+        Ldaptor::Errors.raise_unless_zero(err.code, err.message)
+        result
       end
 
     end

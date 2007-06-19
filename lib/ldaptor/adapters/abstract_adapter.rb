@@ -1,4 +1,5 @@
 require 'ldap/escape'
+require 'ldaptor/errors'
 
 module Ldaptor
   module Adapters
@@ -94,7 +95,7 @@ module Ldaptor
 
       # Returns a hash of DIT content rules, keyed by both OID and name.
       def dit_content_rules
-        @dit_content_rules || construct_schema_hash('dITContentRules',
+        @dit_content_rules ||= construct_schema_hash('dITContentRules',
           Ldaptor::Schema::DITContentRule)
       end
 
