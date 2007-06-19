@@ -1,0 +1,421 @@
+module Ldaptor
+
+  # When a new Ldaptor::Namespace is created, a Ruby class hierarchy is
+  # contructed that mirrors the server's object classes.  Ldaptor::Object
+  # serves as the base class for this hierarchy.
+  class Object
+    class << self
+      attr_reader :oid, :desc, :sup
+      %w(obsolete abstract structural auxiliary).each do |attr|
+        class_eval("def #{attr}?; !! @#{attr}; end")
+      end
+
+      # Returns an array of all names for the object class.  Typically the number
+      # of names is one, but it is possible for an object class to have aliases.
+      def names
+        Array(@name)
+      end
+
+      def instantiate(attributes, namespace = nil) #:nodoc:
+        if klass = @subclasses.to_a.find {|c| attributes["objectClass"].to_a.include?(c.object_class)}
+          return klass.instantiate(attributes)
+        elsif klass = self.namespace.const_get(attributes["objectClass"].last.to_s.ldapitalize(true)) rescue nil
+          if klass != self
+            return klass.instantiate(attributes)
+          end
+        end
+        obj = allocate
+        obj.instance_variable_set(:@dn, Array(attributes.delete('dn')).first)
+        obj.instance_variable_set(:@original_attributes, attributes)
+        obj.instance_variable_set(:@attributes, Ldaptor.clone_ldap_hash(attributes))
+        obj.instance_variable_set(:@namespace, namespace || @namespace)
+        obj
+      end
+      protected :instantiate
+
+      def has_attribute?(attribute)
+        attribute = LDAP.escape(attribute)
+        may.include?(attribute) || must.include?(attribute)
+      end
+
+      def create_accessors
+        (may(false) + must(false)).each do |attr|
+          method = attr.to_s.tr_s('-_','_-')
+          define_method("#{method}") { read_attribute(attr) }
+          # If we skip this check we can delay the attribute_types initialization
+          # and improve startup speed.
+          # unless namespace.adapter.attribute_types[attr].no_user_modification?
+            define_method("#{method}="){ |value| write_attribute(attr,value) }
+          # end
+        end
+      end
+
+      def ldap_ancestors
+        ancestors.select {|o| o.respond_to?(:oid) && o.oid }
+      end
+
+      attr_reader :namespace
+
+      def may(all = true)
+        if all
+          core = []
+          nott = []
+          ldap_ancestors.reverse.each do |klass|
+            core |= Array(klass.may(false))
+            nott |= Array(klass.must(false))
+            # if dit = klass.dit_content_rule
+              # memo |= Array(dit.may)
+              # nott |= Array(dit.not)
+            # end
+          end
+          if dit = dit_content_rule
+            core.push(*Array(dit.may))
+            core -= Array(dit.must)
+            core -= Array(dit.not)
+          end
+          core -= nott
+          core
+        else
+          Array(@may)
+        end
+      end
+
+      def must(all = true)
+        if all
+          core = ldap_ancestors.inject([]) do |memo,klass|
+            memo |= Array(klass.must(false))
+            # if dit = klass.dit_content_rule
+              # memo |= Array(dit.must)
+            # end
+            memo
+          end
+          if dit = dit_content_rule
+            core.push(*Array(dit.must))
+          end
+          core
+        else
+          Array(@must)
+        end
+      end
+
+      def aux
+        if dit_content_rule
+          Array(dit_content_rule.aux)
+        else
+          []
+        end
+      end
+
+      def attributes(all = true)
+        may(all) + must(all)
+      end
+
+      def dit_content_rule
+        namespace.adapter.dit_content_rules[oid]
+      end
+
+      def object_class
+        @object_class || names.first
+      end
+
+      def object_classes
+        ldap_ancestors.map {|a| a.object_class}.compact.reverse.uniq
+      end
+
+      alias objectClass object_classes
+
+      protected
+      def inherited(subclass) #:nodoc:
+        @subclasses ||= []
+        @subclasses << subclass
+      end
+
+    end
+
+    def initialize(data = {})
+      raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
+      @attributes = Ldaptor.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
+      if dn = Array(@attributes.delete('dn')).first
+        @dn = LDAP::DN(dn,self)
+        (@dn.to_a.first||{}).each do |k,v|
+          @attributes[k.to_s.downcase] |= [v]
+        end
+      end
+    end
+
+    # The object's distinguished name.
+    def dn
+      LDAP::DN(@dn,self) if @dn
+    end
+
+    # The first (relative) component of the distinguished name.
+    def rdn
+      dn && dn.rdn
+    end
+
+    def /(*args)
+      search(:base => dn.send(:/,*args), :scope => :base, :limit => true)
+    end
+
+    # The parent object containing this one.
+    def parent
+      search(:base => LDAP::DN(dn.parent), :scope => :base, :limit => true)
+    end
+
+    def children(type = nil, name = nil)
+      if name && name != :*
+        search(:base => dn/{type => name}, :scope => :base, :limit => true)
+      elsif type
+        search(:filter => {type => :*}, :scope => :onelevel)
+      else
+        search(:scope => :onelevel)
+      end
+    end
+
+    # A link back to the namespace.
+    def namespace
+      @namespace || self.class.namespace
+    end
+
+    def inspect
+      str = "#<#{self.class} #{dn}"
+      @attributes.each do |k,values|
+        s = (values.size == 1 ? "" : "s")
+        at = namespace.adapter.attribute_types[k]
+        if at && at.syntax_object && !at.syntax_object.x_not_human_readable? && at.syntax_object.desc != "Octet String"
+          str << " " << k << ": " << values.inspect
+        else
+          str << " " << k << ": "
+          if !at
+            str << "(unknown attribute)"
+          elsif !at.syntax_object
+            str << "(unknown type)"
+          else
+            str << "(" << values.size.to_s << " binary value" << s << ")"
+          end
+        end
+      end
+      # @attributes.reject {|k,v| v.any? {|x| x =~ /[\000-\037]/}}.inspect
+      str << ">"
+    end
+
+    # Reads an attribute and typecasts it if neccessary.  If the server
+    # indicates the attribute is <tt>SINGLE-VALUE</tt>, the sole attribute or
+    # +nil+ is returned.  Otherwise, an array is returned.
+    #
+    # If the argument given is a symbol, underscores are translated into
+    # hyphens.  Since #method_missing delegates to this method, method names
+    # with underscores map to attributes with hyphens.
+    def read_attribute(key)
+      key = LDAP.escape(key)
+      values = @attributes[key] || @attributes[key.downcase]
+      return nil if values.nil?
+      at = namespace.adapter.attribute_types[key]
+      unless at
+        warn "Warning: unknown attribute type for #{key}"
+        return values
+      end
+      if syn = SYNTAXES[at.syntax_oid]
+        if at.syntax_oid == ::LDAP::DN::OID # DN
+          values = values.map do |value|
+            ::LDAP::DN(value,self)
+          end
+        else
+          parser = at.syntax_object
+          values = values.map do |value|
+            parser.parse(value)
+          end
+        end
+      else
+        warn "Warning: unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
+      end
+      if at.single_value?
+        values.first
+      else
+        values
+      end
+    end
+    protected :read_attribute
+
+    # For testing.
+    def read_attributes #:nodoc:
+      attributes.keys.inject({}) do |hash,key|
+        hash[key] = read_attribute(key)
+        hash
+      end
+    end
+
+    # Change an attribute.  This is called by #method_missing and
+    # <tt>[]=</tt>.  Exceptions are raised if certain server dictated criteria
+    # are violated.  For example, a TypeError is raised if you try to assign
+    # multiple values to an attribute marked <tt>SINGLE-VALUE</tt>.
+    #
+    # Changes are not committed to the server until #save is called.
+    def write_attribute(key,values)
+      key = LDAP.escape(key)
+      at = namespace.adapter.attribute_types[key]
+      unless at
+        warn "Warning: unknown attribute type for #{key}"
+        @attributes[key] = Array(values)
+        return values
+      end
+      if at.no_user_modification?
+        raise Error, "read-only value", caller
+      end
+      if at.single_value?
+        values = Array(values)
+      end
+      raise TypeError, "array expected", caller unless values.kind_of?(Array)
+      if must.include?(key) && values.empty?
+        raise TypeError, "value required", caller
+      end
+      if syn = SYNTAXES[at.syntax_oid]
+        if at.syntax_oid == LDAP::DN::OID
+          values = values.map do |value|
+            value.respond_to?(:dn) ? value.dn : value
+          end
+        else
+          parser = at.syntax_object
+          values = values.map do |value|
+            parser.format(value)
+          end
+        end
+      else
+        warn "Warning: unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
+      end
+      @attributes[key] = values
+    end
+    protected :write_attribute
+
+    attr_reader :attributes
+    def attribute_names
+      attributes.keys
+    end
+
+    def ldap_ancestors
+      self.class.ldap_ancestors | objectClass.map {|c| self.namespace.const_get(c.ldapitalize(true))}
+    end
+
+    def aux
+      objectClass.map {|c| self.namespace.const_get(c.ldapitalize(true))} - self.class.ldap_ancestors
+    end
+
+    def must(all = true)
+      return self.class.must(all) + aux.map {|a|a.must(false)}.flatten
+    end
+
+    def may(all = true)
+      return self.class.may(all)  + aux.map {|a|a.may(false) + a.must(false)}.flatten
+    end
+
+    def may_must(attribute)
+      attribute = attribute.to_s
+      if must.include?(attribute)
+        :must
+      elsif may.include?(attribute)
+        :may
+      end
+    end
+
+    # Delegates to +read_attribute+ or +write_attribute+.
+    def method_missing(method,*args,&block)
+      attribute = LDAP.escape(method)
+      method = method.to_s
+      if attribute[-1] == ?=
+        attribute.chop!
+        if may_must(attribute)
+          return write_attribute(attribute,*args,&block)
+        end
+      elsif args.size == 1
+        return children(method,*args,&block)
+      elsif may_must(attribute)
+        return read_attribute(attribute,*args,&block)
+      end
+      super(method.to_sym,*args,&block)
+      # Does not work
+      extensions = self.class.const_get("Extensions") rescue nil
+      if extensions
+        self["objectClass"].reverse.each do |oc|
+          oc[0..0] = oc[0..0].upcase
+          if extensions.constants.include?(oc)
+            p oc
+            extension = extensions.const_get(oc)
+            if extension.instance_methods.include?(method)
+              p method
+              im = extension.instance_method(method).bind(self)
+              im.call(*args)
+            end
+          end
+        end
+      end
+    end
+
+    # If a Hash or a String containing "=" is given, the argument is treated as
+    # an RDN and a search for a child is performed.  +nil+ is returned if no
+    # match is found.
+    #
+    # For a singular String or Symbol argument, that attribute is read with
+    # read_attribute.
+    def [](*values)
+      if !values.empty? && values.all? {|v| v.kind_of?(Hash)}
+        return search(:base => dn[*values], :scope => :base, :limit => true)
+      end
+      raise ArgumentError unless values.size == 1
+      value = values.first
+      case value
+      # when /\(.*=/, LDAP::Filter
+        # search(:filter => value, :scope => :onelevel)
+      when /=/, Array
+        search(:base => dn[*values], :scope => :base, :limit => true)
+      else read_attribute(value)
+      end
+    end
+
+    # Searches for children.  This is identical to Ldaptor::Base#search, only
+    # the default base is the current object's DN.
+    def search(options)
+      namespace.search({:base => dn}.merge(options))
+    end
+
+    # For new objects, does an LDAP add.  For existing objects, does an LDAP
+    # modify.  This only sends the modified attributes to the server.
+    def save
+      if @original_attributes
+        updates = @attributes.reject do |k,v|
+          @original_attributes[k] == v
+        end
+        namespace.adapter.modify(dn,updates) unless updates.empty?
+      else
+        namespace.adapter.add(dn, @attributes)
+      end
+      @original_attributes = @attributes
+      @attributes = Ldaptor.clone_ldap_hash(@original_attributes)
+      self
+    end
+
+    # Deletes the object from the server and freezes it locally.
+    def destroy
+      namespace.adapter.delete(dn)
+      freeze
+    end
+
+    # Refetches the attributes from the server.
+    def reload
+      new = search(:scope => :base).first
+      @original_attributes = new.instance_variable_get(:@original_attributes)
+      @attributes          = new.instance_variable_get(:@attributes)
+      self
+    end
+
+    def respond_to?(method) #:nodoc:
+      super(method) || (may + must + (may+must).map {|x| "#{x}="}).include?(method.to_s)
+    end
+
+    def rename(new_rdn)
+      # TODO: how is new_rdn escaped?
+      namespace.adapter.rename(dn,LDAP::DN([new_rdn]),true)
+      @dn = dn.parent/new_rdn
+    end
+
+  end
+end

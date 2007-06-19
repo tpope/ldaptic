@@ -65,18 +65,8 @@ module Ldaptor
       end
 
       DEFAULT_CAPITALIZATIONS = %w[
-        dn
         objectClass
-        subschemaSubentry
-        namingContexts
-        monitorContext
-        altServer
-        supportedControl
-        supportedExtension
-        supportedFeatures
-        supportedSASLMechanisms
-        supportedLDAPVersion
-        defaultNamingContext
+
         objectClasses
         attributeTypes
         matchingRules
@@ -85,6 +75,30 @@ module Ldaptor
         dITContentRules
         nameForms
         ldapSyntaxes
+
+        configurationNamingContext
+        currentTime
+        defaultNamingContext
+        dn
+        dnsHostName
+        domainControllerFunctionality
+        domainFunctionality
+        dsServiceName
+        forestFunctionality
+        highestCommittedUSN
+        isGlobalCatalogReady
+        isSynchronized
+        ldapServiceName
+        namingContexts
+        rootDomainNamingContext
+        schemaNamingContext
+        serverName
+        subschemaSubentry
+        supportedCapabilities
+        supportedControl
+        supportedLDAPPolicies
+        supportedLDAPVersion
+        supportedSASLMechanisms
       ].inject({}) { |h,k| h[k.downcase] = k; h }
 
       def search(options = {}, &block)
@@ -122,11 +136,18 @@ module Ldaptor
 
       private
       def recapitalize(attribute)
+        attribute = attribute.to_s
         @cached_capitalizations ||= DEFAULT_CAPITALIZATIONS
-        @cached_capitalizations[attribute.to_s] ||=
+        caps = @cached_capitalizations[attribute] ||=
           attribute_types.keys.detect do |x|
-            x.downcase == attribute.to_s.downcase
+            x.downcase == attribute.downcase
           end
+        if caps
+          caps
+        else
+          warn "#{attribute} could not be capitalized"
+          @cached_capitalizations[attribute] = attribute
+        end
       end
 
       def handle_errors
