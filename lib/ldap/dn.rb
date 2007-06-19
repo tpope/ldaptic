@@ -180,6 +180,19 @@ module LDAP
       LDAP::DN(to_a.first(1)).to_s
     end
 
+    def normalize
+      LDAP::DN(to_a.map! do |hash|
+        hash.inject({}) do |m,(k,v)|
+          m[LDAP.escape(k).upcase] = v
+          m
+        end
+      end, source)
+    end
+
+    def normalize!
+      replace(normalize)
+    end
+
     # TODO: investigate compliance with
     # RFC4517 - Lightweight Directory Access Protocol (LDAP): Syntaxes and Matching Rules
     def ==(other)

@@ -150,22 +150,25 @@ module Ldaptor
         adapter.authenticate(dn, password)
       end
 
-      # Identical to #[].
-      def /(*args)
-        find(base_dn.send(:/,*args))
-      end
-
       # Search for an RDN relative to the base.
       #
       #   class MyCompany < Ldaptor::Namespace(:base => "DC=org", ...)
       #   end
       #
-      #   MyCompany[:dc => "ruby-lang"].dn #=> "DC=ruby-lang,DC=org"
+      #   (MyCompany/{:dc => "ruby-lang"}).dn #=> "DC=ruby-lang,DC=org"
+      def /(*args)
+        find(base_dn.send(:/,*args))
+      end
+
+      # Like #/, only the search results are cached.
+      #
+      #   MyCompany[:dc=>"ruby-lang"].bacon = "chunky"
+      #   MyCompany[:dc=>"ruby-lang"].bacon #=> "chunky"
       def [](*args)
         if args.empty?
-          find(base_dn)
+          @self ||= find(base_dn)
         else
-          find(base_dn[*args])
+          self[][*args]
         end
       end
 
@@ -183,7 +186,7 @@ module Ldaptor
       def search_options(options = {})
         options = options.dup
 
-        options[:base] = (options[:base] || options[:base_dn] || base_dn).to_s
+        options[:base] = (options[:base] || dn).to_s
 
         original_scope = options[:scope]
         options[:scope] ||= :subtree

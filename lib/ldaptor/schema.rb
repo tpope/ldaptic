@@ -120,9 +120,9 @@ module Ldaptor
       end
 
       def eatary(string)
-        if eaten = eat(string, /^\(([\w\d_\s\$-]+)\)/i)
+        if eaten = eat(string, /^\(([\w\d_.{}\s\$-]+)\)/i)
           eaten.split("$").collect{|attr| attr.strip}
-        elsif eaten = eat(string,/^([\w\d_-]+)/i)
+        elsif eaten = eat(string,/^([\w\d_.{}-]+)/i)
           eaten
         else
           raise ParseError
@@ -178,14 +178,14 @@ module Ldaptor
       attr_ldap_qdescr     :usage  # attr_ldap_usage
 
       def syntax_oid
-        @attributes[:syntax][/[0-9.]+/]
+        @attributes[:syntax] && @attributes[:syntax][/[0-9.]+/]
       end
       def syntax_len
-        @attributes[:syntax][/\{(.*)\}/,1].to_i
+        @attributes[:syntax] && @attributes[:syntax][/\{(.*)\}/,1].to_i
       end
       def syntax_object
-        Ldaptor::SYNTAXES[syntax_oid]
-        # Ldaptor::Syntaxes.const_get(syntax_name.delete(' ')) rescue Ldaptor::Syntaxes::DirectoryString
+        Ldaptor::SYNTAXES[syntax_oid ||
+          "1.3.6.1.4.1.1466.115.121.1.15"] # Directory String
       end
       alias syntax syntax_object
     end

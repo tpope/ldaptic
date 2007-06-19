@@ -5,7 +5,6 @@ require 'test/unit'
 class LdaptorSyntaxesTest < Test::Unit::TestCase
   NAME_FORM = "(1.2.3 NAME 'foo' DESC ('bar') OC objectClass MUST (cn $ ou) X-AWESOME TRUE)"
   ATTRIBUTE_TYPE = "(1.3.5 NAME 'cn' SYNTAX '1.3.6.1.4.1.1466.115.121.1.15{256}')"
-
   def assert_parse_error(&block)
     assert_raise(Ldaptor::Schema::ParseError,&block)
   end

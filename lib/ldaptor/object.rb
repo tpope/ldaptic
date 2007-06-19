@@ -17,15 +17,15 @@ module Ldaptor
       end
 
       def instantiate(attributes, namespace = nil) #:nodoc:
-        if klass = @subclasses.to_a.find {|c| attributes["objectClass"].to_a.include?(c.object_class)}
+        if klass = @subclasses.to_a.find {|c| attributes["objectClass"].to_a.include?(c.object_class) && c.structural? }
           return klass.instantiate(attributes)
         elsif klass = self.namespace.const_get(attributes["objectClass"].last.to_s.ldapitalize(true)) rescue nil
-          if klass != self
+          if klass != self && klass.structural?
             return klass.instantiate(attributes)
           end
         end
         obj = allocate
-        obj.instance_variable_set(:@dn, Array(attributes.delete('dn')).first)
+        obj.instance_variable_set(:@dn, ::LDAP::DN(Array(attributes.delete('dn')).first,obj))
         obj.instance_variable_set(:@original_attributes, attributes)
         obj.instance_variable_set(:@attributes, Ldaptor.clone_ldap_hash(attributes))
         obj.instance_variable_set(:@namespace, namespace || @namespace)
@@ -136,10 +136,7 @@ module Ldaptor
       raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
       @attributes = Ldaptor.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
       if dn = Array(@attributes.delete('dn')).first
-        @dn = LDAP::DN(dn,self)
-        (@dn.to_a.first||{}).each do |k,v|
-          @attributes[k.to_s.downcase] |= [v]
-        end
+        self.dn = dn
       end
     end
 
@@ -153,23 +150,9 @@ module Ldaptor
       dn && dn.rdn
     end
 
-    def /(*args)
-      search(:base => dn.send(:/,*args), :scope => :base, :limit => true)
-    end
-
     # The parent object containing this one.
     def parent
-      search(:base => LDAP::DN(dn.parent), :scope => :base, :limit => true)
-    end
-
-    def children(type = nil, name = nil)
-      if name && name != :*
-        search(:base => dn/{type => name}, :scope => :base, :limit => true)
-      elsif type
-        search(:filter => {type => :*}, :scope => :onelevel)
-      else
-        search(:scope => :onelevel)
-      end
+      @parent ||= search(:base => LDAP::DN(dn.parent), :scope => :base, :limit => true)
     end
 
     # A link back to the namespace.
@@ -210,29 +193,31 @@ module Ldaptor
       key = LDAP.escape(key)
       values = @attributes[key] || @attributes[key.downcase]
       return nil if values.nil?
+      values = values.dup
       at = namespace.adapter.attribute_types[key]
       unless at
         warn "Warning: unknown attribute type for #{key}"
-        return values
+        return values.freeze
       end
       if syn = SYNTAXES[at.syntax_oid]
-        if at.syntax_oid == ::LDAP::DN::OID # DN
-          values = values.map do |value|
-            ::LDAP::DN(value,self)
+        if at.syntax_oid == ::LDAP::DN::OID
+          # DNs are handled specially because they include a reference back.
+          values.map! do |value|
+            ::LDAP::DN(value,self).freeze
           end
         else
           parser = at.syntax_object
-          values = values.map do |value|
-            parser.parse(value)
+          values.map! do |value|
+            parser.parse(value).freeze
           end
         end
-      else
+      elsif at.syntax_oid
         warn "Warning: unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
       end
       if at.single_value?
         values.first
       else
-        values
+        values.freeze
       end
     end
     protected :read_attribute
@@ -317,6 +302,10 @@ module Ldaptor
       end
     end
 
+    def respond_to?(method) #:nodoc:
+      super(method) || (may + must + (may+must).map {|x| "#{x}="}).include?(method.to_s)
+    end
+
     # Delegates to +read_attribute+ or +write_attribute+.
     def method_missing(method,*args,&block)
       attribute = LDAP.escape(method)
@@ -327,7 +316,7 @@ module Ldaptor
           return write_attribute(attribute,*args,&block)
         end
       elsif args.size == 1
-        return children(method,*args,&block)
+        return self[method => args.first]
       elsif may_must(attribute)
         return read_attribute(attribute,*args,&block)
       end
@@ -350,6 +339,20 @@ module Ldaptor
       end
     end
 
+    # def children(type = nil, name = nil)
+      # if name && name != :*
+        # search(:base => dn/{type => name}, :scope => :base, :limit => true)
+      # elsif type
+        # search(:filter => {type => :*}, :scope => :onelevel)
+      # else
+        # search(:scope => :onelevel)
+      # end
+    # end
+
+    def /(*args)
+      search(:base => dn.send(:/,*args), :scope => :base, :limit => true)
+    end
+
     # If a Hash or a String containing "=" is given, the argument is treated as
     # an RDN and a search for a child is performed.  +nil+ is returned if no
     # match is found.
@@ -357,17 +360,20 @@ module Ldaptor
     # For a singular String or Symbol argument, that attribute is read with
     # read_attribute.
     def [](*values)
-      if !values.empty? && values.all? {|v| v.kind_of?(Hash)}
-        return search(:base => dn[*values], :scope => :base, :limit => true)
-      end
       raise ArgumentError unless values.size == 1
-      value = values.first
-      case value
-      # when /\(.*=/, LDAP::Filter
-        # search(:filter => value, :scope => :onelevel)
-      when /=/, Array
-        search(:base => dn[*values], :scope => :base, :limit => true)
-      else read_attribute(value)
+      if !values.empty? && (values.all? {|v| v.kind_of?(Hash)} || values.first =~ /=/)
+        cached_child(*values)
+      else
+        read_attribute(values.first)
+      end
+    end
+
+    def []=(*values)
+      value = values.pop
+      if !values.empty? && (values.all? {|v| v.kind_of?(Hash)} || values.first =~ /=/)
+        assign_child(values,value)
+      else
+        write_attribute(*(values+[value]))
       end
     end
 
@@ -394,27 +400,94 @@ module Ldaptor
     end
 
     # Deletes the object from the server and freezes it locally.
-    def destroy
+    def delete
       namespace.adapter.delete(dn)
       freeze
     end
 
+    alias destroy delete
+
     # Refetches the attributes from the server.
     def reload
-      new = search(:scope => :base).first
+      new = search(:scope => :base, :limit => true)
       @original_attributes = new.instance_variable_get(:@original_attributes)
       @attributes          = new.instance_variable_get(:@attributes)
+      @dn                  = LDAP::DN(new.dn, self)
+      @children            = {}
       self
     end
 
-    def respond_to?(method) #:nodoc:
-      super(method) || (may + must + (may+must).map {|x| "#{x}="}).include?(method.to_s)
+    def rename(new_rdn)
+      # TODO: how is new_rdn escaped, if at all?
+      old_rdn = rdn
+      new_rdn = LDAP::DN(new_rdn)
+      namespace.adapter.rename(dn,new_rdn,false)
+      self.dn = LDAP::DN(@dn,self).parent / new_rdn
+      write_attributes_from_rdn(new_rdn, @original_attributes)
+      if @parent
+        children = @parent.instance_variable_get(:@children)
+        if child = @children.delete(old_rdn.downcase)
+          @children[new_rdn.normalize.downcase] = child if child == self
+        end
+      end
+      self
     end
 
-    def rename(new_rdn)
-      # TODO: how is new_rdn escaped?
-      namespace.adapter.rename(dn,LDAP::DN([new_rdn]),true)
-      @dn = dn.parent/new_rdn
+    protected
+
+    def dn=(value)
+      if @dn
+        raise Ldaptor::Error, "can't reassign DN", caller
+      end
+      @dn = ::LDAP::DN(value,self)
+      write_attributes_from_rdn(@dn.to_a.first)
+    end
+
+    private
+
+    def write_attributes_from_rdn(rdn, attributes = @attributes)
+      (LDAP::DN(rdn).to_a.first||{}).each do |k,v|
+        attributes[k.to_s.downcase] |= [v]
+      end
+    end
+
+    def initialize_children
+      @children ||= {}
+    end
+
+    def cached_child(*values)
+      return self if values.empty?
+      initialize_children
+      # Frozen children were likely deleted.
+      @children.reject! {|k,v| v.frozen?}
+      rdn = LDAP::DN(values).normalize.downcase
+      return @children[rdn] if @children.has_key?(rdn)
+      begin
+        child = search(:base => dn/rdn, :scope => :base, :limit => true)
+        if values.size == 1
+          child.instance_variable_set(:@parent, self)
+        end
+        @children[rdn] = child
+      rescue Ldaptor::Errors::NoSuchObject
+      end
+    end
+
+    def assign_child(args,child)
+      unless child.respond_to?(:dn)
+        raise TypeError, "#{child.class} cannot be a child", caller
+      end
+      if child.dn
+        raise Ldaptor::Error, "#{child.class} already has a DN of #{child.dn}", caller
+      end
+      rdn = LDAP::DN(args)
+      if cached_child(*args)
+        raise Ldaptor::Error, "child #{[rdn,dn].join(",")} already exists"
+      end
+      @children[rdn.normalize.downcase] = child
+      child.dn = LDAP::DN(dn/rdn,child)
+      if args.size == 1
+        child.instance_variable_set(:@parent, self)
+      end
     end
 
   end
