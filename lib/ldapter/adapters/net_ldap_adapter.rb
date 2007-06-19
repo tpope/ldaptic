@@ -1,6 +1,6 @@
-require 'ldaptor/adapters/abstract_adapter'
+require 'ldapter/adapters/abstract_adapter'
 
-module Ldaptor
+module Ldapter
   module Adapters
     class NetLDAPAdapter < AbstractAdapter
 
@@ -153,7 +153,7 @@ module Ldaptor
       def handle_errors
         result = yield if block_given?
         err = @connection.get_operation_result
-        Ldaptor::Errors.raise_unless_zero(err.code, err.message)
+        Ldapter::Errors.raise_unless_zero(err.code, err.message)
         result
       end
 

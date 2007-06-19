@@ -9,10 +9,10 @@ require 'rake/packagetask'
 require 'rake/gempackagetask'
 require 'rake/contrib/sshpublisher'
 # require 'rake/contrib/rubyforgepublisher'
-require File.join(File.dirname(__FILE__), 'lib', 'ldaptor')
+require File.join(File.dirname(__FILE__), 'lib', 'ldapter')
 
 PKG_BUILD     = ENV['PKG_BUILD'] ? '.' + ENV['PKG_BUILD'] : ''
-PKG_NAME      = 'ldaptor'
+PKG_NAME      = 'ldapter'
 PKG_VERSION   = "0.1"
 PKG_FILE_NAME   = "#{PKG_NAME}-#{PKG_VERSION}"
 # PKG_DESTINATION = ENV["PKG_DESTINATION"] || "../#{PKG_NAME}"
@@ -38,8 +38,8 @@ Rake::TestTask.new { |t|
 Rake::RDocTask.new { |rdoc|
   rdoc.rdoc_dir = 'doc'
   rdoc.rdoc_files.add('lib')
-  rdoc.main     = "Ldaptor"
-  rdoc.title    = "Ldaptor"
+  rdoc.main     = "Ldapter"
+  rdoc.title    = "Ldapter"
   rdoc.options << '--inline-source'
   rdoc.options << '-d' if `which dot` =~ /\/dot/
 }

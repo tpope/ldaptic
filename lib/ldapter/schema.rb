@@ -1,4 +1,4 @@
-module Ldaptor
+module Ldapter
   # RFC 4512
   module Schema
 
@@ -184,7 +184,7 @@ module Ldaptor
         @attributes[:syntax] && @attributes[:syntax][/\{(.*)\}/,1].to_i
       end
       def syntax_object
-        Ldaptor::SYNTAXES[syntax_oid ||
+        Ldapter::SYNTAXES[syntax_oid ||
           "1.3.6.1.4.1.1466.115.121.1.15"] # Directory String
       end
       alias syntax syntax_object
@@ -208,8 +208,8 @@ module Ldaptor
         object.format(value)
       end
       def object
-        require 'ldaptor/syntaxes'
-        Ldaptor::Syntaxes.for(desc.delete(" "))
+        require 'ldapter/syntaxes'
+        Ldapter::Syntaxes.for(desc.delete(" "))
       end
     end
 
@@ -235,4 +235,4 @@ module Ldaptor
   end
 end
 
-require 'ldaptor/syntaxes'
+require 'ldapter/syntaxes'

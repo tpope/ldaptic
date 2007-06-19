@@ -1,6 +1,6 @@
-require 'ldaptor/adapters/ldap_conn_adapter'
+require 'ldapter/adapters/ldap_conn_adapter'
 
-module Ldaptor
+module Ldapter
   module Adapters
     # ActiveDirectoryAdapter is a LDAPConnAdapter with some Active Directory
     # specific behaviors.  To help mitigate server timeout issues, this adapter

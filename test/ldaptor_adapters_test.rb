@@ -1,13 +1,13 @@
 $:.unshift(File.join(File.dirname(__FILE__),'..','lib')).uniq!
-require 'ldaptor/adapters'
-require 'ldaptor/adapters/net_ldap_adapter'
-require 'ldaptor/adapters/ldap_conn_adapter'
+require 'ldapter/adapters'
+require 'ldapter/adapters/net_ldap_adapter'
+require 'ldapter/adapters/ldap_conn_adapter'
 require 'test/unit'
 
-class LdaptorHierarchyTest < Test::Unit::TestCase
+class LdapterHierarchyTest < Test::Unit::TestCase
   def setup
-    @ldap_conn = Ldaptor::Adapters::LDAPConnAdapter.allocate
-    @net_ldap  = Ldaptor::Adapters::NetLDAPAdapter.allocate
+    @ldap_conn = Ldapter::Adapters::LDAPConnAdapter.allocate
+    @net_ldap  = Ldapter::Adapters::NetLDAPAdapter.allocate
   end
 
   def test_search_parameters
@@ -28,9 +28,9 @@ class LdaptorHierarchyTest < Test::Unit::TestCase
   end
 
   def test_incorrect_adapter
-    assert_raise(ArgumentError) { Ldaptor::Adapters.for(:adapter => "fake") }
-    assert_raise(TypeError)     { Ldaptor::Adapters.for(Object.new) }
-    assert_not_nil Ldaptor::Adapters.for(@ldap_conn)
+    assert_raise(ArgumentError) { Ldapter::Adapters.for(:adapter => "fake") }
+    assert_raise(TypeError)     { Ldapter::Adapters.for(Object.new) }
+    assert_not_nil Ldapter::Adapters.for(@ldap_conn)
   end
 
 end

@@ -1,4 +1,4 @@
-module Ldaptor
+module Ldapter
 
   class Error < ::RuntimeError #:nodoc:
   end

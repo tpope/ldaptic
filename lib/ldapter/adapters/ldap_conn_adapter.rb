@@ -1,6 +1,6 @@
-require 'ldaptor/adapters/abstract_adapter'
+require 'ldapter/adapters/abstract_adapter'
 
-module Ldaptor
+module Ldapter
   module Adapters
     class LDAPConnAdapter < AbstractAdapter
       register_as(:ldap_conn)
@@ -72,7 +72,7 @@ module Ldaptor
         message = exception.message
         err = error_for_message(message)
         unless err == 49 # Invalid credentials
-          Ldaptor::Errors.raise_unless_zero(err, message)
+          Ldapter::Errors.raise_unless_zero(err, message)
         end
         false
       ensure
@@ -118,7 +118,7 @@ module Ldaptor
           err = conn_err
           message = conn.err2string(err) rescue nil
         end
-        Ldaptor::Errors.raise_unless_zero(err, message)
+        Ldapter::Errors.raise_unless_zero(err, message)
         result
       end
 

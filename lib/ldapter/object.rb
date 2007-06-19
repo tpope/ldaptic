@@ -1,7 +1,7 @@
-module Ldaptor
+module Ldapter
 
-  # When a new Ldaptor::Namespace is created, a Ruby class hierarchy is
-  # contructed that mirrors the server's object classes.  Ldaptor::Object
+  # When a new Ldapter::Namespace is created, a Ruby class hierarchy is
+  # contructed that mirrors the server's object classes.  Ldapter::Object
   # serves as the base class for this hierarchy.
   class Object
     class << self
@@ -118,7 +118,7 @@ module Ldaptor
         obj = allocate
         obj.instance_variable_set(:@dn, ::LDAP::DN(Array(attributes.delete('dn')).first,obj))
         obj.instance_variable_set(:@original_attributes, attributes)
-        obj.instance_variable_set(:@attributes, Ldaptor.clone_ldap_hash(attributes))
+        obj.instance_variable_set(:@attributes, Ldapter.clone_ldap_hash(attributes))
         obj.instance_variable_set(:@namespace, namespace || @namespace)
         obj.send(:common_initializations)
         obj
@@ -135,7 +135,7 @@ module Ldaptor
 
     def initialize(data = {})
       raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
-      @attributes = Ldaptor.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
+      @attributes = Ldapter.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
       if dn = Array(@attributes.delete('dn')).first
         self.dn = dn
       end
@@ -380,7 +380,7 @@ module Ldaptor
       end
     end
 
-    # Searches for children.  This is identical to Ldaptor::Base#search, only
+    # Searches for children.  This is identical to Ldapter::Base#search, only
     # the default base is the current object's DN.
     def search(options)
       namespace.search({:base => dn}.merge(options))
@@ -403,7 +403,7 @@ module Ldaptor
         namespace.adapter.add(dn, @attributes)
       end
       @original_attributes = @attributes
-      @attributes = Ldaptor.clone_ldap_hash(@original_attributes)
+      @attributes = Ldapter.clone_ldap_hash(@original_attributes)
       self
     end
 
@@ -456,7 +456,7 @@ module Ldaptor
 
     def dn=(value)
       if @dn
-        raise Ldaptor::Error, "can't reassign DN", caller
+        raise Ldapter::Error, "can't reassign DN", caller
       end
       @dn = ::LDAP::DN(value,self)
       write_attributes_from_rdn(@dn.to_a.first)
@@ -484,7 +484,7 @@ module Ldaptor
           child.instance_variable_set(:@parent, self)
         end
         @children[rdn] = child
-      rescue Ldaptor::Errors::NoSuchObject
+      rescue Ldapter::Errors::NoSuchObject
       end
     end
 
@@ -493,11 +493,11 @@ module Ldaptor
         raise TypeError, "#{child.class} cannot be a child", caller
       end
       if child.dn
-        raise Ldaptor::Error, "#{child.class} already has a DN of #{child.dn}", caller
+        raise Ldapter::Error, "#{child.class} already has a DN of #{child.dn}", caller
       end
       rdn = LDAP::DN(args)
       if cached_child(*args)
-        raise Ldaptor::Error, "child #{[rdn,dn].join(",")} already exists"
+        raise Ldapter::Error, "child #{[rdn,dn].join(",")} already exists"
       end
       @children[rdn.normalize.downcase] = child
       child.dn = LDAP::DN(dn/rdn,child)

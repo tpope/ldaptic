@@ -2,16 +2,16 @@
 # $Id$
 # -*- ruby -*- vim:set ft=ruby et sw=2 sts=2:
 
-require 'ldaptor/core_ext'
+require 'ldapter/core_ext'
 require 'ldap/dn'
 require 'ldap/filter'
-require 'ldaptor/errors'
-require 'ldaptor/schema'
-require 'ldaptor/syntaxes'
-require 'ldaptor/adapters'
-require 'ldaptor/object'
+require 'ldapter/errors'
+require 'ldapter/schema'
+require 'ldapter/syntaxes'
+require 'ldapter/adapters'
+require 'ldapter/object'
 
-module Ldaptor
+module Ldapter
 
   SCOPES = {
     :base     => 0, # ::LDAP::LDAP_SCOPE_BASE,
@@ -43,7 +43,7 @@ module Ldaptor
     klass
   end
 
-  # The core constructor of Ldaptor.  This method returns an anonymous class
+  # The core constructor of Ldapter.  This method returns an anonymous class
   # which can then be inherited from.
   #
   #   options = {
@@ -53,7 +53,7 @@ module Ldaptor
   #     :password => "mypassword"
   #   }
   #
-  #   class MyCompany < Ldaptor::Namespace(options)
+  #   class MyCompany < Ldapter::Namespace(options)
   #     # This class and many others are created automatically based on
   #     # information from the server.
   #     class User
@@ -95,7 +95,7 @@ module Ldaptor
         hash = klasses.inject(Hash.new {|h,k|h[k]=[]}) do |hash,k|
           hash[k.sup] << k; hash
         end
-        add_constants(hash,Ldaptor::Object)
+        add_constants(hash,Ldapter::Object)
         self.base_dn ||= adapter.default_base_dn
         nil
       end
@@ -134,7 +134,7 @@ module Ldaptor
         if options.kind_of?(Hash)
           self.base_dn ||= options[:base] || options['base']
         end
-        @adapter = Ldaptor::Adapters.for(options)
+        @adapter = Ldapter::Adapters.for(options)
       end
 
       public
@@ -152,7 +152,7 @@ module Ldaptor
 
       # Search for an RDN relative to the base.
       #
-      #   class MyCompany < Ldaptor::Namespace(:base => "DC=org", ...)
+      #   class MyCompany < Ldapter::Namespace(:base => "DC=org", ...)
       #   end
       #
       #   (MyCompany/{:dc => "ruby-lang"}).dn #=> "DC=ruby-lang,DC=org"
@@ -191,9 +191,9 @@ module Ldaptor
         original_scope = options[:scope]
         options[:scope] ||= :subtree
         if options[:scope].respond_to?(:to_sym)
-          options[:scope] = Ldaptor::SCOPES[options[:scope].to_sym]
+          options[:scope] = Ldapter::SCOPES[options[:scope].to_sym]
         end
-        raise ArgumentError, "invalid scope #{original_scope.inspect}", caller[1..-1] unless Ldaptor::SCOPES.values.include?(options[:scope])
+        raise ArgumentError, "invalid scope #{original_scope.inspect}", caller[1..-1] unless Ldapter::SCOPES.values.include?(options[:scope])
 
         options[:filter] ||= {:objectClass => :*}
         if [Hash, Proc, Method].include?(options[:filter].class)
@@ -218,7 +218,7 @@ module Ldaptor
       def find_one(dn,options)
         objects = search(options.merge(:base => dn, :scope => :base, :limit => false))
         unless objects.size == 1
-          raise Ldaptor::Errors::NoSuchObject, "record not found for #{dn}", caller
+          raise Ldapter::Errors::NoSuchObject, "record not found for #{dn}", caller
         end
         objects.first
       end
@@ -255,7 +255,7 @@ module Ldaptor
       #   Array but rather a String or a Symbol, an array of attributes is
       #   returned rather than an array of objects.
       # * <tt>:instantiate</tt>: If this is false, a raw hash is returned
-      #   rather than an Ldaptor object.  Combined with a String or Symbol
+      #   rather than an Ldapter object.  Combined with a String or Symbol
       #   argument to <tt>:attributes</tt>, a +false+ value here causes the
       #   attribute not to be typecast.
       #

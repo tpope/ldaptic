@@ -1,7 +1,7 @@
 require 'ldap/escape'
-require 'ldaptor/errors'
+require 'ldapter/errors'
 
-module Ldaptor
+module Ldapter
   module Adapters
     # Subclasse must implement search, add, modify, delete, and rename.  These
     # methods should return 0 on success and non-zero on failure.  The failure
@@ -11,14 +11,14 @@ module Ldaptor
 
       # When implementing an adapter, +register_as+ must be called to associate
       # the adapter with a name.  The adapter name must mimic the filename.
-      # The following might be found in ldaptor/adapters/some_adapter.rb.
+      # The following might be found in ldapter/adapters/some_adapter.rb.
       #
       #   class SomeAdapter < AbstractAdapter
       #     register_as(:some)
       #   end
       def self.register_as(name)
-        require 'ldaptor/adapters'
-        Ldaptor::Adapters.register(name, self)
+        require 'ldapter/adapters'
+        Ldapter::Adapters.register(name, self)
       end
 
       def initialize(options)
@@ -30,7 +30,7 @@ module Ldaptor
       def root_dse(attrs = nil)
         result = search(
           :base => "",
-          :scope => Ldaptor::SCOPES[:base],
+          :scope => Ldapter::SCOPES[:base],
           :filter => "(objectClass=*)",
           :attributes => attrs && Array(attrs).map {|a| LDAP.escape(a)}
         ) { |x| break x }
@@ -45,7 +45,7 @@ module Ldaptor
       def schema(attrs = nil)
         search(
           :base => root_dse(['subschemaSubentry'])['subschemaSubentry'].first,
-          :scope => Ldaptor::SCOPES[:base],
+          :scope => Ldapter::SCOPES[:base],
           :filter => "(objectClass=subSchema)",
           :attributes => attrs
         ) { |x| return x }
@@ -67,19 +67,19 @@ module Ldaptor
       # Returns a hash of attribute types, keyed by both OID and name.
       def attribute_types
         @attribute_types ||= construct_schema_hash('attributeTypes',
-          Ldaptor::Schema::AttributeType)
+          Ldapter::Schema::AttributeType)
       end
 
       # Returns a hash of DIT content rules, keyed by both OID and name.
       def dit_content_rules
         @dit_content_rules ||= construct_schema_hash('dITContentRules',
-          Ldaptor::Schema::DITContentRule)
+          Ldapter::Schema::DITContentRule)
       end
 
       # Returns a hash of object classes, keyed by both OID and name.
       def object_classes
         @object_classes ||= construct_schema_hash('objectClasses',
-          Ldaptor::Schema::ObjectClass)
+          Ldapter::Schema::ObjectClass)
       end
 
       private

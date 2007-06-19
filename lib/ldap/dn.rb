@@ -46,7 +46,7 @@ module LDAP
     #   # => "CN=Thomas\\, David,DC=pragprog,DC=com"
     #
     # The optional second object specifies either an LDAP::Conn object or a
-    # Ldaptor object to be used to find the DN with #find.
+    # Ldapter object to be used to find the DN with #find.
     def initialize(dn,source = nil)
       @source = source
       dn = dn.dn if dn.respond_to?(:dn)

@@ -1,10 +1,10 @@
 $:.unshift(File.join(File.dirname(__FILE__),'..','lib')).uniq!
-require 'ldaptor'
+require 'ldapter'
 require File.join(File.dirname(__FILE__),"/mock_adapter")
 require 'test/unit'
 
-class LdaptorHierarchyTest < Test::Unit::TestCase
-  class Mock < Ldaptor::Namespace(:adapter => :mock)
+class LdapterHierarchyTest < Test::Unit::TestCase
+  class Mock < Ldapter::Namespace(:adapter => :mock)
   end
 
   def test_inheritance
@@ -26,7 +26,7 @@ class LdaptorHierarchyTest < Test::Unit::TestCase
     assert_equal LDAP::DN("cn=Matz,dc=org"), person.dn
     assert_equal "CN=Matz", person.rdn
     inspect = person.inspect
-    assert_raise(Ldaptor::Error) { person.distinguishedName = "Why" }
+    assert_raise(Ldapter::Error) { person.distinguishedName = "Why" }
     assert_raise(NoMethodError) { person.fakeAttribute = 42 }
     assert inspect.include?("Mock::Person CN=Matz,DC=org")
     assert_match(/cn: .*Matsumoto/, inspect)

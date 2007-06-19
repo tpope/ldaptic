@@ -1,4 +1,4 @@
-module Ldaptor
+module Ldapter
   module Adapters
 
     @adapters ||= {}
@@ -9,7 +9,7 @@ module Ldaptor
     end
 
     def self.for(options)
-      require 'ldaptor/adapters/abstract_adapter'
+      require 'ldapter/adapters/abstract_adapter'
       if defined?(::LDAP::Conn) && options.kind_of?(::LDAP::Conn)
         options = {:adapter => :ldap_conn, :connection => options}
       elsif defined?(::Net::LDAP) && options.kind_of?(::Net::LDAP)
@@ -22,7 +22,7 @@ module Ldaptor
         end
         raise ArgumentError, "No adapter specfied", caller[1..-1] unless options[:adapter]
         begin
-          require "ldaptor/adapters/#{options[:adapter]}_adapter"
+          require "ldapter/adapters/#{options[:adapter]}_adapter"
         rescue LoadError
         end
         if adapter = @adapters[options[:adapter].to_sym]
@@ -31,7 +31,7 @@ module Ldaptor
           raise ArgumentError, "Adapter #{options[:adapter]} not found", caller[1..-1]
         end
       else
-        if options.kind_of?(::Ldaptor::Adapters::AbstractAdapter)
+        if options.kind_of?(::Ldapter::Adapters::AbstractAdapter)
           options
         else
           raise TypeError, "#{options.class} is not a valid connection type", caller[1..-1]

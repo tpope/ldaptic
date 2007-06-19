@@ -1,5 +1,5 @@
-require 'ldaptor/schema'
-module Ldaptor
+require 'ldapter/schema'
+module Ldapter
 
   # RFC2252.  Second column is "Human Readable"
   SYNTAX_STRING = <<-EOF unless defined? SYNTAX_STRING
@@ -70,7 +70,7 @@ EOF
     if h == "N"
       hash[:x_not_human_readable] = "TRUE"
     end
-    syntax = Ldaptor::Schema::LdapSyntax.allocate
+    syntax = Ldapter::Schema::LdapSyntax.allocate
     syntax.instance_variable_set(:@oid,oid)
     syntax.instance_variable_set(:@attributes,hash)
     SYNTAXES[oid] = syntax
