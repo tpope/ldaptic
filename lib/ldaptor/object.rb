@@ -16,23 +16,6 @@ module Ldaptor
         Array(@name)
       end
 
-      def instantiate(attributes, namespace = nil) #:nodoc:
-        if klass = @subclasses.to_a.find {|c| attributes["objectClass"].to_a.include?(c.object_class) && c.structural? }
-          return klass.instantiate(attributes)
-        elsif klass = self.namespace.const_get(attributes["objectClass"].last.to_s.ldapitalize(true)) rescue nil
-          if klass != self && klass.structural?
-            return klass.instantiate(attributes)
-          end
-        end
-        obj = allocate
-        obj.instance_variable_set(:@dn, ::LDAP::DN(Array(attributes.delete('dn')).first,obj))
-        obj.instance_variable_set(:@original_attributes, attributes)
-        obj.instance_variable_set(:@attributes, Ldaptor.clone_ldap_hash(attributes))
-        obj.instance_variable_set(:@namespace, namespace || @namespace)
-        obj
-      end
-      protected :instantiate
-
       def has_attribute?(attribute)
         attribute = LDAP.escape(attribute)
         may.include?(attribute) || must.include?(attribute)
@@ -124,6 +107,24 @@ module Ldaptor
 
       alias objectClass object_classes
 
+      def instantiate(attributes, namespace = nil) #:nodoc:
+        if klass = @subclasses.to_a.find {|c| attributes["objectClass"].to_a.include?(c.object_class) && c.structural? }
+          return klass.instantiate(attributes)
+        elsif klass = self.namespace.const_get(attributes["objectClass"].last.to_s.ldapitalize(true)) rescue nil
+          if klass != self && klass.structural?
+            return klass.instantiate(attributes)
+          end
+        end
+        obj = allocate
+        obj.instance_variable_set(:@dn, ::LDAP::DN(Array(attributes.delete('dn')).first,obj))
+        obj.instance_variable_set(:@original_attributes, attributes)
+        obj.instance_variable_set(:@attributes, Ldaptor.clone_ldap_hash(attributes))
+        obj.instance_variable_set(:@namespace, namespace || @namespace)
+        obj.send(:common_initializations)
+        obj
+      end
+      protected :instantiate
+
       protected
       def inherited(subclass) #:nodoc:
         @subclasses ||= []
@@ -138,21 +139,23 @@ module Ldaptor
       if dn = Array(@attributes.delete('dn')).first
         self.dn = dn
       end
+      common_initializations
     end
 
-    # The object's distinguished name.
-    def dn
-      LDAP::DN(@dn,self) if @dn
-    end
+    attr_reader :dn
 
     # The first (relative) component of the distinguished name.
     def rdn
-      dn && dn.rdn
+      dn && LDAP::DN(dn.rdn)
     end
 
     # The parent object containing this one.
     def parent
-      @parent ||= search(:base => LDAP::DN(dn.parent), :scope => :base, :limit => true)
+      unless @parent
+        @parent = search(:base => dn.parent, :scope => :base, :limit => true)
+        @parent.instance_variable_get(:@children)[rdn.normalize.downcase] = self
+      end
+      @parent
     end
 
     # A link back to the namespace.
@@ -383,6 +386,11 @@ module Ldaptor
       namespace.search({:base => dn}.merge(options))
     end
 
+    # Has the object been saved before?
+    def new_entry?
+      !@original_attributes
+    end
+
     # For new objects, does an LDAP add.  For existing objects, does an LDAP
     # modify.  This only sends the modified attributes to the server.
     def save
@@ -413,24 +421,32 @@ module Ldaptor
     def delete
       namespace.adapter.delete(dn)
       if @parent
-        (@parent.instance_variable_get(:@children)||{}).delete(rdn.normalize.downcase)
+        @parent.instance_variable_get(:@children).delete(rdn.normalize.downcase)
       end
       freeze
     end
 
     alias destroy delete
 
-    def rename(new_rdn)
-      # TODO: how is new_rdn escaped, if at all?
+    def rename(new_rdn, delete_old = false)
       old_rdn = rdn
       new_rdn = LDAP::DN(new_rdn)
-      namespace.adapter.rename(dn,new_rdn,false)
-      self.dn = LDAP::DN(@dn,self).parent / new_rdn
+      namespace.adapter.rename(dn,new_rdn,delete_old)
+      if delete_old
+        LDAP::DN(old_rdn).to_a.first.each do |k,v|
+          [@attributes, @original_attributes].each do |hash|
+            hash.delete_if {|k2,v2| k.to_s.downcase == k2.to_s.downcase && v.to_s.downcase == v2.to_s.downcase }
+            end
+        end
+      end
+      old_dn = LDAP::DN(@dn,self)
+      @dn = nil
+      self.dn = old_dn.parent / new_rdn
       write_attributes_from_rdn(new_rdn, @original_attributes)
       if @parent
-        children = @parent.instance_variable_get(:@children) || {}
-        if child = @children.delete(old_rdn.downcase)
-          @children[new_rdn.normalize.downcase] = child if child == self
+        children = @parent.instance_variable_get(:@children)
+        if child = children.delete(old_rdn.downcase)
+          children[new_rdn.normalize.downcase] = child if child == self
         end
       end
       self
@@ -448,21 +464,18 @@ module Ldaptor
 
     private
 
+    def common_initializations
+      @children ||= {}
+    end
+
     def write_attributes_from_rdn(rdn, attributes = @attributes)
       (LDAP::DN(rdn).to_a.first||{}).each do |k,v|
         attributes[k.to_s.downcase] |= [v]
       end
     end
 
-    def initialize_children
-      @children ||= {}
-    end
-
     def cached_child(*values)
       return self if values.empty?
-      initialize_children
-      # Frozen children were likely deleted.
-      # @children.reject! {|k,v| v.frozen?}
       rdn = LDAP::DN(values).normalize.downcase
       return @children[rdn] if @children.has_key?(rdn)
       begin
