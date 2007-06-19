@@ -21,7 +21,7 @@ module Ldaptor
 
   # Constructs a deep copy of a set of LDAP attributes, normalizing them to
   # arrays as appropriate.  The returned hash has a default value of [].
-  def self.clone_ldap_hash(attributes)
+  def self.clone_ldap_hash(attributes) #:nodoc:
     hash = Hash.new {|h,k| h[k] = [] }
     attributes.each do |k,v|
       k = k.kind_of?(Symbol) ?  k.to_s.gsub('_','-') : k.dup

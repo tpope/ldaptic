@@ -28,26 +28,14 @@ module Ldaptor
       # The server's RootDSE.  +attrs+ is an array specifying which attributes
       # to return.
       def root_dse(attrs = nil)
-        attrs ||= %w[
-          objectClass
-          subschemaSubentry
-          namingContexts
-          monitorContext
-          altServer
-          supportedControl
-          supportedExtension
-          supportedFeatures
-          supportedSASLMechanisms
-          supportedLDAPVersion
-        ]
         result = search(
           :base => "",
           :scope => Ldaptor::SCOPES[:base],
           :filter => "(objectClass=*)",
-          :attributes => Array(attrs).map {|a| LDAP.escape(a)}
+          :attributes => attrs && Array(attrs).map {|a| LDAP.escape(a)}
         ) { |x| break x }
         return nil if result.kind_of?(Fixnum)
-        if attrs.kind_of?(Array)
+        if attrs.kind_of?(Array) || attrs.nil?
           result
         else
           result[attrs]
@@ -55,17 +43,6 @@ module Ldaptor
       end
 
       def schema(attrs = nil)
-        attrs ||= %w[
-          objectClass
-          objectClasses
-          attributeTypes
-          matchingRules
-          matchingRuleUse
-          dITStructureRules
-          dITContentRules
-          nameForms
-          ldapSyntaxes
-        ]
         search(
           :base => root_dse(['subschemaSubentry'])['subschemaSubentry'].first,
           :scope => Ldaptor::SCOPES[:base],
