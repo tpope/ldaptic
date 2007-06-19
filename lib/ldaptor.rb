@@ -242,8 +242,8 @@ module Ldaptor
       #   by querying the server.
       # * <tt>:scope</tt>: The scope of the search.  Valid values are
       #   <tt>:base</tt> (find the base only), <tt>:onelevel</tt> (children of
-      #   the base), and <tt>:subtree</tt> (children and descendents of those
-      #   children).  The default is <tt>:subtree</tt>.
+      #   the base), and <tt>:subtree</tt> (the base, children, and all
+      #   descendants).  The default is <tt>:subtree</tt>.
       # * <tt>:filter</tt>: A standard LDAP filter.  This can be a string, an
       #   LDAP::Filter object, or parameters for LDAP::Filter().
       # * <tt>:limit</tt>: Maximum number of results to return.  If the value

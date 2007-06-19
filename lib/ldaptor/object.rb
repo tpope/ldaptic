@@ -399,14 +399,6 @@ module Ldaptor
       self
     end
 
-    # Deletes the object from the server and freezes it locally.
-    def delete
-      namespace.adapter.delete(dn)
-      freeze
-    end
-
-    alias destroy delete
-
     # Refetches the attributes from the server.
     def reload
       new = search(:scope => :base, :limit => true)
@@ -417,6 +409,17 @@ module Ldaptor
       self
     end
 
+    # Deletes the object from the server and freezes it locally.
+    def delete
+      namespace.adapter.delete(dn)
+      if @parent
+        (@parent.instance_variable_get(:@children)||{}).delete(rdn.normalize.downcase)
+      end
+      freeze
+    end
+
+    alias destroy delete
+
     def rename(new_rdn)
       # TODO: how is new_rdn escaped, if at all?
       old_rdn = rdn
@@ -425,7 +428,7 @@ module Ldaptor
       self.dn = LDAP::DN(@dn,self).parent / new_rdn
       write_attributes_from_rdn(new_rdn, @original_attributes)
       if @parent
-        children = @parent.instance_variable_get(:@children)
+        children = @parent.instance_variable_get(:@children) || {}
         if child = @children.delete(old_rdn.downcase)
           @children[new_rdn.normalize.downcase] = child if child == self
         end
@@ -459,7 +462,7 @@ module Ldaptor
       return self if values.empty?
       initialize_children
       # Frozen children were likely deleted.
-      @children.reject! {|k,v| v.frozen?}
+      # @children.reject! {|k,v| v.frozen?}
       rdn = LDAP::DN(values).normalize.downcase
       return @children[rdn] if @children.has_key?(rdn)
       begin
