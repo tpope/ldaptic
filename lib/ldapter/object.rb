@@ -268,7 +268,7 @@ module Ldapter
             parser.format(value)
           end
         end
-      else
+      elsif at.syntax_oid
         warn "Warning: unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
       end
       @attributes[key] = values

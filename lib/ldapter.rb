@@ -190,10 +190,10 @@ module Ldapter
 
         original_scope = options[:scope]
         options[:scope] ||= :subtree
-        if options[:scope].respond_to?(:to_sym)
+        if !options[:scope].kind_of?(Integer) && options[:scope].respond_to?(:to_sym)
           options[:scope] = Ldapter::SCOPES[options[:scope].to_sym]
         end
-        raise ArgumentError, "invalid scope #{original_scope.inspect}", caller[1..-1] unless Ldapter::SCOPES.values.include?(options[:scope])
+        raise ArgumentError, "invalid scope #{original_scope.inspect}", caller(1) unless Ldapter::SCOPES.values.include?(options[:scope])
 
         options[:filter] ||= {:objectClass => :*}
         if [Hash, Proc, Method].include?(options[:filter].class)

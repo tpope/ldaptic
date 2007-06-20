@@ -94,9 +94,9 @@ module LDAP
 
     # Convert the DN to an array of RDNs.
     #
-    #   LDAP::DN("cn=Thomas\\, David,dc=pragprog,dc=com").to_a
+    #   LDAP::DN("cn=Thomas\\, David,dc=pragprog,dc=com").rdns
     #   # => [{"cn"=>"Thomas, David"},{"dc"=>"pragprog"},{"dc"=>"com"}]
-    def to_a
+    def rdns
       return [] if empty?
       array = [""]
       backslash = hex = nil
@@ -172,12 +172,19 @@ module LDAP
       raise RuntimeError, "error parsing DN", caller
     end
 
+    # (fail to) ensure Array() doesn't call to_a
+    def respond_to?(method)
+      super && method.to_s != 'to_a'
+    end
+
+    alias to_a rdns
+
     def parent
       LDAP::DN(to_a[1..-1], source)
     end
 
     def rdn
-      LDAP::DN(to_a.first(1)).to_s
+      LDAP::DN(rdns.first(1)).to_s
     end
 
     def normalize
