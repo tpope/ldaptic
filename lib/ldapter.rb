@@ -36,7 +36,7 @@ module Ldapter
   end
 
   def self.build_hierarchy(options,&block) #:nodoc:
-    klass = Class.new(Base)
+    klass = ::Class.new(Base)
     klass.send(:instantiate_adapter, options)
     klass.send(:build_hierarchy)
     klass.instance_eval(&block) if block_given?
@@ -70,24 +70,20 @@ module Ldapter
   #   is guessed by querying the server.
   # All other options are passed along to the adapter.
   def self.Namespace(options)
-    klass = Class.new(Base)
+    klass = ::Class.new(Base)
     klass.send(:instantiate_adapter, options)
     klass.instance_variable_set(:@parent,  true)
     klass
   end
 
-  class Base
+  class << self
+    alias Class Namespace
+    alias Object build_hierarchy
+  end
 
-    class << self
+  module BaseMethods
 
       private
-      def inherited(subclass)
-        # Namespace
-        if @parent
-          subclass.send(:build_hierarchy)
-        end
-        super
-      end
 
       def build_hierarchy
         klasses = adapter.object_classes.values
@@ -103,7 +99,7 @@ module Ldapter
       def add_constants(klasses,superclass)
         (superclass.names.empty? ? [nil] : superclass.names).each do |myname|
           klasses[myname].each do |sub|
-            klass = Class.new(superclass)
+            klass = ::Class.new(superclass)
             %w(oid name desc sup must may).each do |prop|
               klass.instance_variable_set("@#{prop}", sub.send(prop))
             end
@@ -177,13 +173,13 @@ module Ldapter
       end
 
       # Does a search with the given filter and a scope of onelevel.
-      def *(filter) #:nodoc:
-        search(:filter => filter, :scope => :onelevel)
-      end
+      # def *(filter) #:nodoc:
+        # search(:filter => filter, :scope => :onelevel)
+      # end
       # Does a search with the given filter and a scope of subtree.
-      def **(filter) #:nodoc:
-        search(:filter => filter, :scope => :subtree)
-      end
+      # def **(filter) #:nodoc:
+        # search(:filter => filter, :scope => :subtree)
+      # end
 
       private
 
@@ -316,8 +312,20 @@ module Ldapter
         )
       end
 
-    end
+  end
 
+  class Base
+    extend BaseMethods
+    class << self
+      private
+      def inherited(subclass)
+        # Namespace
+        if @parent
+          subclass.send(:build_hierarchy)
+        end
+        super
+      end
+    end
   end
 
 end
