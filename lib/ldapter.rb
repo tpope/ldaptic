@@ -95,7 +95,7 @@ module Ldapter
         hash = klasses.inject(Hash.new {|h,k|h[k]=[]}) do |hash,k|
           hash[k.sup] << k; hash
         end
-        add_constants(hash,Ldapter::Object)
+        add_constants(hash, Ldapter::Object)
         self.base_dn ||= adapter.default_base_dn
         nil
       end
@@ -170,6 +170,10 @@ module Ldapter
         else
           self[][*args]
         end
+      end
+
+      def []=(*args) #:nodoc:
+        self[].send(:[]=,*args)
       end
 
       # Does a search with the given filter and a scope of onelevel.

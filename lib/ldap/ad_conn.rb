@@ -49,6 +49,7 @@ module LDAP
 
     # read_with :compare, :compare_ext, :err2string, :get_option, :result2error, :root_dse, :schema, :search, :search2, :search_ext, :search_ext2
     write_with :add, :add_ext, :delete, :delete_ext, :modify, :modrdn, :modify_ext
+    write_with :rename if LDAP::Conn.method_defined?(:rename)
     both_with :bind, :set_option, :simple_bind, :unbind
 
     def bound?

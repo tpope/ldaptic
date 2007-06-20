@@ -7,7 +7,7 @@ module Ldapter
       register_as(:net_ldap)
 
       def initialize(options)
-        require 'net/ldap'
+        require 'ldapter/adapters/net_ldap_ext'
         if defined?(::Net::LDAP) && options.kind_of?(::Net::LDAP)
           options = {:adapter => :net_ldap, :connection => option}
         else
@@ -59,8 +59,8 @@ module Ldapter
         handle_errors
       end
 
-      def rename(dn, new_rdn, delete_old)
-        connection.rename(:olddn => dn, :newrdn => new_rdn, :delete_attributes => delete_old)
+      def rename(dn, new_rdn, delete_old, new_superior = nil)
+        connection.rename(:olddn => dn, :newrdn => new_rdn, :delete_attributes => delete_old, :newsuperior => new_superior)
         handle_errors
       end
 

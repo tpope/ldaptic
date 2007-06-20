@@ -13,7 +13,14 @@ module Ldapter
           @options = options.dup
         end
         @options[:version] ||= 3
-        unless @options[:connection]
+        if connection = @options[:connection]
+          begin
+            host, port = connection.get_option(::LDAP::LDAP_OPT_HOST_NAME).split(':')
+            @options[:host] ||= host
+            @options[:port] ||= port.to_i if port
+          rescue
+          end
+        else
           @options[:connection] = new_connection
           bind_connection(@options[:connection], @options[:username], @options[:password])
         end
@@ -38,16 +45,24 @@ module Ldapter
         end
       end
 
-      def rename(dn, new_rdn, delete_old)
+      def rename(dn, new_rdn, delete_old, new_superior = nil)
         with_writer do |conn|
-          conn.modrdn(dn,new_rdn, delete_old)
+          if new_superior
+            # This is from a patch I hope to get accepted upstream.
+            if conn.respond_to?(:rename)
+              conn.rename(dn, new_rdn, new_superior, delete_old)
+            else
+              raise NotImplementedError, "rename unsupported", caller
+            end
+          else
+            conn.modrdn(dn,new_rdn, delete_old)
+          end
         end
       end
 
       def search(options = {}, &block)
         parameters = search_parameters(options)
         with_reader do |conn|
-          raise "AW FUCK" if conn.nil?
           begin
             cookie = ""
             while cookie
