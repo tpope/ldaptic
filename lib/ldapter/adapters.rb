@@ -1,4 +1,5 @@
 module Ldapter
+  # RFC1823 - The LDAP Application Program Interface
   module Adapters
 
     @adapters ||= {}

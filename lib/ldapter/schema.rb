@@ -1,5 +1,5 @@
 module Ldapter
-  # RFC 4512
+  # RFC4512
   module Schema
 
     class ParseError < RuntimeError
