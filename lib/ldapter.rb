@@ -20,12 +20,18 @@ module Ldapter
     :subtree  => 2  # ::LDAP::LDAP_SCOPE_SUBTREE
   }
 
-  def self.Object(options,&block) #:nodoc:
+  # Returns an object that can be assigned directly to a constant.
+  #   MyCompany = Ldapter::Object(options)
+  def self.Object(options,&block)
     ::Module.new do
       include Ldapter::Module(options)
     end
   end
 
+  # Returns a module that activates when included.
+  #   module MyCompany
+  #     include Ldapter::Module(options)
+  #   end
   def self.Module(options)
     Ldapter::Module.new(options)
   end

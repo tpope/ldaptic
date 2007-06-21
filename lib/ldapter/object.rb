@@ -139,7 +139,7 @@ module Ldapter
         obj.instance_variable_set(:@dn, ::LDAP::DN(Array(attributes.delete('dn')).first,obj))
         obj.instance_variable_set(:@original_attributes, attributes)
         obj.instance_variable_set(:@attributes, Ldapter::Object.clone_ldap_hash(attributes))
-        obj.instance_variable_set(:@namespace, namespace || @namespace)
+        # obj.instance_variable_set(:@namespace, namespace || @namespace)
         obj.send(:common_initializations)
         obj
       end

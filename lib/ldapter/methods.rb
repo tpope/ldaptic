@@ -39,39 +39,34 @@ module Ldapter
         end
       end
 
-      def self.inheritable_reader(*names)
-        names.each do |name|
-          define_method name do
-            val = instance_variable_get("@#{name}")
-            return val unless val.nil?
-            return superclass.send(name) if superclass.respond_to?(name)
-          end
-        end
-      end
+      # def self.inheritable_reader(*names)
+        # names.each do |name|
+          # define_method name do
+            # val = instance_variable_get("@#{name}")
+            # return val unless val.nil?
+            # return superclass.send(name) if superclass.respond_to?(name)
+          # end
+        # end
+      # end
 
       def instantiate_adapter(options)
         @adapter = Ldapter::Adapters.for(options)
       end
 
     public
-      inheritable_reader :adapter
+      attr_reader :adapter
 
-      def base_dn=(dn)
+      def base=(dn)
         @base_dn = LDAP::DN(dn,self)
       end
-      def base_dn
+      def base
         @base_dn ||= LDAP::DN(adapter.default_base_dn,self)
       end
-      alias dn base_dn
+      alias dn base
+      alias base_dn base
 
       def logger
         @logger ||= adapter.logger
-      end
-
-      # Verifies the given credentials are authorized to connect to the server,
-      # by temborarily binding with them.  Returns a boolean.
-      def authenticate(dn, password)
-        adapter.authenticate(dn, password)
       end
 
       # Search for an RDN relative to the base.
@@ -81,7 +76,7 @@ module Ldapter
       #
       #   (MyCompany/{:dc => "ruby-lang"}).dn #=> "DC=ruby-lang,DC=org"
       def /(*args)
-        find(base_dn.send(:/,*args))
+        find(base.send(:/,*args))
       end
 
       # Like #/, only the search results are cached.
@@ -90,7 +85,7 @@ module Ldapter
       #   MyCompany[:dc=>"ruby-lang"].bacon #=> "chunky"
       def [](*args)
         if args.empty?
-          @self ||= find(base_dn)
+          @self ||= find(base)
         else
           self[][*args]
         end
@@ -251,6 +246,37 @@ module Ldapter
           :attributes => attrs,
           :limit => true
         )
+      end
+
+      # Verifies the given credentials are authorized to connect to the server
+      # by temporarily binding with them.  Returns a boolean.
+      def authenticate(dn, password)
+        adapter.authenticate(dn, password)
+      end
+
+      # Convenience method for use with Rails.  Allows the singleton to be used
+      # as a before filter, an after filter, or an around filter.
+      #
+      #   class ApplicationController < ActionController::Base
+      #     prepend_around_filter MyCompany
+      #   end
+      #
+      # When invoked, the filter clears cached children.  The operation is
+      # cheap and quite necessary if you care to avoid stale data.
+      def filter(controller = nil)
+        if controller
+          reload
+          if block_given?
+            begin
+              yield
+            ensure
+              reload
+            end
+          end
+        else
+          yield if block_given?
+        end
+        self
       end
 
   end
