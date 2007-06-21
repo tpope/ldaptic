@@ -4,6 +4,22 @@ module Ldapter
   # contructed that mirrors the server's object classes.  Ldapter::Object
   # serves as the base class for this hierarchy.
   class Object
+    # Constructs a deep copy of a set of LDAP attributes, normalizing them to
+    # arrays as appropriate.  The returned hash has a default value of [].
+    def self.clone_ldap_hash(attributes) #:nodoc:
+      hash = Hash.new {|h,k| h[k] = [] }
+      attributes.each do |k,v|
+        k = k.kind_of?(Symbol) ?  k.to_s.gsub('_','-') : k.dup
+        # LDAP::DN objects have a special to_a method
+        if v.kind_of?(LDAP::DN)
+          hash[k] = [v.dup]
+        else
+          hash[k] = Array(v).map {|x| x.dup rescue x}
+        end
+      end
+      hash
+    end
+
     class << self
       attr_reader :oid, :desc, :sup
       %w(obsolete abstract structural auxiliary).each do |attr|
@@ -118,7 +134,7 @@ module Ldapter
         obj = allocate
         obj.instance_variable_set(:@dn, ::LDAP::DN(Array(attributes.delete('dn')).first,obj))
         obj.instance_variable_set(:@original_attributes, attributes)
-        obj.instance_variable_set(:@attributes, Ldapter.clone_ldap_hash(attributes))
+        obj.instance_variable_set(:@attributes, Ldapter::Object.clone_ldap_hash(attributes))
         obj.instance_variable_set(:@namespace, namespace || @namespace)
         obj.send(:common_initializations)
         obj
@@ -135,7 +151,7 @@ module Ldapter
 
     def initialize(data = {})
       raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
-      @attributes = Ldapter.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
+      @attributes = Ldapter::Object.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
       if dn = Array(@attributes.delete('dn')).first
         self.dn = dn
       end
@@ -403,7 +419,7 @@ module Ldapter
         namespace.adapter.add(dn, @attributes)
       end
       @original_attributes = @attributes
-      @attributes = Ldapter.clone_ldap_hash(@original_attributes)
+      @attributes = Ldapter::Object.clone_ldap_hash(@original_attributes)
       self
     end
 

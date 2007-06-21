@@ -94,6 +94,10 @@ module Ldapter
         conn.unbind rescue nil
       end
 
+      def default_base_dn
+        @options[:base] || server_default_base_dn
+      end
+
       private
 
       def connection_class
