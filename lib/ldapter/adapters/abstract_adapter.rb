@@ -70,6 +70,14 @@ module Ldapter
           Ldapter::Schema::AttributeType)
       end
 
+      def attribute_type(key = nil)
+        if key
+          attribute_types[key]
+        else
+          attribute_types.values.uniq
+        end
+      end
+
       # Returns a hash of DIT content rules, keyed by both OID and name.
       def dit_content_rules
         @dit_content_rules ||= construct_schema_hash('dITContentRules',

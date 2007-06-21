@@ -15,7 +15,7 @@ module LDAP
       string = string.to_s.gsub('_','-')
       string.upcase! if allow_asterisks
     end
-    string = string.to_s
+    string = string.to_s.dup
     enc = lambda {|l| "\\%02x" % l[0] }
     string.gsub!(/[()\\\0-\37"+,;<>]/,&enc)
     string.gsub!(/\A[# ]| \Z/,&enc)

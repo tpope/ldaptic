@@ -192,7 +192,7 @@ module Ldapter
       str = "#<#{self.class} #{dn}"
       @attributes.each do |k,values|
         s = (values.size == 1 ? "" : "s")
-        at = namespace.adapter.attribute_types[k]
+        at = namespace.adapter.attribute_type(k)
         if at && at.syntax_object && !at.syntax_object.x_not_human_readable? && at.syntax_object.desc != "Octet String"
           str << " " << k << ": " << values.inspect
         else
@@ -222,7 +222,7 @@ module Ldapter
       values = @attributes[key] || @attributes[key.downcase]
       return nil if values.nil?
       values = values.dup
-      at = namespace.adapter.attribute_types[key]
+      at = namespace.adapter.attribute_type(key)
       unless at
         warn "Unknown attribute type for #{key}"
         return values.freeze
@@ -266,7 +266,7 @@ module Ldapter
     # Changes are not committed to the server until #save is called.
     def write_attribute(key,values)
       key = LDAP.escape(key)
-      at = namespace.adapter.attribute_types[key]
+      at = namespace.adapter.attribute_type(key)
       unless at
         warn "Unknown attribute type for #{key}"
         @attributes[key] = Array(values)

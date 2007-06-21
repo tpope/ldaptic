@@ -14,4 +14,10 @@ class LDAPEscapeTest < Test::Unit::TestCase
     assert_equal "FOO-BAR", LDAP.escape(:foo_bar,true)
   end
 
+  def test_should_not_mutate
+    x = ","
+    assert_equal "\\2c", LDAP.escape(x).downcase
+    assert_equal ",", x
+  end
+
 end
