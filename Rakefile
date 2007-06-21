@@ -13,7 +13,7 @@ require File.join(File.dirname(__FILE__), 'lib', 'ldapter')
 
 PKG_BUILD     = ENV['PKG_BUILD'] ? '.' + ENV['PKG_BUILD'] : ''
 PKG_NAME      = 'ldapter'
-PKG_VERSION   = "0.1"
+PKG_VERSION   = "0.1" + PKG_BUILD
 PKG_FILE_NAME   = "#{PKG_NAME}-#{PKG_VERSION}"
 # PKG_DESTINATION = ENV["PKG_DESTINATION"] || "../#{PKG_NAME}"
 
