@@ -2,7 +2,7 @@ require 'ldapter/schema'
 module Ldapter
 
   # RFC2252.  Second column is "Human Readable"
-  SYNTAX_STRING = <<-EOF unless defined? SYNTAX_STRING
+  syntax_string = <<-EOF
 ACI Item                        N  1.3.6.1.4.1.1466.115.121.1.1
 Access Point                    Y  1.3.6.1.4.1.1466.115.121.1.2
 Attribute Type Description      Y  1.3.6.1.4.1.1466.115.121.1.3
@@ -64,7 +64,7 @@ UTC Time                        Y  1.3.6.1.4.1.1466.115.121.1.53
 EOF
 
   SYNTAXES = {} unless defined? SYNTAXES
-  SYNTAX_STRING.each_line do |line|
+  syntax_string.each_line do |line|
     d, h, oid = line.chomp.match(/(.*?)\s+([YN])  (.*)/).to_a[1..-1]
     hash = {:desc => d}
     if h == "N"
@@ -123,7 +123,18 @@ EOF
       end
     end
 
+    module ObjectClassDescription
+      def self.parse(string)
+        Ldapter::Schema::ObjectClass.new(string)
+      end
+      def self.format(objectclass)
+        objectclass.to_s
+      end
+    end
+
   end
+
+  # Microsoft junk.
   {
     "1.2.840.113556.1.4.906" => "1.3.6.1.4.1.1466.115.121.1.27"
   }.each do |k,v|

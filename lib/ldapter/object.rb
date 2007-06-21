@@ -7,7 +7,7 @@ module Ldapter
     # Constructs a deep copy of a set of LDAP attributes, normalizing them to
     # arrays as appropriate.  The returned hash has a default value of [].
     def self.clone_ldap_hash(attributes) #:nodoc:
-      hash = Hash.new {|h,k| h[k] = [] }
+      hash = Hash.new #{|h,k| h[k] = [] }
       attributes.each do |k,v|
         k = k.kind_of?(Symbol) ?  k.to_s.gsub('_','-') : k.dup
         # LDAP::DN objects have a special to_a method
@@ -128,12 +128,13 @@ module Ldapter
       alias objectClass object_classes
 
       def instantiate(attributes, namespace = nil) #:nodoc:
-        if klass = @subclasses.to_a.find {|c| attributes["objectClass"].to_a.include?(c.object_class) && c.structural? }
-          return klass.send(:instantiate,attributes)
-        elsif klass = self.namespace.const_get(attributes["objectClass"].last.to_s.ldapitalize(true)) rescue nil
-          if klass != self && klass.structural?
-            return klass.send(:instantiate,attributes)
-          end
+        ocs = attributes["objectClass"].to_a.map {|c| self.namespace.const_get(c.to_s.ldapitalize(true))}
+        subclass = (@subclasses.to_a & ocs).first
+        if subclass
+          return subclass.send(:instantiate, attributes, namespace)
+        end
+        unless structural? || ocs.empty?
+          logger.warn("ldapter") { "#{self}: invalid object class for #{attributes.inspect}" }
         end
         obj = allocate
         obj.instance_variable_set(:@dn, ::LDAP::DN(Array(attributes.delete('dn')).first,obj))
@@ -467,7 +468,7 @@ module Ldapter
         raise Ldapter::Error, "can't reassign DN", caller
       end
       @dn = ::LDAP::DN(value,self)
-      write_attributes_from_rdn(@dn.to_a.first)
+      write_attributes_from_rdn(@dn.rdns.first)
     end
 
     private
@@ -486,6 +487,7 @@ module Ldapter
 
     def write_attributes_from_rdn(rdn, attributes = @attributes)
       (LDAP::DN(rdn).to_a.first||{}).each do |k,v|
+        attributes[k.to_s.downcase] ||= []
         attributes[k.to_s.downcase] |= [v]
       end
     end
@@ -495,7 +497,7 @@ module Ldapter
       rdn = LDAP::DN(values).normalize.downcase
       return @children[rdn] if @children.has_key?(rdn)
       begin
-        child = search(:base => dn/rdn, :scope => :base, :limit => true)
+        child = search(:base => dn.send(:/,*values), :scope => :base, :limit => true)
         if values.size == 1
           child.instance_variable_set(:@parent, self)
         end
