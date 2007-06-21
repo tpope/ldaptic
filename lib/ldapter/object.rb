@@ -125,10 +125,10 @@ module Ldapter
 
       def instantiate(attributes, namespace = nil) #:nodoc:
         if klass = @subclasses.to_a.find {|c| attributes["objectClass"].to_a.include?(c.object_class) && c.structural? }
-          return klass.instantiate(attributes)
+          return klass.send(:instantiate,attributes)
         elsif klass = self.namespace.const_get(attributes["objectClass"].last.to_s.ldapitalize(true)) rescue nil
           if klass != self && klass.structural?
-            return klass.instantiate(attributes)
+            return klass.send(:instantiate,attributes)
           end
         end
         obj = allocate
@@ -139,7 +139,7 @@ module Ldapter
         obj.send(:common_initializations)
         obj
       end
-      protected :instantiate
+      private :instantiate
 
       protected
       def inherited(subclass) #:nodoc:
