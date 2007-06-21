@@ -129,7 +129,7 @@ module Ldapter
 
       def instantiate(attributes, namespace = nil) #:nodoc:
         ocs = attributes["objectClass"].to_a.map {|c| self.namespace.const_get(c.to_s.ldapitalize(true))}
-        subclass = (@subclasses.to_a & ocs).first
+        subclass = (@subclasses.to_a & ocs).detect {|x| !x.auxiliary?}
         if subclass
           return subclass.send(:instantiate, attributes, namespace)
         end

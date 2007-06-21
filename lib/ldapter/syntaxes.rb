@@ -123,13 +123,22 @@ EOF
       end
     end
 
-    module ObjectClassDescription
+    module LDAPSyntaxDescription
       def self.parse(string)
-        Ldapter::Schema::ObjectClass.new(string)
+        Ldapter::Schema::LdapSyntax.new(string)
       end
-      def self.format(objectclass)
-        objectclass.to_s
-      end
+      def self.format(obj) obj.to_s end
+    end
+
+    %w(ObjectClass AttributeType MatchingRule MatchingRuleUse DITContentRule DITStructureRule NameForm).each do |syntax|
+      class_eval(<<-EOS,__FILE__,__LINE__)
+        module #{syntax}Description
+          def self.parse(string)
+            Ldapter::Schema::#{syntax}.new(string)
+          end
+          def self.format(obj) obj.to_s end
+        end
+      EOS
     end
 
   end
@@ -137,6 +146,7 @@ EOF
   # Microsoft junk.
   {
     "1.2.840.113556.1.4.906" => "1.3.6.1.4.1.1466.115.121.1.27"
+    "1.2.840.113556.1.4.907" => "1.3.6.1.4.1.1466.115.121.1.5"
   }.each do |k,v|
     SYNTAXES[k] = SYNTAXES[v]
   end
