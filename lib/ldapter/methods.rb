@@ -92,8 +92,21 @@ module Ldapter
         end
       end
 
+      # Like Ldapter::Object#[]= for the root node.  Only works for assigning
+      # children.
+      #
+      #   MyCompany[:cn=>"New Employee"] = MyCompany::User.new
       def []=(*args) #:nodoc:
         self[].send(:[]=,*args)
+      end
+
+      # Clear the cache of children.  This cache is automatically populated
+      # when a child is accessed through #[].
+      def reload
+        if @self
+          @self.reload rescue nil
+          @self = nil
+        end
       end
 
       # Does a search with the given filter and a scope of onelevel.

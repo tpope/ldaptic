@@ -20,11 +20,26 @@ module Ldapter
         @options[:connection] = @connection = nil
       end
 
+      def authenticate(dn, password)
+        super(full_username(dn), password)
+      end
+
       private
+
+      def full_username(username = @options[:username])
+        if username !~ /[\\=@]/
+          if @options[:domain].include?(".")
+            username = [username,@options[:domain]].compact.join("@")
+          else
+            username = [@options[:domain],username].compact.join("\\")
+          end
+        end
+        username
+      end
 
       def with_port(port,&block)
         conn = new_connection(port)
-        bind_connection(conn,@options[:username],@options[:password])
+        bind_connection(conn,full_username,@options[:password])
         with_conn(conn,&block)
       ensure
         conn.unbind rescue nil
