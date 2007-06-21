@@ -81,7 +81,6 @@ module Ldapter
 
   class Class
     class << self
-      private
       def inherited(subclass)
         if @options
           # subclass.extend(Methods)
@@ -91,11 +90,8 @@ module Ldapter
         end
         super
       end
+      private :inherited, :new
     end
   end
 
-end
-
-if __FILE__ == $0;
-  require 'irb'; IRB.start($0);
 end

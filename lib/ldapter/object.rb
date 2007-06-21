@@ -340,22 +340,6 @@ module Ldapter
         return read_attribute(attribute,*args,&block)
       end
       super(method.to_sym,*args,&block)
-      # Does not work
-      extensions = self.class.const_get("Extensions") rescue nil
-      if extensions
-        self["objectClass"].reverse.each do |oc|
-          oc[0..0] = oc[0..0].upcase
-          if extensions.constants.include?(oc)
-            p oc
-            extension = extensions.const_get(oc)
-            if extension.instance_methods.include?(method)
-              p method
-              im = extension.instance_method(method).bind(self)
-              im.call(*args)
-            end
-          end
-        end
-      end
     end
 
     # def children(type = nil, name = nil)
