@@ -26,6 +26,10 @@ module Ldapter
         class_eval("def #{attr}?; !! @#{attr}; end")
       end
 
+      def logger
+        namespace.logger
+      end
+
       # Returns an array of all names for the object class.  Typically the number
       # of names is one, but it is possible for an object class to have aliases.
       def names
@@ -158,6 +162,15 @@ module Ldapter
       common_initializations
     end
 
+    # A link back to the namespace.
+    def namespace
+      @namespace || self.class.namespace
+    end
+
+    def logger
+      self.class.logger
+    end
+
     attr_reader :dn
 
     # The first (relative) component of the distinguished name.
@@ -172,11 +185,6 @@ module Ldapter
         @parent.instance_variable_get(:@children)[rdn.normalize.downcase] = self
       end
       @parent
-    end
-
-    # A link back to the namespace.
-    def namespace
-      @namespace || self.class.namespace
     end
 
     def inspect
@@ -215,7 +223,7 @@ module Ldapter
       values = values.dup
       at = namespace.adapter.attribute_types[key]
       unless at
-        warn "Warning: unknown attribute type for #{key}"
+        warn "Unknown attribute type for #{key}"
         return values.freeze
       end
       if syn = SYNTAXES[at.syntax_oid]
@@ -231,7 +239,7 @@ module Ldapter
           end
         end
       elsif at.syntax_oid
-        warn "Warning: unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
+        warn "Unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
       end
       if at.single_value?
         values.first
@@ -259,7 +267,7 @@ module Ldapter
       key = LDAP.escape(key)
       at = namespace.adapter.attribute_types[key]
       unless at
-        warn "Warning: unknown attribute type for #{key}"
+        warn "Unknown attribute type for #{key}"
         @attributes[key] = Array(values)
         return values
       end
@@ -285,7 +293,7 @@ module Ldapter
           end
         end
       elsif at.syntax_oid
-        warn "Warning: unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
+        warn "Unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
       end
       @attributes[key] = values
     end
@@ -466,6 +474,14 @@ module Ldapter
 
     def common_initializations
       @children ||= {}
+    end
+
+    def warn(message)
+      if logger
+        logger.warn('ldapter') { message }
+      else
+        Kernel.warn message
+      end
     end
 
     def write_attributes_from_rdn(rdn, attributes = @attributes)

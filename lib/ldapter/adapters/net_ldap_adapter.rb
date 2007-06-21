@@ -35,8 +35,9 @@ module Ldapter
             :auth => {:method => :simple, :username => options[:username], :password => options[:password]}
           )
         end
-        @options = options
+        @options    = options
         @connection = options[:connection]
+        @logger     = options[:logger]
       end
 
       attr_reader :connection
@@ -145,7 +146,7 @@ module Ldapter
         if caps
           caps
         else
-          warn "#{attribute} could not be capitalized"
+          logger.warn('ldapter') { "#{attribute} could not be capitalized" }
           @cached_capitalizations[attribute] = attribute
         end
       end

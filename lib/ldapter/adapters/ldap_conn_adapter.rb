@@ -25,6 +25,7 @@ module Ldapter
           bind_connection(@options[:connection], @options[:username], @options[:password])
         end
         @connection = @options[:connection]
+        @logger     = @options[:logger]
       end
 
       def add(dn, attributes)

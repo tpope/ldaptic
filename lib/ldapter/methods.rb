@@ -64,6 +64,10 @@ module Ldapter
       end
       alias dn base_dn
 
+      def logger
+        @logger ||= adapter.logger
+      end
+
       # Verifies the given credentials are authorized to connect to the server,
       # by temborarily binding with them.  Returns a boolean.
       def authenticate(dn, password)

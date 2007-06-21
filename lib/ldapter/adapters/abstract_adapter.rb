@@ -82,6 +82,14 @@ module Ldapter
           Ldapter::Schema::ObjectClass)
       end
 
+      def logger
+        unless @logger
+          require 'logger'
+          @logger = Logger.new($stderr)
+        end
+        @logger
+      end
+
       private
 
       def construct_schema_hash(element,klass)
