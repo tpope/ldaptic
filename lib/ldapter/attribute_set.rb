@@ -72,7 +72,7 @@ module Ldapter
           if match
             dest.delete(match)
           else
-            yield(attribute)
+            yield(attribute) if block_given?
           end
         end
       end
@@ -86,50 +86,41 @@ module Ldapter
 
     alias subtract delete
 
-    # TODO: refactor all mutating methods through replace
-    def slice!(*args)
-      value = args.pop
-      typecast(
-      if value.nil?
-        @target.delete_at(*args)
-      else
-        @target.slice!(*(args+[format(value)]))
-      end)
-    end
-    alias []= slice!
-
-    def collect!
-      @target.collect! do |value|
-        format(yield(typecast(value)))
-      end.compact!
-      self
+    def collect!(&block)
+      replace(typecast(@target).collect(&block))
     end
     alias map! collect!
 
     def insert(index, *objects)
-      @target.insert(index, *safe_array(objects))
-      self
+      replace(typecast(@target).insert(index, *objects.flatten))
     end
 
     def unshift(*values)
       insert(0,*values)
     end
 
-    def delete_if
-      typecast(@target.delete_if { |value| yield(typecast(value)) })
+    def reject!(&block)
+      array = typecast(@target)
+      replace(array) if array.reject!(&block)
     end
 
-    def reject!
-      typecast(@target.reject!   { |value| yield(typecast(value)) })
+    def delete_if(&block)
+      reject!(&block)
+      self
     end
 
-    %w(at delete_at pop shift).each do |method|
+    %w(delete_at pop shift slice!).each do |method|
       class_eval(<<-EOS,__FILE__,__LINE__)
         def #{method}(*args,&block)
-         typecast(@target.__send__('#{method}',*args,&block))
+          array = typecast(@target)
+          result = array.send('#{method}',*args,&block)
+          replace(array)
+          result
         end
       EOS
     end
+
+    alias []= slice!
 
     %w(reverse! sort! uniq!).each do |method|
       class_eval(<<-EOS,__FILE__,__LINE__)

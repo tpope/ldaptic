@@ -7,7 +7,7 @@ module Ldapter
       register_as(:net_ldap)
 
       def initialize(options)
-        require 'ldapter/adapters/net_ldap_ext'
+        require 'net/ldap'
         if defined?(::Net::LDAP) && options.kind_of?(::Net::LDAP)
           options = {:adapter => :net_ldap, :connection => option}
         else
@@ -28,11 +28,16 @@ module Ldapter
             options[:encryption] ||= encryption
           end
         else
+          if options[:username]
+            auth = {:method => :simple, :username => options[:username], :password => options[:password]}
+          else
+            auth = {:method => :anonymous}
+          end
           options[:connection] ||= ::Net::LDAP.new(
             :host => options[:host],
             :port => options[:port],
             :encryption => options[:encryption],
-            :auth => {:method => :simple, :username => options[:username], :password => options[:password]}
+            :auth => auth
           )
         end
         @options    = options
@@ -61,6 +66,7 @@ module Ldapter
       end
 
       def rename(dn, new_rdn, delete_old, new_superior = nil)
+        require 'ldapter/adapters/net_ldap_ext'
         connection.rename(:olddn => dn, :newrdn => new_rdn, :delete_attributes => delete_old, :newsuperior => new_superior)
         handle_errors
       end

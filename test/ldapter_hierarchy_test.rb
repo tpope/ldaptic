@@ -4,11 +4,12 @@ require File.join(File.dirname(__FILE__),"/mock_adapter")
 require 'test/unit'
 
 class LdapterHierarchyTest < Test::Unit::TestCase
-  class Mock < Ldapter::Namespace(:adapter => :mock)
+  class Mock < Ldapter::Class(:adapter => :mock)
   end
 
   def test_inheritance
     assert defined? Mock::Top
+    assert_raise(NoMethodError) { Mock.new }
     assert_equal Mock::Top, Mock::Person.superclass
     assert Mock::Person.method_defined?(:sn)
     assert !Mock::Top.method_defined?(:sn)
@@ -53,7 +54,7 @@ class LdapterHierarchyTest < Test::Unit::TestCase
   def test_search
     assert_kind_of Hash,   Mock.search(:limit => true, :instantiate => false)
     assert_kind_of Array,  Mock.search(:limit => false)
-    assert_kind_of String, Mock.search(:attributes => :filter).first
+    assert_kind_of String, Mock.search(:attributes => :filter, :limit => false).first
     assert_kind_of Array,  Mock.search(:attributes => :filter, :instantiate => false).first
   end
 
@@ -77,7 +78,16 @@ class LdapterHierarchyTest < Test::Unit::TestCase
     # Verify cache is working
     assert_equal 1, matz[:child=>:data].scope
     assert_equal "DC=org", matz.parent.dn
+    Mock.filter(true) do
+      Mock[:cn=>"Matz"].scope = 1
+      assert_equal 1, Mock[:cn=>"Matz"].scope
+    end
+    assert_equal 0, Mock[:cn=>"Matz"].scope
     #assert_equal "(objectClass=*)", matz.children.first.filter
+  end
+
+  def test_schema
+    assert Mock.schema([:objectClass,:scope]).scope
   end
 
 end

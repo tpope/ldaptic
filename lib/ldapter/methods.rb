@@ -49,9 +49,9 @@ module Ldapter
         # end
       # end
 
-      def instantiate_adapter(options)
-        @adapter = Ldapter::Adapters.for(options)
-      end
+      # def instantiate_adapter(options)
+        # @adapter = Ldapter::Adapters.for(options)
+      # end
 
     public
       attr_reader :adapter
@@ -241,7 +241,7 @@ module Ldapter
 
       def schema(attrs = nil) #:nodoc:
         search(
-          :base => root_dse(:subschemaSubentry).first,
+          :base => Array(root_dse(:subschemaSubentry)).first,
           :scope => :base,
           :attributes => attrs,
           :limit => true
