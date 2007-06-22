@@ -183,9 +183,10 @@ module Ldapter
       def syntax_len
         @attributes[:syntax] && @attributes[:syntax][/\{(.*)\}/,1].to_i
       end
-      def syntax_object
+      def syntax_object(*args)
         Ldapter::SYNTAXES[syntax_oid ||
-          "1.3.6.1.4.1.1466.115.121.1.15"] # Directory String
+          "1.3.6.1.4.1.1466.115.121.1.15" # Directory String
+        ] #.new(*args)
       end
       alias syntax syntax_object
     end
@@ -201,12 +202,12 @@ module Ldapter
     class LdapSyntax < AbstractDefinition
       # No name or obsolete flag
       attr_ldap_qdstring   :desc
-      def parse(value)
-        object.parse(value)
-      end
-      def format(value)
-        object.format(value)
-      end
+      # def parse(value)
+        # object.new.parse(value)
+      # end
+      # def format(value)
+        # object.new.format(value)
+      # end
       def object
         require 'ldapter/syntaxes'
         Ldapter::Syntaxes.for(desc.delete(" "))

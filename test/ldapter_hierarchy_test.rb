@@ -26,7 +26,8 @@ class LdapterHierarchyTest < Test::Unit::TestCase
     assert_equal LDAP::DN("cn=Matz,dc=org"), person.dn
     assert_equal "CN=Matz", person.rdn
     inspect = person.inspect
-    assert_raise(Ldapter::Error) { person.distinguishedName = "Why" }
+    assert_raise(TypeError) { person.distinguishedName = "Why" }
+    # assert_raise(TypeError) { person.distinguishedName.sub!(/z/,'t') }
     assert_raise(NoMethodError) { person.fakeAttribute = 42 }
     assert inspect.include?("Mock::Person CN=Matz,DC=org")
     assert_match(/cn: .*Matsumoto/, inspect)

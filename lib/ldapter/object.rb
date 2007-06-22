@@ -141,7 +141,8 @@ module Ldapter
         obj = allocate
         obj.instance_variable_set(:@dn, ::LDAP::DN(Array(attributes.delete('dn')).first,obj))
         obj.instance_variable_set(:@original_attributes, attributes)
-        obj.instance_variable_set(:@attributes, Ldapter::Object.clone_ldap_hash(attributes))
+        obj.instance_variable_set(:@attributes, {})
+        # obj.instance_variable_set(:@attributes, Ldapter::Object.clone_ldap_hash(attributes))
         # obj.instance_variable_set(:@namespace, namespace || @namespace)
         obj.send(:common_initializations)
         obj
@@ -158,12 +159,21 @@ module Ldapter
 
     def initialize(data = {})
       raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
-      @attributes = Ldapter::Object.clone_ldap_hash({'objectClass' => self.class.object_classes}.merge(data))
-      if dn = Array(@attributes.delete('dn')).first
+      @attributes = {}
+      data = data.dup
+      if dn = data.delete('dn')||data.delete(:dn)
+        dn.first if dn.kind_of?(Array)
         self.dn = dn
       end
+      data.each do |key,value|
+        write_attribute(key,value)
+      end
+      # @attributes = Ldapter::Object.clone_ldap_hash(data)
+      @attributes['objectClass'] ||= []
+      @attributes['objectClass'].insert(0,*self.class.object_classes).uniq!
       common_initializations
     end
+
 
     # A link back to the namespace.
     def namespace
@@ -192,10 +202,10 @@ module Ldapter
 
     def inspect
       str = "#<#{self.class} #{dn}"
-      @attributes.each do |k,values|
+      @attributes.merge(@original_attributes||{}).each do |k,values|
         s = (values.size == 1 ? "" : "s")
         at = namespace.adapter.attribute_type(k)
-        if at && at.syntax_object && !at.syntax_object.x_not_human_readable? && at.syntax_object.desc != "Octet String"
+        if at && at.syntax && !at.syntax.x_not_human_readable? && at.syntax.desc != "Octet String"
           str << " " << k << ": " << values.inspect
         else
           str << " " << k << ": "
@@ -212,6 +222,10 @@ module Ldapter
       str << ">"
     end
 
+    def to_s
+      "#<#{self.class} #{dn}>"
+    end
+
     # Reads an attribute and typecasts it if neccessary.  If the server
     # indicates the attribute is <tt>SINGLE-VALUE</tt>, the sole attribute or
     # +nil+ is returned.  Otherwise, an array is returned.
@@ -221,31 +235,9 @@ module Ldapter
     # with underscores map to attributes with hyphens.
     def read_attribute(key, always_array = false)
       key = LDAP.escape(key)
-      values = (@attributes[key] ||= [])
-      return nil if values.nil?
-      at = namespace.adapter.attribute_type(key)
-      if at && at.syntax_oid == ::LDAP::DN::OID
-        # DNs are handled specially because they include a reference back.
-        values.map! do |value|
-          value.kind_of?(::LDAP::DN) ? value : ::LDAP::DN(value,self)
-        end
-        syn = ::Object.new
-        def syn.parse(value)
-          ::LDAP::DN(value,self).freeze
-        end
-        def syn.format(value)
-          (value.respond_to?(:dn) ? value.dn : value).to_str
-        end
-      else
-        syn = at && at.syntax
-      end
-      values = Ldapter::AttributeSet.new(values, at, syn, self)
-      # warn "Unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
-      if at && at.single_value? && !always_array
-        values.first
-      else
-        values
-      end
+      @attributes[key] ||= (@original_attributes||{})[key] || []
+      values = Ldapter::AttributeSet.new(self, key, @attributes[key])
+      always_array ? values : values.reduce
     end
     protected :read_attribute
 
@@ -264,16 +256,7 @@ module Ldapter
     #
     # Changes are not committed to the server until #save is called.
     def write_attribute(key,values)
-      key = LDAP.escape(key)
-      at = namespace.adapter.attribute_type(key)
-      if at && at.single_value?
-        values = Array(values)
-      end
-      if must.include?(key) && Array(values).empty?
-        raise TypeError, "value required", caller
-      end
-      raise TypeError, "array expected", caller unless values.kind_of?(Array)
-      return read_attribute(key, true).replace(values)
+      read_attribute(key, true).replace(values)
     end
     protected :write_attribute
 

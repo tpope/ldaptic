@@ -82,20 +82,35 @@ EOF
       const_get(string.delete(' ')) rescue DirectoryString
     end
 
-    module DirectoryString
+    class Abstract
+      def initialize(object = nil)
+        @object = object
+      end
+      def format(value)
+        value.to_s
+      end
+      def self.format(object)
+        new.format(object)
+      end
       def self.parse(string)
+        new.parse(string)
+      end
+    end
+
+    class DirectoryString < Abstract
+      def parse(string)
         string
       end
-      def self.format(string)
+      def format(string)
         string.to_str
       end
     end
 
-    module Boolean
-      def self.parse(string)
+    class Boolean < Abstract
+      def parse(string)
         return string == "TRUE"
       end
-      def self.format(boolean)
+      def format(boolean)
         case boolean
         when "TRUE",  true  then "TRUE"
         when "FALSE", false then "FALSE"
@@ -104,39 +119,48 @@ EOF
       end
     end
 
-    module INTEGER
-      def self.parse(string)
+    class INTEGER < Abstract
+      def parse(string)
         return string.to_i
       end
-      def self.format(integer)
+      def format(integer)
         Integer(integer).to_s
       end
     end
 
-    module GeneralizedTime
-      def self.parse(string)
+    class GeneralizedTime < Abstract
+      def parse(string)
         require 'time'
         Time.parse(string.sub(/(\.0)(\w)$/,'\\2'))+$1.to_f
       end
-      def self.format(time)
+      def format(time)
         time.utc.strftime("%Y%m%d%H%M%S")+".%06dZ" % (time.usec/100_000)
       end
     end
 
-    module LDAPSyntaxDescription
-      def self.parse(string)
+    class DN < Abstract
+      def parse(string)
+        ::LDAP::DN(string,@object).freeze
+      end
+      def format(dn)
+        (dn.respond_to?(:dn) ? dn.dn : dn).to_str
+      end
+    end
+
+    class LDAPSyntaxDescription < Abstract
+      def parse(string)
         Ldapter::Schema::LdapSyntax.new(string)
       end
-      def self.format(obj) obj.to_s end
+      def format(obj) obj.to_s end
     end
 
     %w(ObjectClass AttributeType MatchingRule MatchingRuleUse DITContentRule DITStructureRule NameForm).each do |syntax|
       class_eval(<<-EOS,__FILE__,__LINE__)
-        module #{syntax}Description
-          def self.parse(string)
+        class #{syntax}Description < Abstract
+          def parse(string)
             Ldapter::Schema::#{syntax}.new(string)
           end
-          def self.format(obj) obj.to_s end
+          def format(obj) obj.to_s end
         end
       EOS
     end

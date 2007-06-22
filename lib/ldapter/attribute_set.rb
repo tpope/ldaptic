@@ -1,24 +1,27 @@
+require 'ldap/escape'
+
 module Ldapter
   class AttributeSet
 
     alias proxy_respond_to? respond_to?
-    instance_methods.each { |m| undef_method m unless m =~ /(^__|^nil\?$|^send$|proxy_)/ }
+    instance_methods.each { |m| undef_method m unless m =~ /(^__|^nil\?$|^proxy_)/ }
     attr_reader :target
 
-    def initialize(target, type, syntax, object)
-      @target = target
-      @type   = type
-      @syntax = syntax
+    def initialize(object, key, target)
       @object = object
+      @key    = LDAP.escape(key)
+      @type   = @object.namespace.adapter.attribute_type(@key)
+      @syntax = @type && @type.syntax
+      @target = target
       if @type.nil?
-        @object.logger.warn("ldapter") { "Unknown attribute type for #{key}" }
+        @object.logger.warn("ldapter") { "Unknown attribute type #{@key}" }
       elsif @syntax.nil?
-        @object.logger.warn("ldapter") { "Unknown syntax #{type.syntax_oid} for attribute type #{Array(type.name).first}" }
+        @object.logger.warn("ldapter") { "Unknown syntax #{@type.syntax_oid} for attribute type #{Array(@type.name).first}" }
       end
     end
 
     def method_missing(method,*args,&block)
-      typecast(@target).send(method,*args,&block)
+      typecast(@target).__send__(method,*args,&block)
     end
 
     def ===(object)
@@ -30,9 +33,11 @@ module Ldapter
     end
 
     def add(*attributes)
+      dest = @target.dup
       safe_array(attributes).each do |attribute|
-        @target.push(attribute) unless self.include?(attribute)
+        dest.push(attribute) unless self.include?(attribute)
       end
+      replace(dest)
       self
     end
 
@@ -42,42 +47,53 @@ module Ldapter
 
     def replace(*attributes)
       attributes = safe_array(attributes)
-      if @type
-        if @type.no_user_modification?
-          raise Error, "read-only value", caller
-        elsif @type.single_value? && attributes.size > 1
-          raise TypeError, "multiple values for single-valued attribute", caller
-        end
+      if no_user_modification?
+        raise TypeError, "read-only attribute #{@key}", caller
+      elsif single_value? && attributes.size > 1
+        raise TypeError, "multiple values for single-valued attribute #{@key}", caller
+      elsif mandatory? && attributes.empty?
+        raise TypeError, "value required for attribute #{@key}", caller
       end
       @target.replace(attributes)
       self
     end
 
     def clear
-      @target.clear
+      replace([])
       self
     end
 
-    def delete(*attributes)
+    def delete(*attributes,&block)
+      dest = @target.dup
+      ret = []
       safe_array(attributes).each do |attribute|
-        @target.delete(attribute) do
-          match = @target.detect {|x| x.downcase == attribute.downcase}
-          @target.delete(match) if match
+        ret << dest.delete(attribute) do
+          match = dest.detect {|x| x.downcase == attribute.downcase}
+          if match
+            dest.delete(match)
+          else
+            yield(attribute)
+          end
         end
+      end
+      replace(dest)
+      if attributes.size == 1 && !attributes.first.kind_of?(Array)
+        typecast ret.first
+      else
+        typecast ret
       end
     end
 
     alias subtract delete
 
+    # TODO: refactor all mutating methods through replace
     def slice!(*args)
       value = args.pop
       typecast(
-      if value.kind_of?(Array)
-        @target.slice!(*(args+[safe_array(value)]))
-      elsif value.nil?
+      if value.nil?
         @target.delete_at(*args)
       else
-        @target.slice!(*(args+safe_array(value)))
+        @target.slice!(*(args+[format(value)]))
       end)
     end
     alias []= slice!
@@ -123,13 +139,44 @@ module Ldapter
       EOS
     end
 
+    def mandatory?
+      @object.must.include?(@key)
+    end
+
+    def single_value?
+      @type && @type.single_value?
+    end
+
+    def no_user_modification?
+      @type && @type.no_user_modification?
+    end
+
+    # If the attribute is a SINGLE-VALUE, return it, otherwise, return self.
+    def reduce
+      if single_value?
+        first
+      else
+        self
+      end
+    end
+
     private
+
+    def syntax_object
+      @syntax && @syntax.object.new(@object)
+    end
 
     def format(value)
       case value
       when Array then value.map {|x| format(x)}
       when nil   then nil
-      else            @syntax ? @syntax.format(value) : value
+      else
+        value = @syntax ? syntax_object.format(value) : value
+        if @type && @type.no_user_modification?
+          value.dup.freeze if value.kind_of?(String)
+        else
+          value
+        end
       end
     end
 
@@ -141,7 +188,7 @@ module Ldapter
       case value
       when Array then value.map {|x| typecast(x)}
       when nil   then nil
-      else            @syntax ? @syntax.parse(value) : value
+      else            @syntax ? syntax_object.parse(value) : value
       end
     end
 
