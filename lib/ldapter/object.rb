@@ -1,3 +1,5 @@
+require 'ldapter/attribute_set'
+
 module Ldapter
 
   # When a new Ldapter::Namespace is created, a Ruby class hierarchy is
@@ -217,35 +219,32 @@ module Ldapter
     # If the argument given is a symbol, underscores are translated into
     # hyphens.  Since #method_missing delegates to this method, method names
     # with underscores map to attributes with hyphens.
-    def read_attribute(key)
+    def read_attribute(key, always_array = false)
       key = LDAP.escape(key)
-      values = @attributes[key] || @attributes[key.downcase]
+      values = (@attributes[key] ||= [])
       return nil if values.nil?
-      values = values.dup
       at = namespace.adapter.attribute_type(key)
-      unless at
-        warn "Unknown attribute type for #{key}"
-        return values.freeze
-      end
-      if syn = SYNTAXES[at.syntax_oid]
-        if at.syntax_oid == ::LDAP::DN::OID
-          # DNs are handled specially because they include a reference back.
-          values.map! do |value|
-            ::LDAP::DN(value,self).freeze
-          end
-        else
-          parser = at.syntax_object
-          values.map! do |value|
-            parser.parse(value).freeze
-          end
+      if at && at.syntax_oid == ::LDAP::DN::OID
+        # DNs are handled specially because they include a reference back.
+        values.map! do |value|
+          value.kind_of?(::LDAP::DN) ? value : ::LDAP::DN(value,self)
         end
-      elsif at.syntax_oid
-        warn "Unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
+        syn = ::Object.new
+        def syn.parse(value)
+          ::LDAP::DN(value,self).freeze
+        end
+        def syn.format(value)
+          (value.respond_to?(:dn) ? value.dn : value).to_str
+        end
+      else
+        syn = at && at.syntax
       end
-      if at.single_value?
+      values = Ldapter::AttributeSet.new(values, at, syn, self)
+      # warn "Unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
+      if at && at.single_value? && !always_array
         values.first
       else
-        values.freeze
+        values
       end
     end
     protected :read_attribute
@@ -267,36 +266,14 @@ module Ldapter
     def write_attribute(key,values)
       key = LDAP.escape(key)
       at = namespace.adapter.attribute_type(key)
-      unless at
-        warn "Unknown attribute type for #{key}"
-        @attributes[key] = Array(values)
-        return values
-      end
-      if at.no_user_modification?
-        raise Error, "read-only value", caller
-      end
-      if at.single_value?
+      if at && at.single_value?
         values = Array(values)
       end
-      raise TypeError, "array expected", caller unless values.kind_of?(Array)
-      if must.include?(key) && values.empty?
+      if must.include?(key) && Array(values).empty?
         raise TypeError, "value required", caller
       end
-      if syn = SYNTAXES[at.syntax_oid]
-        if at.syntax_oid == LDAP::DN::OID
-          values = values.map do |value|
-            value.respond_to?(:dn) ? value.dn : value
-          end
-        else
-          parser = at.syntax_object
-          values = values.map do |value|
-            parser.format(value)
-          end
-        end
-      elsif at.syntax_oid
-        warn "Unknown syntax #{at.syntax_oid} for attribute type #{Array(at.name).first}"
-      end
-      @attributes[key] = values
+      raise TypeError, "array expected", caller unless values.kind_of?(Array)
+      return read_attribute(key, true).replace(values)
     end
     protected :write_attribute
 
