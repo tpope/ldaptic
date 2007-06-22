@@ -10,8 +10,8 @@ module Ldapter
     def initialize(object, key, target)
       @object = object
       @key    = LDAP.escape(key)
-      @type   = @object.namespace.adapter.attribute_type(@key)
-      @syntax = @type && @type.syntax
+      @type   = @object.namespace.attribute_type(@key)
+      @syntax = @object.namespace.attribute_syntax(@key)
       @target = target
       if @type.nil?
         @object.logger.warn("ldapter") { "Unknown attribute type #{@key}" }
@@ -64,6 +64,7 @@ module Ldapter
     end
 
     def delete(*attributes,&block)
+      return clear if attributes.flatten.empty?
       dest = @target.dup
       ret = []
       safe_array(attributes).each do |attribute|
@@ -150,6 +151,8 @@ module Ldapter
         self
       end
     end
+
+    attr_reader :type
 
     private
 

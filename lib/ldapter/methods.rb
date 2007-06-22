@@ -248,6 +248,18 @@ module Ldapter
         )
       end
 
+      def attribute_type(attribute)
+        adapter.attribute_type(attribute)
+      end
+      def attribute_syntax(attribute)
+        type   = attribute_type(attribute)
+        syntax = nil
+        until type.nil? || syntax = type.syntax
+          type = adapter.attribute_type(type.sup)
+        end
+        syntax
+      end
+
       # Verifies the given credentials are authorized to connect to the server
       # by temporarily binding with them.  Returns a boolean.
       def authenticate(dn, password)

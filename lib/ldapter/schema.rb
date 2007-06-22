@@ -177,16 +177,19 @@ module Ldapter
       attr_ldap_boolean    :single_value, :collective, :no_user_modification
       attr_ldap_qdescr     :usage  # attr_ldap_usage
 
+      def syntax_attribute
+        @attributes[:syntax]
+      end
       def syntax_oid
-        @attributes[:syntax] && @attributes[:syntax][/[0-9.]+/]
+        syntax_attribute && syntax_attribute[/[0-9.]+/]
       end
       def syntax_len
-        @attributes[:syntax] && @attributes[:syntax][/\{(.*)\}/,1].to_i
+        syntax_attribute && syntax_attribute[/\{(.*)\}/,1].to_i
       end
       def syntax_object(*args)
-        Ldapter::SYNTAXES[syntax_oid ||
-          "1.3.6.1.4.1.1466.115.121.1.15" # Directory String
-        ] #.new(*args)
+        Ldapter::SYNTAXES[syntax_oid] # ||
+          # "1.3.6.1.4.1.1466.115.121.1.15" # Directory String
+        # ] #.new(*args)
       end
       alias syntax syntax_object
     end

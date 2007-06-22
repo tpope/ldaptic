@@ -42,9 +42,9 @@ module Ldapter
         (may(false) + must(false)).each do |attr|
           method = attr.to_s.tr_s('-_','_-')
           define_method("#{method}") { read_attribute(attr) }
-          # If we skip this check we can delay the attribute_types initialization
+          # If we skip this check we can delay the attribute type initialization
           # and improve startup speed.
-          # unless namespace.adapter.attribute_types[attr].no_user_modification?
+          # unless namespace.attribute_type(attr).no_user_modification?
             define_method("#{method}="){ |value| write_attribute(attr,value) }
           # end
         end
@@ -199,14 +199,15 @@ module Ldapter
       str = "#<#{self.class} #{dn}"
       @attributes.merge(@original_attributes||{}).each do |k,values|
         s = (values.size == 1 ? "" : "s")
-        at = namespace.adapter.attribute_type(k)
-        if at && at.syntax && !at.syntax.x_not_human_readable? && at.syntax.desc != "Octet String"
+        at = namespace.attribute_type(k)
+        syntax = namespace.attribute_syntax(k)
+        if at && syntax && !syntax.x_not_human_readable? && syntax.desc != "Octet String"
           str << " " << k << ": " << values.inspect
         else
           str << " " << k << ": "
           if !at
             str << "(unknown attribute)"
-          elsif !at.syntax_object
+          elsif !syntax
             str << "(unknown type)"
           else
             str << "(" << values.size.to_s << " binary value" << s << ")"

@@ -22,7 +22,9 @@ module Ldapter
           end
         else
           @options[:connection] = new_connection
-          bind_connection(@options[:connection], @options[:username], @options[:password])
+          if @options[:username]
+            bind_connection(@options[:connection], @options[:username], @options[:password])
+          end
         end
         @connection = @options[:connection]
         @logger     = @options[:logger]
