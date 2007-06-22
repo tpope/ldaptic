@@ -12,12 +12,7 @@ module Ldapter
       hash = Hash.new #{|h,k| h[k] = [] }
       attributes.each do |k,v|
         k = k.kind_of?(Symbol) ?  k.to_s.gsub('_','-') : k.dup
-        # LDAP::DN objects have a special to_a method
-        if v.kind_of?(LDAP::DN)
-          hash[k] = [v.dup]
-        else
-          hash[k] = Array(v).map {|x| x.dup rescue x}
-        end
+        hash[k] = Array(v).map {|x| x.dup rescue x}
       end
       hash
     end
@@ -188,14 +183,14 @@ module Ldapter
 
     # The first (relative) component of the distinguished name.
     def rdn
-      dn && LDAP::DN(dn.rdn)
+      dn && dn.rdn
     end
 
     # The parent object containing this one.
     def parent
       unless @parent
         @parent = search(:base => dn.parent, :scope => :base, :limit => true)
-        @parent.instance_variable_get(:@children)[rdn.normalize.downcase] = self
+        @parent.instance_variable_get(:@children)[rdn.to_str.downcase] = self
       end
       @parent
     end
@@ -390,7 +385,7 @@ module Ldapter
     def delete
       namespace.adapter.delete(dn)
       if @parent
-        @parent.instance_variable_get(:@children).delete(rdn.normalize.downcase)
+        @parent.instance_variable_get(:@children).delete(rdn.to_str.downcase)
       end
       freeze
     end
@@ -399,10 +394,10 @@ module Ldapter
 
     def rename(new_rdn, delete_old = false)
       old_rdn = rdn
-      new_rdn = LDAP::DN(new_rdn)
-      namespace.adapter.rename(dn,new_rdn,delete_old)
+      new_rdn = LDAP::RDN.new(new_rdn)
+      namespace.adapter.rename(dn,new_rdn.to_str,delete_old)
       if delete_old
-        LDAP::DN(old_rdn).to_a.first.each do |k,v|
+        old_rdn.each do |k,v|
           [@attributes, @original_attributes].each do |hash|
             hash.delete_if {|k2,v2| k.to_s.downcase == k2.to_s.downcase && v.to_s.downcase == v2.to_s.downcase }
             end
@@ -414,8 +409,8 @@ module Ldapter
       write_attributes_from_rdn(new_rdn, @original_attributes)
       if @parent
         children = @parent.instance_variable_get(:@children)
-        if child = children.delete(old_rdn.downcase)
-          children[new_rdn.normalize.downcase] = child if child == self
+        if child = children.delete(old_rdn.to_str.downcase)
+          children[new_rdn.downcase] = child if child == self
         end
       end
       self
@@ -428,7 +423,7 @@ module Ldapter
         raise Ldapter::Error, "can't reassign DN", caller
       end
       @dn = ::LDAP::DN(value,self)
-      write_attributes_from_rdn(@dn.rdns.first)
+      write_attributes_from_rdn(rdn)
     end
 
     private
@@ -446,7 +441,7 @@ module Ldapter
     end
 
     def write_attributes_from_rdn(rdn, attributes = @attributes)
-      (LDAP::DN(rdn).to_a.first||{}).each do |k,v|
+      LDAP::RDN(rdn).each do |k,v|
         attributes[k.to_s.downcase] ||= []
         attributes[k.to_s.downcase] |= [v]
       end

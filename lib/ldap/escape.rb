@@ -26,4 +26,68 @@ module LDAP
     end
     string
   end
+
+  def self.unescape(string)
+    dest = ""
+    string = string.strip # Leading and trailing whitespace MUST be encoded
+    if string[0] == ?#
+      [string[1..-1]].pack("H*")
+    else
+      backslash = nil
+      string.each_byte do |byte|
+        case backslash
+        when true
+          char = byte.chr
+          if (?0..?9).include?(byte) || ('a'..'f').include?(char.downcase)
+            backslash = char
+          else
+            dest << byte
+            backslash = nil
+          end
+
+        when String
+          dest << (backslash << byte).to_i(16)
+          backslash = nil
+
+        else
+          backslash = nil
+          if byte == ?\\
+            backslash = true
+          else
+            dest << byte
+          end
+        end
+      end
+      dest
+    end
+  end
+
+  # Split on a given character where it is not escaped.  Either an integer or
+  # string represenation of the character may be used.
+  #
+  #   LDAP.split("a*b",'*')    # => ["a","b"]
+  #   LDAP.split("a\\*b",'*')  # => ["a\\*b"]
+  #   LDAP.split("a\\\\*b",?*) # => ["a\\\\","b"]
+  def self.split(string, character)
+    return [] if string.empty?
+    array = [""]
+    character = character.to_str[0] if character.respond_to?(:to_str)
+    backslash = false
+
+    string.each_byte do |byte|
+      if backslash
+        array.last << byte
+        backslash = false
+      elsif byte == ?\\
+        array.last << byte
+        backslash = true
+      elsif byte == character
+        array << ""
+      else
+        array.last << byte
+      end
+    end
+    array
+  end
+
 end
