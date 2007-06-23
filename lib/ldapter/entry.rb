@@ -3,11 +3,9 @@ require 'ldapter/attribute_set'
 module Ldapter
 
   # When a new Ldapter::Namespace is created, a Ruby class hierarchy is
-  # contructed that mirrors the server's object classes.  Ldapter::Object
+  # contructed that mirrors the server's object classes.  Ldapter::Entry
   # serves as the base class for this hierarchy.
-  #
-  # This class is unrelated to the Ldapter::Object method.
-  class Object
+  class Entry
     # Constructs a deep copy of a set of LDAP attributes, normalizing them to
     # arrays as appropriate.  The returned hash has a default value of [].
     def self.clone_ldap_hash(attributes) #:nodoc:
@@ -139,7 +137,7 @@ module Ldapter
         obj.instance_variable_set(:@dn, ::LDAP::DN(Array(attributes.delete('dn')).first,obj))
         obj.instance_variable_set(:@original_attributes, attributes)
         obj.instance_variable_set(:@attributes, {})
-        # obj.instance_variable_set(:@attributes, Ldapter::Object.clone_ldap_hash(attributes))
+        # obj.instance_variable_set(:@attributes, Ldapter::Entry.clone_ldap_hash(attributes))
         # obj.instance_variable_set(:@namespace, namespace || @namespace)
         obj.send(:common_initializations)
         obj
@@ -165,7 +163,7 @@ module Ldapter
       data.each do |key,value|
         write_attribute(key,value)
       end
-      # @attributes = Ldapter::Object.clone_ldap_hash(data)
+      # @attributes = Ldapter::Entry.clone_ldap_hash(data)
       @attributes['objectClass'] ||= []
       @attributes['objectClass'].insert(0,*self.class.object_classes).uniq!
       common_initializations
@@ -370,7 +368,8 @@ module Ldapter
         namespace.adapter.add(dn, @attributes)
       end
       @original_attributes = @attributes
-      @attributes = Ldapter::Object.clone_ldap_hash(@original_attributes)
+      # @attributes = Ldapter::Entry.clone_ldap_hash(@original_attributes)
+      @attributes = {}
       self
     end
 

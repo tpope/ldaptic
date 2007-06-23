@@ -9,7 +9,7 @@ require 'ldapter/errors'
 require 'ldapter/schema'
 require 'ldapter/syntaxes'
 require 'ldapter/adapters'
-require 'ldapter/object'
+require 'ldapter/entry'
 require 'ldapter/methods'
 
 module Ldapter
@@ -41,8 +41,8 @@ module Ldapter
   #
   #   options = {
   #     :adapter  => :active_directory,
-  #     :host     => "mycompany.com",
-  #     :username => "MYCOMPANY\\mylogin",
+  #     :host     => "pdc.mycompany.com",
+  #     :username => "mylogin@mycompany.com",
   #     :password => "mypassword"
   #   }
   #
@@ -70,7 +70,6 @@ module Ldapter
 
   class << self
     alias Namespace Class
-    alias build_hierarchy Object
   end
 
   class Module < ::Module

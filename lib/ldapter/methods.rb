@@ -15,7 +15,7 @@ module Ldapter
         hash = klasses.inject(Hash.new {|h,k|h[k]=[]}) do |hash,k|
           hash[k.sup] << k; hash
         end
-        add_constants(hash, Ldapter::Object)
+        add_constants(hash, Ldapter::Entry)
         nil
       end
 
@@ -91,7 +91,7 @@ module Ldapter
         end
       end
 
-      # Like Ldapter::Object#[]= for the root node.  Only works for assigning
+      # Like Ldapter::Entry#[]= for the root node.  Only works for assigning
       # children.
       #
       #   MyCompany[:cn=>"New Employee"] = MyCompany::User.new
