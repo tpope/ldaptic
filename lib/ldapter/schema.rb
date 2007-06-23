@@ -63,7 +63,7 @@ module Ldapter
       private
 
       def extract_oid(string)
-        string.gsub!(/^\s*\(\s*(\w[\w:.]*\w)\s*(.*?)\s*\)\s*$/,'\\2')
+        string.gsub!(/^\s*\(\s*(\w[\w:.-]*\w)\s*(.*?)\s*\)\s*$/,'\\2')
         $1
       end
 

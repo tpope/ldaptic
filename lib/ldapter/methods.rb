@@ -248,6 +248,15 @@ module Ldapter
         )
       end
 
+      def object_class(klass)
+        @object_class_cache ||= constants.inject({}) do |h,const_name|
+          const = const_get(const_name)
+          h[const.oid.ldapitalize(true).downcase] = const
+          const.names.each {|n| h[n.ldapitalize(true).downcase] = const}
+          h
+        end
+        @object_class_cache[klass.to_s.ldapitalize(true).downcase]
+      end
       def attribute_type(attribute)
         adapter.attribute_types[attribute]
       end

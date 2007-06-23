@@ -127,7 +127,7 @@ module Ldapter
       alias objectClass object_classes
 
       def instantiate(attributes, namespace = nil) #:nodoc:
-        ocs = attributes["objectClass"].to_a.map {|c| self.namespace.const_get(c.to_s.ldapitalize(true))}
+        ocs = attributes["objectClass"].to_a.map {|c| self.namespace.object_class(c)}
         subclass = (@subclasses.to_a & ocs).detect {|x| !x.auxiliary?}
         if subclass
           return subclass.send(:instantiate, attributes, namespace)
@@ -264,11 +264,11 @@ module Ldapter
     end
 
     def ldap_ancestors
-      self.class.ldap_ancestors | objectClass.map {|c| self.namespace.const_get(c.ldapitalize(true))}
+      self.class.ldap_ancestors | objectClass.map {|c| self.namespace.object_class(c)}
     end
 
     def aux
-      objectClass.map {|c| self.namespace.const_get(c.ldapitalize(true))} - self.class.ldap_ancestors
+      objectClass.map {|c| namespace.object_class(c)} - self.class.ldap_ancestors
     end
 
     def must(all = true)
