@@ -16,8 +16,10 @@ module Ldapter
 
       def initialize(options)
         super
-        @connection.unbind
-        @options[:connection] = @connection = nil
+        if @connection
+          @connection.unbind
+          @options[:connection] = @connection = nil
+        end
       end
 
       def authenticate(dn, password)
