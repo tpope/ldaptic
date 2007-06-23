@@ -21,10 +21,12 @@ module Ldapter
           rescue
           end
         else
-          @connection = @options[:connection] = new_connection
+          @connection = new_connection
           if @options[:username]
             bind_connection(@connection, full_username, @options[:password])
+            @connection.unbind
           end
+          @connection = nil
         end
         @logger     = @options[:logger]
       end
@@ -66,6 +68,11 @@ module Ldapter
         parameters = search_parameters(options)
         with_reader do |conn|
           begin
+            if options[:limit]
+              # Some servers don't support this option.  If that happens, the
+              # higher level interface will simulate it.
+              conn.set_option(LDAP::LDAP_OPT_SIZELIMIT,options[:limit]) rescue nil
+            end
             cookie = ""
             while cookie
               ctrl = paged_results_control(cookie)
@@ -77,6 +84,7 @@ module Ldapter
             end
           ensure
             conn.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[]) rescue nil
+            conn.set_option(LDAP::LDAP_OPT_SIZELIMIT,0) rescue nil
           end
         end
       end
@@ -132,7 +140,19 @@ module Ldapter
       end
 
       def with_reader(&block)
-        with_conn(@connection,&block)
+        if @connection
+          with_conn(@connection,&block)
+        else
+          begin
+            conn = new_connection
+            if @options[:username]
+              bind_connection(conn,full_username,@options[:password])
+            end
+            with_conn(conn,&block)
+          ensure
+            conn.unbind rescue nil
+          end
+        end
       end
 
       alias with_writer with_reader
