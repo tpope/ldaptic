@@ -21,12 +21,12 @@ module Ldapter
           rescue
           end
         else
-          @connection = new_connection
+          @connection = @options[:connection] = new_connection
           if @options[:username]
             bind_connection(@connection, full_username, @options[:password])
-            @connection.unbind
+            # @connection.unbind
           end
-          @connection = nil
+          # @connection = nil
         end
         @logger     = @options[:logger]
       end
