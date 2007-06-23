@@ -13,20 +13,19 @@ module Ldapter
           @options = options.dup
         end
         @options[:version] ||= 3
-        if connection = @options[:connection]
+        if @connection = @options[:connection]
           begin
-            host, port = connection.get_option(::LDAP::LDAP_OPT_HOST_NAME).split(':')
+            host, port = @connection.get_option(::LDAP::LDAP_OPT_HOST_NAME).split(':')
             @options[:host] ||= host
             @options[:port] ||= port.to_i if port
           rescue
           end
         else
-          @options[:connection] = new_connection
+          @connection = @options[:connection] = new_connection
           if @options[:username]
-            bind_connection(@options[:connection], full_username, @options[:password])
+            bind_connection(@connection, full_username, @options[:password])
           end
         end
-        @connection = @options[:connection]
         @logger     = @options[:logger]
       end
 
