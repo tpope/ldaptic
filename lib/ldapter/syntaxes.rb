@@ -136,10 +136,13 @@ EOF
     class GeneralizedTime < Abstract
       def parse(string)
         require 'time'
-        Time.parse(string.sub(/(\.0)(\w)$/,'\\2'))+$1.to_f
+        parseable = string.sub(/(\.\d+)(\w)$/,'\\2')
+        Time.parse(parseable)+$1.to_f
+      rescue ArgumentError
+        DateTime.parse(parseable)
       end
       def format(time)
-        time.utc.strftime("%Y%m%d%H%M%S")+".%06dZ" % (time.usec/100_000)
+        time.utc.strftime("%Y%m%d%H%M%S")+".%06dZ" % [time.usec/100_000]
       end
     end
 

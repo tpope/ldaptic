@@ -5,6 +5,8 @@ module Ldapter
   # When a new Ldapter::Namespace is created, a Ruby class hierarchy is
   # contructed that mirrors the server's object classes.  Ldapter::Object
   # serves as the base class for this hierarchy.
+  #
+  # This class is unrelated to the Ldapter::Object method.
   class Object
     # Constructs a deep copy of a set of LDAP attributes, normalizing them to
     # arrays as appropriate.  The returned hash has a default value of [].
@@ -196,7 +198,7 @@ module Ldapter
     end
 
     def inspect
-      str = "#<#{self.class} #{dn}"
+      str = "#<#{self.class.inspect} #{dn}"
       @attributes.merge(@original_attributes||{}).each do |k,values|
         s = (values.size == 1 ? "" : "s")
         at = namespace.attribute_type(k)
