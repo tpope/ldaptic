@@ -23,7 +23,7 @@ module Ldapter
         else
           @options[:connection] = new_connection
           if @options[:username]
-            bind_connection(@options[:connection], @options[:username], @options[:password])
+            bind_connection(@options[:connection], full_username, @options[:password])
           end
         end
         @connection = @options[:connection]
@@ -116,9 +116,20 @@ module Ldapter
         conn
       end
 
+      def full_username(username = @options[:username])
+        if username.kind_of?(Hash)
+          LDAP::DN(default_base_dn)/username
+        else
+          username
+        end
+      end
+
       def bind_connection(conn, dn, password)
         password = password.call if password.respond_to?(:call)
-        conn.bind(dn, password, *[@options[:method]].compact)
+        if dn
+          conn.bind(dn, password, *[@options[:method]].compact)
+        end
+        conn
       end
 
       def with_reader(&block)

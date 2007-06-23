@@ -27,10 +27,12 @@ module Ldapter
       private
 
       def full_username(username = @options[:username])
-        if username !~ /[\\=@]/
+        if username.kind_of?(Hash)
+          super
+        elsif username && username !~ /[\\=@]/
           if @options[:domain].include?(".")
             username = [username,@options[:domain]].compact.join("@")
-          else
+          elsif @options[:domain]
             username = [@options[:domain],username].compact.join("\\")
           end
         end
@@ -39,7 +41,9 @@ module Ldapter
 
       def with_port(port,&block)
         conn = new_connection(port)
-        bind_connection(conn,full_username,@options[:password])
+        if @options[:username]
+          bind_connection(conn,full_username,@options[:password])
+        end
         with_conn(conn,&block)
       ensure
         conn.unbind rescue nil

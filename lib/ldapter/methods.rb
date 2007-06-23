@@ -249,13 +249,13 @@ module Ldapter
       end
 
       def attribute_type(attribute)
-        adapter.attribute_type(attribute)
+        adapter.attribute_types[attribute]
       end
       def attribute_syntax(attribute)
         type   = attribute_type(attribute)
         syntax = nil
         until type.nil? || syntax = type.syntax
-          type = adapter.attribute_type(type.sup)
+          type = attribute_type(type.sup)
         end
         syntax
       end

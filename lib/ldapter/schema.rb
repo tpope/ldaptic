@@ -212,7 +212,6 @@ module Ldapter
         # object.new.format(value)
       # end
       def object
-        require 'ldapter/syntaxes'
         Ldapter::Syntaxes.for(desc.delete(" "))
       end
     end

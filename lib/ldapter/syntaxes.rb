@@ -79,7 +79,12 @@ EOF
   module Syntaxes
 
     def self.for(string)
-      const_get(string.delete(' ')) rescue DirectoryString
+      string = string.delete(' ')
+      if constants.include?(string)
+        const_get(string)
+      else
+        DirectoryString
+      end
     end
 
     class Abstract
