@@ -251,8 +251,10 @@ module Ldapter
       def object_class(klass)
         @object_class_cache ||= constants.inject({}) do |h,const_name|
           const = const_get(const_name)
-          h[const.oid.ldapitalize(true).downcase] = const
-          const.names.each {|n| h[n.ldapitalize(true).downcase] = const}
+          if const.respond_to?(:oid)
+            h[const.oid.ldapitalize(true).downcase] = const
+            const.names.each {|n| h[n.ldapitalize(true).downcase] = const}
+          end
           h
         end
         @object_class_cache[klass.to_s.ldapitalize(true).downcase]
