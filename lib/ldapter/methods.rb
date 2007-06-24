@@ -3,6 +3,7 @@ module Ldapter
   # These methods are accessible directly from the Ldapter object.
   module Methods
 
+    # For duck typing.
     def to_ldapter
       self
     end
@@ -15,6 +16,7 @@ module Ldapter
         hash = klasses.inject(Hash.new {|h,k|h[k]=[]}) do |hash,k|
           hash[k.sup] << k; hash
         end
+        @object_class_cache = {}
         add_constants(hash, Ldapter::Entry)
         nil
       end
@@ -30,8 +32,11 @@ module Ldapter
               klass.instance_variable_set("@#{prop}", sub.send("#{prop}?"))
             end
             klass.instance_variable_set(:@namespace, self)
+            @object_class_cache[sub.oid.tr('-','_').downcase] = klass
             Array(sub.name).each do |name|
-              self.const_set(name.ldapitalize(true), klass)
+              name = name.ldapitalize(true)
+              @object_class_cache[name.downcase] = klass
+              const_set(name, klass)
             end
             klass.send(:create_accessors)
             add_constants(klasses, klass)
@@ -57,13 +62,12 @@ module Ldapter
       attr_reader :adapter
 
       def base=(dn)
-        @base_dn = LDAP::DN(dn,self)
+        @base = LDAP::DN(dn,self)
       end
       def base
-        @base_dn ||= LDAP::DN(adapter.default_base_dn,self)
+        @base ||= LDAP::DN(adapter.default_base_dn,self)
       end
       alias dn base
-      alias base_dn base
 
       def logger
         @logger ||= adapter.logger
@@ -122,6 +126,9 @@ module Ldapter
       def search_options(options = {})
         options = options.dup
 
+        if options[:base].kind_of?(Hash)
+          options[:base] = dn/options[:base]
+        end
         options[:base] = (options[:base] || dn).to_s
 
         original_scope = options[:scope]
@@ -131,7 +138,7 @@ module Ldapter
         end
         raise ArgumentError, "invalid scope #{original_scope.inspect}", caller(1) unless Ldapter::SCOPES.values.include?(options[:scope])
 
-        options[:filter] ||= {:objectClass => :*}
+        options[:filter] ||= "(objectClass=*)"
         if [Hash, Proc, Method].include?(options[:filter].class)
           options[:filter] = LDAP::Filter(options[:filter])
         end
@@ -249,16 +256,17 @@ module Ldapter
       end
 
       def object_class(klass)
-        @object_class_cache ||= constants.inject({}) do |h,const_name|
-          const = const_get(const_name)
-          if const.respond_to?(:oid)
-            h[const.oid.ldapitalize(true).downcase] = const
-            const.names.each {|n| h[n.ldapitalize(true).downcase] = const}
-          end
-          h
-        end
-        @object_class_cache[klass.to_s.ldapitalize(true).downcase]
+        # @object_class_cache ||= constants.inject({}) do |h,const_name|
+          # const = const_get(const_name)
+          # if const.respond_to?(:oid)
+            # h[const.oid.tr('-','_').downcase] = const
+            # const.names.each {|n| h[n.tr('-','_').downcase] = const}
+          # end
+          # h
+        # end
+        @object_class_cache[klass.to_s.tr('-','_').downcase]
       end
+
       def attribute_type(attribute)
         adapter.attribute_types[attribute]
       end

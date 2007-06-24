@@ -231,7 +231,7 @@ module Ldapter
     # with underscores map to attributes with hyphens.
     def read_attribute(key, always_array = false)
       key = LDAP.escape(key)
-      @attributes[key] ||= (@original_attributes||{})[key] || []
+      @attributes[key] ||= ((@original_attributes||{})[key] || []).dup
       values = Ldapter::AttributeSet.new(self, key, @attributes[key])
       always_array ? values : values.reduce
     end
@@ -274,7 +274,7 @@ module Ldapter
     end
 
     def may(all = true)
-      return self.class.may(all)  + aux.map {|a|a.may(false) + a.must(false)}.flatten
+      return self.class.may(all)  + aux.map {|a|a.may(false)}.flatten
     end
 
     def may_must(attribute)
@@ -293,18 +293,17 @@ module Ldapter
     # Delegates to +read_attribute+ or +write_attribute+.
     def method_missing(method,*args,&block)
       attribute = LDAP.escape(method)
-      method = method.to_s
       if attribute[-1] == ?=
         attribute.chop!
         if may_must(attribute)
           return write_attribute(attribute,*args,&block)
         end
-      elsif args.size == 1
-        return self[method => args.first]
+      # elsif args.size == 1
+        # return self[attribute => args.first]
       elsif may_must(attribute)
         return read_attribute(attribute,*args,&block)
       end
-      super(method.to_sym,*args,&block)
+      super(method,*args,&block)
     end
 
     # def children(type = nil, name = nil)
@@ -348,6 +347,9 @@ module Ldapter
     # Searches for children.  This is identical to Ldapter::Base#search, only
     # the default base is the current object's DN.
     def search(options)
+      if options[:base].kind_of?(Hash)
+        options = options.merge(:base => dn/options[:base])
+      end
       namespace.search({:base => dn}.merge(options))
     end
 
@@ -363,7 +365,7 @@ module Ldapter
         updates = @attributes.reject do |k,v|
           @original_attributes[k] == v
         end
-        namespace.adapter.modify(dn,updates) unless updates.empty?
+        namespace.adapter.modify(dn, updates) unless updates.empty?
       else
         namespace.adapter.add(dn, @attributes)
       end
