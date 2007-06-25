@@ -175,7 +175,7 @@ module Ldapter
     end
 
     def safe_array(attributes)
-      Array(attributes).flatten.map {|x| format(x)}
+      Array(attributes).flatten.compact.map {|x| format(x)}
     end
 
     def typecast(value)

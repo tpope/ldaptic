@@ -16,7 +16,7 @@ module Ldapter
         hash = klasses.inject(Hash.new {|h,k|h[k]=[]}) do |hash,k|
           hash[k.sup] << k; hash
         end
-        @object_class_cache = {}
+        @object_classes = {}
         add_constants(hash, Ldapter::Entry)
         nil
       end
@@ -32,10 +32,10 @@ module Ldapter
               klass.instance_variable_set("@#{prop}", sub.send("#{prop}?"))
             end
             klass.instance_variable_set(:@namespace, self)
-            @object_class_cache[sub.oid.tr('-','_').downcase] = klass
+            @object_classes[sub.oid.tr('-','_').downcase] = klass
             Array(sub.name).each do |name|
               name = name.ldapitalize(true)
-              @object_class_cache[name.downcase] = klass
+              @object_classes[name.downcase] = klass
               const_set(name, klass)
             end
             klass.send(:create_accessors)
@@ -43,20 +43,6 @@ module Ldapter
           end
         end
       end
-
-      # def self.inheritable_reader(*names)
-        # names.each do |name|
-          # define_method name do
-            # val = instance_variable_get("@#{name}")
-            # return val unless val.nil?
-            # return superclass.send(name) if superclass.respond_to?(name)
-          # end
-        # end
-      # end
-
-      # def instantiate_adapter(options)
-        # @adapter = Ldapter::Adapters.for(options)
-      # end
 
     public
       attr_reader :adapter
@@ -75,10 +61,10 @@ module Ldapter
 
       # Search for an RDN relative to the base.
       #
-      #   class MyCompany < Ldapter::Class(:base => "DC=org", ...)
+      #   class L < Ldapter::Class(:base => "DC=org", ...)
       #   end
       #
-      #   (MyCompany/{:dc => "ruby-lang"}).dn #=> "DC=ruby-lang,DC=org"
+      #   (L/{:dc => "ruby-lang"}).dn #=> "DC=ruby-lang,DC=org"
       def /(*args)
         find(base.send(:/,*args))
       end
@@ -121,7 +107,7 @@ module Ldapter
         # search(:filter => filter, :scope => :subtree)
       # end
 
-      private
+    private
 
       def search_options(options = {})
         options = options.dup
@@ -166,7 +152,7 @@ module Ldapter
         objects.first
       end
 
-      public
+    public
 
       # Find an absolute DN, raising an error when no results are found.
       # Equivalent to
@@ -236,6 +222,10 @@ module Ldapter
         first ? ary.first : ary
       end
 
+      # Retrieves attributes from the Root DSE.  If +attrs+ is an array, a hash
+      # is returned keyed on the attribute.
+      #
+      #   L.root_dse(:subschemaSubentry) #=> ["cn=Subschema"]
       def root_dse(attrs = nil) #:nodoc:
         search(
           :base => "",
@@ -255,21 +245,24 @@ module Ldapter
         )
       end
 
+      # Returns the object class for a given name or OID.
+      #
+      #   L.object_class("top") #=> L::Top
       def object_class(klass)
-        # @object_class_cache ||= constants.inject({}) do |h,const_name|
-          # const = const_get(const_name)
-          # if const.respond_to?(:oid)
-            # h[const.oid.tr('-','_').downcase] = const
-            # const.names.each {|n| h[n.tr('-','_').downcase] = const}
-          # end
-          # h
-        # end
-        @object_class_cache[klass.to_s.tr('-','_').downcase]
+        @object_classes[klass.to_s.tr('-','_').downcase]
       end
 
+      # Returns an object encapsulating server provided information about an
+      # attribute type.
+      #
+      #   L.attribute_type(:cn).desc #=> "RFC2256: common name..."
       def attribute_type(attribute)
-        adapter.attribute_types[attribute]
+        adapter.attribute_types[LDAP.escape(attribute)]
       end
+      # Returns an object encapsulating server provided information about the
+      # syntax of an attribute.
+      #
+      #    L.attribute_syntax(:cn).desc #=> "Directory String"
       def attribute_syntax(attribute)
         type   = attribute_type(attribute)
         syntax = nil
@@ -292,7 +285,7 @@ module Ldapter
       #     prepend_around_filter MyCompany
       #   end
       #
-      # When invoked, the filter clears cached children.  The operation is
+      # When invoked, the filter clears cached children.  This operation is
       # cheap and quite necessary if you care to avoid stale data.
       def filter(controller = nil)
         if controller

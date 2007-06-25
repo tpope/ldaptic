@@ -11,7 +11,7 @@ module Ldapter
     def self.clone_ldap_hash(attributes) #:nodoc:
       hash = Hash.new #{|h,k| h[k] = [] }
       attributes.each do |k,v|
-        k = k.kind_of?(Symbol) ?  k.to_s.gsub('_','-') : k.dup
+        k = k.kind_of?(Symbol) ?  k.to_s.tr('_','-') : k.dup
         hash[k] = Array(v).map {|x| x.dup rescue x}
       end
       hash
@@ -27,8 +27,9 @@ module Ldapter
         namespace.logger
       end
 
-      # Returns an array of all names for the object class.  Typically the number
-      # of names is one, but it is possible for an object class to have aliases.
+      # Returns an array of all names for the object class.  Typically the
+      # number of names is one, but it is possible for an object class to have
+      # aliases.
       def names
         Array(@name)
       end
@@ -38,18 +39,21 @@ module Ldapter
         may.include?(attribute) || must.include?(attribute)
       end
 
-      def create_accessors
+      def create_accessors #:nodoc:
         (may(false) + must(false)).each do |attr|
           method = attr.to_s.tr_s('-_','_-')
-          define_method("#{method}") { read_attribute(attr) }
-          # If we skip this check we can delay the attribute type initialization
-          # and improve startup speed.
+          define_method("#{method}") { |*args| read_attribute(attr,*args) }
+          # If we skip this check we can delay the attribute type
+          # initialization and improve startup speed.
           # unless namespace.attribute_type(attr).no_user_modification?
             define_method("#{method}="){ |value| write_attribute(attr,value) }
           # end
         end
       end
 
+      # An array of classes that make up the inheritance hierarchy.
+      #
+      #   L::OrganizationalPerson.ldap_ancestors #=> [L::OrganizationalPerson, L::Person, L::Top]
       def ldap_ancestors
         ancestors.select {|o| o.respond_to?(:oid) && o.oid }
       end
@@ -197,7 +201,7 @@ module Ldapter
 
     def inspect
       str = "#<#{self.class.inspect} #{dn}"
-      @attributes.merge(@original_attributes||{}).each do |k,values|
+      (@original_attributes||{}).merge(@attributes).each do |k,values|
         s = (values.size == 1 ? "" : "s")
         at = namespace.attribute_type(k)
         syntax = namespace.attribute_syntax(k)
@@ -256,7 +260,7 @@ module Ldapter
     end
     protected :write_attribute
 
-    attr_reader :attributes
+    # attr_reader :attributes
     def attribute_names
       attributes.keys
     end
@@ -278,7 +282,7 @@ module Ldapter
     end
 
     def may_must(attribute)
-      attribute = attribute.to_s
+      attribute = LDAP.escape(attribute)
       if must.include?(attribute)
         :must
       elsif may.include?(attribute)
@@ -298,12 +302,19 @@ module Ldapter
         if may_must(attribute)
           return write_attribute(attribute,*args,&block)
         end
-      # elsif args.size == 1
-        # return self[attribute => args.first]
       elsif may_must(attribute)
         return read_attribute(attribute,*args,&block)
       end
       super(method,*args,&block)
+    end
+
+    # Searches for children.  This is identical to Ldapter::Base#search, only
+    # the default base is the current object's DN.
+    def search(options,&block)
+      if options[:base].kind_of?(Hash)
+        options = options.merge(:base => dn/options[:base])
+      end
+      namespace.search({:base => dn}.merge(options),&block)
     end
 
     # def children(type = nil, name = nil)
@@ -316,6 +327,7 @@ module Ldapter
       # end
     # end
 
+    # Searches for a child, given an RDN.
     def /(*args)
       search(:base => dn.send(:/,*args), :scope => :base, :limit => true)
     end
@@ -344,15 +356,6 @@ module Ldapter
       end
     end
 
-    # Searches for children.  This is identical to Ldapter::Base#search, only
-    # the default base is the current object's DN.
-    def search(options)
-      if options[:base].kind_of?(Hash)
-        options = options.merge(:base => dn/options[:base])
-      end
-      namespace.search({:base => dn}.merge(options))
-    end
-
     # Has the object been saved before?
     def new_entry?
       !@original_attributes
@@ -369,7 +372,7 @@ module Ldapter
       else
         namespace.adapter.add(dn, @attributes)
       end
-      @original_attributes = @attributes
+      @original_attributes = (@original_attributes||{}).merge(@attributes)
       # @attributes = Ldapter::Entry.clone_ldap_hash(@original_attributes)
       @attributes = {}
       self
@@ -410,7 +413,6 @@ module Ldapter
       old_dn = LDAP::DN(@dn,self)
       @dn = nil
       self.dn = old_dn.parent / new_rdn
-      write_attributes_from_rdn(new_rdn, @original_attributes)
       if @parent
         children = @parent.instance_variable_get(:@children)
         if child = children.delete(old_rdn.to_str.downcase)
