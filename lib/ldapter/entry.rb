@@ -413,10 +413,11 @@ module Ldapter
       old_dn = LDAP::DN(@dn,self)
       @dn = nil
       self.dn = old_dn.parent / new_rdn
+      write_attributes_from_rdn(rdn, @original_attributes)
       if @parent
         children = @parent.instance_variable_get(:@children)
         if child = children.delete(old_rdn.to_str.downcase)
-          children[new_rdn.downcase] = child if child == self
+          children[new_rdn.to_str.downcase] = child if child == self
         end
       end
       self

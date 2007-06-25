@@ -19,6 +19,7 @@ class LdapterHierarchyTest < Test::Unit::TestCase
 
   def test_new
     person = Mock::Person.new(:dn => "CN=Matz,DC=org")
+    assert person.new_entry?
     assert_equal "Matz", person.cn
     person.sn = "Matsumoto"
     assert_equal "Matsumoto", person.sn
@@ -61,6 +62,7 @@ class LdapterHierarchyTest < Test::Unit::TestCase
   def test_find
     assert defined? Mock::SearchResult
     result = Mock.find("CN=Matz,DC=org")
+    assert !result.new_entry?
     assert_equal "CN=Matz,DC=org", result.dn
     assert_equal 0, result.scope
     result = Mock.find(["CN=Matz,DC=org","CN=Why,DC=org"])
