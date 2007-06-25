@@ -21,9 +21,13 @@ module Ldapter
           rescue
           end
         else
-          connection = new_connection
+          if @options[:username].kind_of?(Hash)
+            username = @options.delete(:username)
+            @options[:username] = default_base_dn / username
+          end
           if @options[:username]
-            bind_connection(connection, full_username, @options[:password])
+            connection = new_connection
+            bind_connection(connection,@options[:username],@options[:password])
             connection.unbind
           end
           # @connection = @options[:connection] = connection
@@ -91,7 +95,7 @@ module Ldapter
 
       def authenticate(dn, password)
         conn = new_connection
-        bind_connection(conn, dn, password)
+        bind_connection(conn, dn || "", password)
         true
       rescue ::LDAP::ResultError => exception
         message = exception.message
@@ -123,34 +127,22 @@ module Ldapter
         conn
       end
 
-      def full_username(username = @options[:username])
-        if username.kind_of?(Hash)
-          LDAP::DN(default_base_dn)/username
-        else
-          username
-        end
-      end
-
-      def bind_connection(conn, dn, password)
-        password = password.call if password.respond_to?(:call)
+      def bind_connection(conn, dn, password, &block)
         if dn
-          conn.bind(dn, password, *[@options[:method]].compact)
+          password = password.call if password.respond_to?(:call)
+          conn.bind(dn, password, *[@options[:method]].compact, &block)
+        else
+          block_given? ? yield(conn) : conn
         end
-        conn
       end
 
       def with_reader(&block)
         if @connection
           with_conn(@connection,&block)
         else
-          begin
-            conn = new_connection
-            if @options[:username]
-              bind_connection(conn,full_username,@options[:password])
-            end
+          conn = new_connection
+          bind_connection(conn,@options[:username],@options[:password]) do
             with_conn(conn,&block)
-          ensure
-            conn.unbind rescue nil
           end
         end
       end

@@ -17,7 +17,7 @@ module Ldapter
       def initialize(options)
         super
         if @connection
-          @connection.unbind
+          # @connection.unbind rescue nil
           @options[:connection] = @connection = nil
         end
       end
@@ -33,9 +33,9 @@ module Ldapter
           super
         elsif username && username !~ /[\\=@]/
           if @options[:domain].include?(".")
-            username = [username,@options[:domain]].compact.join("@")
+            username = [username,@options[:domain]].join("@")
           elsif @options[:domain]
-            username = [@options[:domain],username].compact.join("\\")
+            username = [@options[:domain],username].join("\\")
           end
         end
         username
@@ -43,12 +43,9 @@ module Ldapter
 
       def with_port(port,&block)
         conn = new_connection(port)
-        if @options[:username]
-          bind_connection(conn,full_username,@options[:password])
+        bind_connection(conn,full_username,@options[:password]) do
+          with_conn(conn,&block)
         end
-        with_conn(conn,&block)
-      ensure
-        conn.unbind rescue nil
       end
 
       def with_reader(&block)
