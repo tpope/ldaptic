@@ -22,8 +22,9 @@ module Ldapter
           end
         else
           if @options[:username].kind_of?(Hash)
-            username = @options.delete(:username)
-            @options[:username] = default_base_dn / username
+            rdn = @options.delete(:username)
+            base = LDAP::DN(default_base_dn || "")
+            @options[:username] = base / rdn
           end
           if @options[:username]
             connection = new_connection
