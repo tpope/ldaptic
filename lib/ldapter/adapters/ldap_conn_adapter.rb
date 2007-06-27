@@ -69,6 +69,24 @@ module Ldapter
         end
       end
 
+      def add_attribute(dn, attribute, values)
+        with_writer do |conn|
+          conn.modify(dn, [LDAP::Mod.new(LDAP::LDAP_MOD_ADD, attribute, values)])
+        end
+      end
+
+      def replace_attribute(dn, attribute, values)
+        with_writer do |conn|
+          conn.modify(dn, [LDAP::Mod.new(LDAP::LDAP_MOD_REPLACE, attribute, values)])
+        end
+      end
+
+      def delete_attribute(dn, attribute, values)
+        with_writer do |conn|
+          conn.modify(dn, [LDAP::Mod.new(LDAP::LDAP_MOD_DELETE, attribute, values)])
+        end
+      end
+
       def search(options = {}, &block)
         parameters = search_parameters(options)
         with_reader do |conn|

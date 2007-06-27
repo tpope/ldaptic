@@ -41,6 +41,12 @@ module Ldapter
       self
     end
 
+    def add!(*attributes)
+      add(*attributes)
+      @object.namespace.adapter.add_attribute(@object.dn, @key, safe_array(attributes))
+      clone_into_original_attributes
+    end
+
     alias <<     add
     alias concat add
     alias push   add
@@ -184,6 +190,12 @@ module Ldapter
       when nil   then nil
       else            @syntax ? syntax_object.parse(value) : value
       end
+    end
+
+    def clone_into_original_attributes
+      originals = @object.instance_variable_get(:@original_attributes)
+      originals[@key] = @target.map {|x| x.dup}
+      self
     end
 
   end
