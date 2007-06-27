@@ -194,7 +194,7 @@ module Ldapter
     def parent
       unless @parent
         @parent = search(:base => dn.parent, :scope => :base, :limit => true)
-        @parent.instance_variable_get(:@children)[rdn.to_str.downcase] = self
+        @parent.instance_variable_get(:@children)[rdn] = self
       end
       @parent
     end
@@ -317,16 +317,6 @@ module Ldapter
       namespace.search({:base => dn}.merge(options),&block)
     end
 
-    # def children(type = nil, name = nil)
-      # if name && name != :*
-        # search(:base => dn/{type => name}, :scope => :base, :limit => true)
-      # elsif type
-        # search(:filter => {type => :*}, :scope => :onelevel)
-      # else
-        # search(:scope => :onelevel)
-      # end
-    # end
-
     # Searches for a child, given an RDN.
     def /(*args)
       search(:base => dn.send(:/,*args), :scope => :base, :limit => true)
@@ -338,21 +328,19 @@ module Ldapter
     #
     # For a singular String or Symbol argument, that attribute is read with
     # read_attribute.
-    def [](*values)
-      raise ArgumentError unless values.size == 1
-      if !values.empty? && (values.all? {|v| v.kind_of?(Hash)} || values.first =~ /=/)
-        cached_child(*values)
+    def [](key)
+      if key.kind_of?(Hash) || key =~ /=/
+        cached_child(key)
       else
-        read_attribute(values.first)
+        read_attribute(key)
       end
     end
 
-    def []=(*values)
-      value = values.pop
-      if !values.empty? && (values.all? {|v| v.kind_of?(Hash)} || values.first =~ /=/)
-        assign_child(values,value)
+    def []=(key, value)
+      if key.kind_of?(Hash) || key =~ /=/
+        assign_child(key, value)
       else
-        write_attribute(*(values+[value]))
+        write_attribute(key, value)
       end
     end
 
@@ -392,7 +380,7 @@ module Ldapter
     def delete
       namespace.adapter.delete(dn)
       if @parent
-        @parent.instance_variable_get(:@children).delete(rdn.to_str.downcase)
+        @parent.instance_variable_get(:@children).delete(rdn)
       end
       freeze
     end
@@ -401,7 +389,7 @@ module Ldapter
 
     def rename(new_rdn, delete_old = false)
       old_rdn = rdn
-      new_rdn = LDAP::RDN.new(new_rdn)
+      new_rdn = LDAP::RDN(new_rdn)
       namespace.adapter.rename(dn,new_rdn.to_str,delete_old)
       if delete_old
         old_rdn.each do |k,v|
@@ -416,8 +404,8 @@ module Ldapter
       write_attributes_from_rdn(rdn, @original_attributes)
       if @parent
         children = @parent.instance_variable_get(:@children)
-        if child = children.delete(old_rdn.to_str.downcase)
-          children[new_rdn.to_str.downcase] = child if child == self
+        if child = children.delete(old_rdn)
+          children[new_rdn] = child if child == self
         end
       end
       self
@@ -454,36 +442,32 @@ module Ldapter
       end
     end
 
-    def cached_child(*values)
-      return self if values.empty?
-      rdn = LDAP::DN(values).normalize.downcase
+    def cached_child(rdn = nil)
+      return self if rdn.nil? || rdn.empty?
+      rdn = LDAP::RDN(rdn)
       return @children[rdn] if @children.has_key?(rdn)
       begin
-        child = search(:base => dn.send(:/,*values), :scope => :base, :limit => true)
-        if values.size == 1
-          child.instance_variable_set(:@parent, self)
-        end
+        child = search(:base => rdn, :scope => :base, :limit => true)
+        child.instance_variable_set(:@parent, self)
         @children[rdn] = child
       rescue Ldapter::Errors::NoSuchObject
       end
     end
 
-    def assign_child(args,child)
+    def assign_child(rdn,child)
       unless child.respond_to?(:dn)
         raise TypeError, "#{child.class} cannot be a child", caller
       end
       if child.dn
         raise Ldapter::Error, "#{child.class} already has a DN of #{child.dn}", caller
       end
-      rdn = LDAP::DN(args)
-      if cached_child(*args)
+      rdn = LDAP::RDN(rdn)
+      if cached_child(rdn)
         raise Ldapter::Error, "child #{[rdn,dn].join(",")} already exists"
       end
-      @children[rdn.normalize.downcase] = child
+      @children[rdn] = child
       child.dn = LDAP::DN(dn/rdn,child)
-      if args.size == 1
-        child.instance_variable_set(:@parent, self)
-      end
+      child.instance_variable_set(:@parent, self)
     end
 
   end

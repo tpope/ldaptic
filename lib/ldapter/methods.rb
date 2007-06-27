@@ -71,8 +71,9 @@ module Ldapter
 
       # Like #/, only the search results are cached.
       #
-      #   MyCompany[:dc=>"ruby-lang"].bacon = "chunky"
-      #   MyCompany[:dc=>"ruby-lang"].bacon #=> "chunky"
+      #   L[:cn=>"Why"].bacon = "chunky"
+      #   L[:cn=>"Why"].bacon #=> "chunky"
+      #   L[:cn=>"Why"].save
       def [](*args)
         if args.empty?
           @self ||= find(base)
@@ -157,9 +158,9 @@ module Ldapter
       # Find an absolute DN, raising an error when no results are found.
       # Equivalent to
       #   .search(:base => dn, :scope => :base, :limit => true) or raise ...
-      def find(dn, options = {})
+      def find(dn = self.dn, options = {})
         case dn
-        when :all   then search(options)
+        when :all   then search({:limit => false}.merge(options))
         when :first then search(options.merge(:limit => true))
         when Array  then dn.map {|d| find_one(d,options)}
         else             find_one(dn,options)

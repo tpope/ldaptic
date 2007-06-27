@@ -224,7 +224,7 @@ module LDAP
         super()
         update(rdn)
       else
-        raise TypeError, "default value not allowed", caller
+        raise TypeError, "default value #{rdn.inspect} not allowed", caller
       end
     end
 
