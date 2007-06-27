@@ -18,7 +18,7 @@ class LdapterAttributeSetTest < Test::Unit::TestCase
     person.description.unshift([["baz"]])
     assert_equal ["baz","foo","bar"], person.description
     assert_equal "foo", person.description.delete("FOO")
-    assert_equal [nil], person.description.delete(["foo"])
+    assert_equal ["baz","bar"], person.description.delete(["foo"])
     person.description.clear
     assert_equal [], person.description
   end

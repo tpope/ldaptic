@@ -41,10 +41,10 @@ module Ldapter
       self
     end
 
+    # Add the desired attributes to the LDAP server immediately.
     def add!(*attributes)
-      add(*attributes)
-      @object.namespace.adapter.add_attribute(@object.dn, @key, safe_array(attributes))
-      clone_into_original_attributes
+      @object.add!(@key, safe_array(attributes))
+      self
     end
 
     alias <<     add
@@ -61,6 +61,12 @@ module Ldapter
         raise TypeError, "value required for attribute #{@key}", caller
       end
       @target.replace(attributes)
+      self
+    end
+
+    # Replace the entire attribute at the LDAP server immediately.
+    def replace!(*attributes)
+      @object.replace!(@key, safe_array(attributes))
       self
     end
 
@@ -87,11 +93,17 @@ module Ldapter
       if attributes.size == 1 && !attributes.first.kind_of?(Array)
         typecast ret.first
       else
-        typecast ret
+        self
       end
     end
-
     alias subtract delete
+
+    # Delete the desired values from the attribute at the LDAP server.
+    # If no values are given, the entire attribute is removed.
+    def delete!(*attributes)
+      @object.delete!(@key, safe_array(attributes))
+      self
+    end
 
     def collect!(&block)
       replace(typecast(@target).collect(&block))

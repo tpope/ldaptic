@@ -53,9 +53,12 @@ module Ldapter
       end
 
       def modify(dn, attributes)
+        if attributes.kind_of?(Hash)
+          attributes = attributes.map {|k,v| [:replace, k, v]}
+        end
         connection.modify(
           :dn => dn,
-          :operations => attributes.map {|k,v| [:replace, k, v]}
+          :operations => attributes
         )
         handle_errors
       end

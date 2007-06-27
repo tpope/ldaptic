@@ -43,6 +43,11 @@ module Ldapter
       end
 
       def modify(dn, attributes)
+        if attributes.kind_of?(Array)
+          attributes = attributes.map do |(op,key,vals)|
+            LDAP::Mod.new(mod(op), key, vals)
+          end
+        end
         with_writer do |conn|
           conn.modify(dn, attributes)
         end
@@ -66,24 +71,6 @@ module Ldapter
           else
             conn.modrdn(dn,new_rdn, delete_old)
           end
-        end
-      end
-
-      def add_attribute(dn, attribute, values)
-        with_writer do |conn|
-          conn.modify(dn, [LDAP::Mod.new(LDAP::LDAP_MOD_ADD, attribute, values)])
-        end
-      end
-
-      def replace_attribute(dn, attribute, values)
-        with_writer do |conn|
-          conn.modify(dn, [LDAP::Mod.new(LDAP::LDAP_MOD_REPLACE, attribute, values)])
-        end
-      end
-
-      def delete_attribute(dn, attribute, values)
-        with_writer do |conn|
-          conn.modify(dn, [LDAP::Mod.new(LDAP::LDAP_MOD_DELETE, attribute, values)])
         end
       end
 
@@ -226,6 +213,14 @@ module Ldapter
           @errors.delete("Unknown error")
         end
         @errors[msg]
+      end
+
+      def mod(symbol)
+        {
+          :add     => LDAP::LDAP_MOD_ADD,
+          :replace => LDAP::LDAP_MOD_REPLACE,
+          :delete  => LDAP::LDAP_MOD_DELETE
+        }[symbol]
       end
 
     end

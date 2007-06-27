@@ -260,6 +260,39 @@ module Ldapter
     end
     protected :write_attribute
 
+    # Note the values are not typecast and thus must be strings.
+    def modify_attribute(action, key, *values)
+      key = LDAP.escape(key)
+      values.flatten!
+      @original_attributes[key] ||= []
+      virgin   = @original_attributes[key].dup
+      original = Ldapter::AttributeSet.new(self, key, @original_attributes[key])
+      original.__send__(action, values)
+      begin
+        namespace.adapter.modify(dn, [[action, key, values]])
+      rescue
+        @original_attributes[key] = virgin
+        raise $!
+      end
+      if @attributes[key]
+        read_attribute(key, true).__send__(action, values)
+      end
+      self
+    end
+    private :modify_attribute
+
+    def add!(key, *values) #:nodoc:
+      modify_attribute(:add, key, values)
+    end
+
+    def replace!(key, *values) #:nodoc:
+      modify_attribute(:add, key, values)
+    end
+
+    def delete!(key, *values) #:nodoc:
+      modify_attribute(:delete, key, values)
+    end
+
     # attr_reader :attributes
     def attribute_names
       attributes.keys
