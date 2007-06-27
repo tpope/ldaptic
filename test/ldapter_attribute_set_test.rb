@@ -1,26 +1,44 @@
-$:.unshift(File.join(File.dirname(__FILE__),'..','lib')).uniq!
+require File.join(File.dirname(__FILE__),'test_helper')
 require 'ldapter'
 require File.join(File.dirname(__FILE__),"/mock_adapter")
-require 'test/unit'
 
 class LdapterAttributeSetTest < Test::Unit::TestCase
-  class Mock < Ldapter::Namespace(:adapter => :mock)
+  class Mock < Ldapter::Class(:adapter => :mock)
   end
 
-  def test_modify_description
-    person = Mock::Person.new(:dn => "CN=Matz,DC=org")
-    assert_equal [], person.description
-    assert_nothing_raised { person.description.add("Foo") }
-    assert_equal ["Foo"], person.description
-    person.description.map! { |x| x.downcase }
-    person.description << "bar"
-    assert_equal ["foo","bar"], person.description
-    person.description.unshift([["baz"]])
-    assert_equal ["baz","foo","bar"], person.description
-    assert_equal "foo", person.description.delete("FOO")
-    assert_equal ["baz","bar"], person.description.delete(["foo"])
-    person.description.clear
-    assert_equal [], person.description
+  def setup
+    @person = Mock::Person.new(:dn => "CN=Matz,DC=org", :description => "Foo")
+    @description = @person.description
+  end
+
+  def test_should_replace_description
+    assert_same @description, @description.replace("bar", "baz")
+    assert_equal ["bar", "baz"], @description
+  end
+
+  def test_should_add_to_description
+    assert_same @description, @description.add("bar")
+    assert_equal %w(Foo bar), @description
+    assert_same @description, @description << "baz"
+    assert_equal %w(Foo bar baz), @description
+  end
+
+  def test_should_delete_from_description
+    assert_equal "Foo", @description.delete("fOO")
+    assert_same @description, @description.delete("a","b","c")
+  end
+
+  def test_should_act_like_array
+    assert_equal ["Foo"], @description
+    @description.map! { |x| x.downcase }
+    assert_same @description, @description.concat(["bar"])
+    assert_equal ["foo","bar"], @description
+    assert_same @description, @description.unshift([["baz"]])
+    assert_equal ["baz","foo","bar"], @description
+    assert_equal "foo", @description.delete("foo")
+    assert_nil   @description.delete("foo")
+    @description.clear
+    assert_equal [], @description
   end
 
 end

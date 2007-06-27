@@ -1,7 +1,6 @@
-$:.unshift(File.join(File.dirname(__FILE__),'..','lib')).uniq!
+require File.join(File.dirname(__FILE__),'test_helper')
 require 'ldapter'
 require File.join(File.dirname(__FILE__),"/mock_adapter")
-require 'test/unit'
 
 class LdapterHierarchyTest < Test::Unit::TestCase
   class Mock < Ldapter::Class(:adapter => :mock)

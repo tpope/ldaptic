@@ -126,7 +126,7 @@ module Ldapter
         raise ArgumentError, "invalid scope #{original_scope.inspect}", caller(1) unless Ldapter::SCOPES.values.include?(options[:scope])
 
         options[:filter] ||= "(objectClass=*)"
-        if [Hash, Proc, Method].include?(options[:filter].class)
+        if [Hash, Proc, Method, Symbol].include?(options[:filter].class)
           options[:filter] = LDAP::Filter(options[:filter])
         end
 

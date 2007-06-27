@@ -4,7 +4,7 @@ module Ldapter
   class AttributeSet
 
     alias proxy_respond_to? respond_to?
-    instance_methods.each { |m| undef_method m unless m =~ /(^__|^nil\?$|^proxy_)/ }
+    instance_methods.each { |m| undef_method m unless m =~ /(^__|^send$|equal?|^nil\?$|^proxy_)/ }
     attr_reader :target
 
     def initialize(object, key, target)
@@ -93,6 +93,7 @@ module Ldapter
       if attributes.size == 1 && !attributes.first.kind_of?(Array)
         typecast ret.first
       else
+        # typecast ret
         self
       end
     end

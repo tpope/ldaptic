@@ -1,6 +1,5 @@
-$:.unshift(File.join(File.dirname(__FILE__),'..','lib')).uniq!
+require File.join(File.dirname(__FILE__),'test_helper')
 require 'ldapter/syntaxes'
-require 'test/unit'
 
 class LdapterSyntaxesTest < Test::Unit::TestCase
 

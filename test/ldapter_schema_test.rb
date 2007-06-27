@@ -1,6 +1,5 @@
-$:.unshift(File.join(File.dirname(__FILE__),'..','lib')).uniq!
+require File.join(File.dirname(__FILE__),'test_helper')
 require 'ldapter/schema'
-require 'test/unit'
 
 class LdapterSyntaxesTest < Test::Unit::TestCase
   NAME_FORM = "(1.2.3 NAME 'foo' DESC ('bar') OC objectClass MUST (cn $ ou) X-AWESOME TRUE)"

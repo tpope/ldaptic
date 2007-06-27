@@ -1,6 +1,5 @@
-$:.unshift(File.join(File.dirname(__FILE__),'..','lib')).uniq!
+require File.join(File.dirname(__FILE__),'test_helper')
 require 'ldapter/errors'
-require 'test/unit'
 
 class LdapterErrorsTest < Test::Unit::TestCase
 
