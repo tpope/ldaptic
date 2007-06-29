@@ -5,11 +5,11 @@ require 'test/unit'
 class LDAPFilterTest < Test::Unit::TestCase
 
   def assert_ldap_filter(string, filter)
-    assert_equal string, LDAP::Filter(filter).process
+    assert_equal string.downcase, LDAP::Filter(filter).process.downcase
   end
 
   def test_filter_from_hash
-    assert_ldap_filter nil, {}
+    assert_equal nil, LDAP::Filter({}).process
     assert_ldap_filter "(x=1)", :x => 1
     assert_ldap_filter "(x=*)", :x => true
     assert_ldap_filter "(!(x=1))", :x! => 1
@@ -18,6 +18,11 @@ class LDAPFilterTest < Test::Unit::TestCase
     assert_ldap_filter "(&(x>=1)(x<=2))", :x => (1..2)
     assert_ldap_filter "(&(x=1)(y=2))", :x => 1, :y => 2
     assert_ldap_filter "(&(x>=1)(!(x>=2)))", :x => (1...2)
+  end
+
+  def test_filter_from_array
+    assert_ldap_filter "(sn=Sm*)", ["(sn=?*)", "Sm"]
+    assert_ldap_filter "(sn=\\2a)", ["(sn=?)", "*"]
   end
 
   def test_filter_from_lambda

@@ -76,18 +76,18 @@ class LDAPDNTest < Test::Unit::TestCase
     rdn = LDAP::RDN.new("street=Main+cn=Doe, John")
     assert_kind_of LDAP::RDN, rdn.dup
     assert_kind_of LDAP::RDN, rdn.clone
-    assert_equal "CN=Doe\\2c John+STREET=Main", rdn.to_str
+    assert_equal "CN=Doe\\2C John+STREET=Main", rdn.to_str
     assert_equal "MAIN", rdn.upcase.street
     assert_equal "Main", rdn["Street"]
     rdn.downcase!
     assert_equal "main", rdn.street
     assert_equal "main", rdn.delete(:Street)
-    assert_equal "CN=doe\\2c john+STREET=Main", rdn.merge(:street=>"Main").to_str
+    assert_equal "CN=doe\\2C john+STREET=Main", rdn.merge(:street=>"Main").to_str
   end
 
   def test_rdn_lookup
     rdn = LDAP::RDN.new(:street=>"Main", :cn=>"Doe, John")
-    assert_equal "OU=Corporate,CN=Doe\\2c John+STREET=Main", rdn[:ou=>"Corporate"].to_str
+    assert_equal "OU=Corporate,CN=Doe\\2C John+STREET=Main", rdn[:ou=>"Corporate"].to_str
     assert rdn.has_key?(:street)
     assert rdn.include?('Street')
     assert_equal "CN=", rdn[(0..2)]
