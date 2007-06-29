@@ -9,8 +9,9 @@ module LDAP
     case argument
     when Filter::Abstract then argument
     when [],nil then nil
-    when Array  then Filter::Join.new(argument)
-    when Hash   then Filter::Hash.new(argument)
+    # when Array  then Filter::Join.new(argument)
+    when Array  then Filter::Array .new(argument)
+    when Hash   then Filter::Hash  .new(argument)
     when String then Filter::String.new(argument)
     when Proc, Method
       LDAP::Filter(if argument.arity > 0
@@ -107,6 +108,20 @@ module LDAP
         @string
       end
 
+    end
+
+    # Does ? parameter substitution.
+    #
+    #   LDAP::Filter(["cn=?*","Sm"]).to_s #=> "cn=Sm*"
+    class Array < Abstract
+      def initialize(array) #:nodoc:
+        @template = array.first
+        @parameters = array[1..-1]
+      end
+      def process
+        parameters = @parameters.dup
+        string = @template.gsub('?') { LDAP.escape(parameters.pop) }
+      end
     end
 
     # Used in the implementation of LDAP::Filter::And and LDAP::Filter::Or.

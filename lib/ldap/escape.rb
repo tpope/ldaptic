@@ -16,13 +16,13 @@ module LDAP
       string.upcase! if allow_asterisks
     end
     string = string.to_s.dup
-    enc = lambda {|l| "\\%02x" % l[0] }
+    enc = lambda {|l| "\\%02X" % l[0] }
     string.gsub!(/[()\\\0-\37"+,;<>]/,&enc)
     string.gsub!(/\A[# ]| \Z/,&enc)
     if allow_asterisks
-      string.gsub!('**','\\\\2a')
+      string.gsub!('**','\\\\2A')
     else
-      string.gsub!('*','\\\\2a')
+      string.gsub!('*','\\\\2A')
     end
     string
   end
