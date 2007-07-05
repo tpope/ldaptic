@@ -128,11 +128,11 @@ module Ldapter
 
       alias objectClass object_classes
 
-      def instantiate(attributes, namespace = nil) #:nodoc:
+      def instantiate(attributes) #:nodoc:
         ocs = attributes["objectClass"].to_a.map {|c| self.namespace.object_class(c)}
         subclass = (@subclasses.to_a & ocs).detect {|x| !x.auxiliary?}
         if subclass
-          return subclass.send(:instantiate, attributes, namespace)
+          return subclass.instantiate(attributes)
         end
         unless structural? || ocs.empty?
           logger.warn("ldapter") { "#{self}: invalid object class for #{attributes.inspect}" }
@@ -146,7 +146,7 @@ module Ldapter
         obj.send(:common_initializations)
         obj
       end
-      private :instantiate
+      # private :instantiate
 
       protected
       def inherited(subclass) #:nodoc:

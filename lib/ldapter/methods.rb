@@ -212,7 +212,7 @@ module Ldapter
         adapter.search(options) do |entry|
           if options[:instantiate]
             klass = const_get("Top")
-            entry = klass.send(:instantiate,entry,self)
+            entry = klass.instantiate(entry)
           end
           entry = entry[LDAP.escape(one_attribute)] if one_attribute
           ary << entry
