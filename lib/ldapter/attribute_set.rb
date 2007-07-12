@@ -54,11 +54,11 @@ module Ldapter
     def replace(*attributes)
       attributes = safe_array(attributes)
       if no_user_modification?
-        raise TypeError, "read-only attribute #{@key}", caller
+        Ldapter::Errors.raise(TypeError.new("read-only attribute #{@key}"))
       elsif single_value? && attributes.size > 1
-        raise TypeError, "multiple values for single-valued attribute #{@key}", caller
+        Ldapter::Errors.raise(TypeError.new("multiple values for single-valued attribute #{@key}"))
       elsif mandatory? && attributes.empty?
-        raise TypeError, "value required for attribute #{@key}", caller
+        Ldapter::Errors.raise(TypeError.new("value required for attribute #{@key}"))
       end
       @target.replace(attributes)
       self
@@ -145,7 +145,7 @@ module Ldapter
     %w(reverse! sort! uniq!).each do |method|
       class_eval(<<-EOS,__FILE__,__LINE__)
         def #{method}(*args)
-          raise NotImplementedError
+          Ldapter::Errors.raise(NotImplementedError.new)
         end
       EOS
     end

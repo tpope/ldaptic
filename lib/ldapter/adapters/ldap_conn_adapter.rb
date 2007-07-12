@@ -66,7 +66,7 @@ module Ldapter
             if conn.respond_to?(:rename)
               conn.rename(dn, new_rdn, new_superior, delete_old)
             else
-              raise NotImplementedError, "rename unsupported", caller
+              Ldapter::Errors.raise(NotImplementedError.new("rename unsupported"))
             end
           else
             conn.modrdn(dn,new_rdn, delete_old)

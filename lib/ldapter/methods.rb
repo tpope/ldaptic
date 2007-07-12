@@ -123,7 +123,7 @@ module Ldapter
         if !options[:scope].kind_of?(Integer) && options[:scope].respond_to?(:to_sym)
           options[:scope] = Ldapter::SCOPES[options[:scope].to_sym]
         end
-        raise ArgumentError, "invalid scope #{original_scope.inspect}", caller(1) unless Ldapter::SCOPES.values.include?(options[:scope])
+        Ldapter::Errors.raise(ArgumentError.new("invalid scope #{original_scope.inspect}")) unless Ldapter::SCOPES.values.include?(options[:scope])
 
         options[:filter] ||= "(objectClass=*)"
         if [Hash, Proc, Method, Symbol].include?(options[:filter].class)
@@ -148,7 +148,7 @@ module Ldapter
       def find_one(dn,options)
         objects = search(options.merge(:base => dn, :scope => :base, :limit => false))
         unless objects.size == 1
-          raise Ldapter::Errors::NoSuchObject, "record not found for #{dn}", caller
+          Ldapter::Errors.raise(Ldapter::Errors::NoSuchObject.new("record not found for #{dn}"))
         end
         objects.first
       end

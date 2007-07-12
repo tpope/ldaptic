@@ -157,7 +157,7 @@ module Ldapter
     end
 
     def initialize(data = {})
-      raise TypeError, "abstract class initialized", caller if self.class.oid.nil? || self.class.abstract?
+      Ldapter::Errors.raise(TypeError.new("abstract class initialized")) if self.class.oid.nil? || self.class.abstract?
       @attributes = {}
       data = data.dup
       if dn = data.delete('dn')||data.delete(:dn)
@@ -448,7 +448,7 @@ module Ldapter
 
     def dn=(value)
       if @dn
-        raise Ldapter::Error, "can't reassign DN", caller
+        Ldapter::Errors.raise(Ldapter::Error.new("can't reassign DN"))
       end
       @dn = ::LDAP::DN(value,self)
       write_attributes_from_rdn(rdn)
@@ -489,14 +489,14 @@ module Ldapter
 
     def assign_child(rdn,child)
       unless child.respond_to?(:dn)
-        raise TypeError, "#{child.class} cannot be a child", caller
+        Ldapter::Errors.raise(TypeError.new("#{child.class} cannot be a child"))
       end
       if child.dn
-        raise Ldapter::Error, "#{child.class} already has a DN of #{child.dn}", caller
+        Ldapter::Errors.raise(Ldapter::Error.new("#{child.class} already has a DN of #{child.dn}"))
       end
       rdn = LDAP::RDN(rdn)
       if cached_child(rdn)
-        raise Ldapter::Error, "child #{[rdn,dn].join(",")} already exists"
+        Ldapter::Errors.raise(Ldapter::Error.new("child #{[rdn,dn].join(",")} already exists"))
       end
       @children[rdn] = child
       child.dn = LDAP::DN(dn/rdn,child)

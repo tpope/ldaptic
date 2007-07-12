@@ -79,22 +79,33 @@ module Ldapter
       32 => NoSuchObject
     }
 
-    def self.for(code, message = nil)
-      message ||= "Unknown error #{code}"
-      klass = EXCEPTIONS[code] || ServerError
-      exception = klass.new(message)
-      exception.code = code
-      exception
-    end
+    class << self
 
-    def self.raise_unless_zero(code, message = nil)
-      return if code.zero?
-      dir = File.dirname(File.dirname(__FILE__))
-      c = caller
-      c.shift while c.first[0,dir.length] == dir
-      exception = self.for(code, message)
-      exception.set_backtrace(c)
-      raise exception
+      def application_backtrace
+        dir = File.dirname(File.dirname(__FILE__))
+        c = caller
+        c.shift while c.first[0,dir.length] == dir
+        c
+      end
+
+      def raise(exception)
+        exception.set_backtrace(application_backtrace)
+        Kernel.raise exception
+      end
+
+      def for(code, message = nil)
+        message ||= "Unknown error #{code}"
+        klass = EXCEPTIONS[code] || ServerError
+        exception = klass.new(message)
+        exception.code = code
+        exception
+      end
+
+      def raise_unless_zero(code, message = nil)
+        return if code.zero?
+        raise self.for(code, message)
+      end
+
     end
 
   end

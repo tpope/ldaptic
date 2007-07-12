@@ -119,7 +119,7 @@ EOF
         case boolean
         when "TRUE",  true  then "TRUE"
         when "FALSE", false then "FALSE"
-        else raise TypeError, "boolean expected", caller
+        else Ldapter::Errors.raise(TypeError.new("boolean expected"))
         end
       end
     end

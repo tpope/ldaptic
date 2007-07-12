@@ -21,7 +21,9 @@ module Ldapter
         if options.has_key?(:connection) && !options.has_key?(:adapter)
           options[:adapter] = options[:connection].class.name.downcase.gsub('::','_')
         end
-        raise ArgumentError, "No adapter specfied", caller[1..-1] unless options[:adapter]
+        unless options[:adapter]
+          Ldapter::Errors.raise(ArgumentError.new("No adapter specfied"))
+        end
         begin
           require "ldapter/adapters/#{options[:adapter]}_adapter"
         rescue LoadError
@@ -29,13 +31,13 @@ module Ldapter
         if adapter = @adapters[options[:adapter].to_sym]
           adapter.new(options)
         else
-          raise ArgumentError, "Adapter #{options[:adapter]} not found", caller[1..-1]
+          Ldapter::Errors.raise(ArgumentError.new("Adapter #{options[:adapter]} not found"))
         end
       else
         if options.kind_of?(::Ldapter::Adapters::AbstractAdapter)
           options
         else
-          raise TypeError, "#{options.class} is not a valid connection type", caller[1..-1]
+          Ldapter::Errors.raise(TypeError.new("#{options.class} is not a valid connection type"))
         end
       end
     end
