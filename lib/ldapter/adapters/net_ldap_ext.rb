@@ -1,6 +1,10 @@
 require 'net/ldap'
 # Monkey-patched in support for new superior.
 class Net::LDAP # :nodoc:
+  remove_const(:LdapError)
+  class LdapError < RuntimeError # :nodoc:
+  end
+
   class Connection # :nodoc:
     def rename args
       old_dn = args[:olddn] or raise "Unable to rename empty DN"
