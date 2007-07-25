@@ -139,6 +139,7 @@ EOF
         parseable = string.sub(/(\.\d+)(\w)$/,'\\2')
         Time.parse(parseable)+$1.to_f
       rescue ArgumentError
+        require 'date'
         DateTime.parse(parseable)
       end
       def format(time)

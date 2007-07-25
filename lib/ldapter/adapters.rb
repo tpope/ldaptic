@@ -21,6 +21,7 @@ module Ldapter
         if options.has_key?(:connection) && !options.has_key?(:adapter)
           options[:adapter] = options[:connection].class.name.downcase.gsub('::','_')
         end
+        options[:adapter] ||= default_adapter
         unless options[:adapter]
           Ldapter::Errors.raise(ArgumentError.new("No adapter specfied"))
         end
@@ -39,6 +40,17 @@ module Ldapter
         else
           Ldapter::Errors.raise(TypeError.new("#{options.class} is not a valid connection type"))
         end
+      end
+    end
+
+    def self.default_adapter
+      require 'ldap'
+      :ldap_conn
+    rescue LoadError
+      begin
+        require 'net/ldap'
+        :net_ldap
+      rescue LoadError
       end
     end
 
