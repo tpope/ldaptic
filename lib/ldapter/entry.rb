@@ -355,6 +355,8 @@ module Ldapter
       search(:base => dn.send(:/,*args), :scope => :base, :limit => true)
     end
 
+    alias find /
+
     # If a Hash or a String containing "=" is given, the argument is treated as
     # an RDN and a search for a child is performed.  +nil+ is returned if no
     # match is found.
