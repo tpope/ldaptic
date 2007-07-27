@@ -42,11 +42,19 @@ module Ldapter
       def create_accessors #:nodoc:
         (may(false) + must(false)).each do |attr|
           method = attr.to_s.tr_s('-_','_-')
-          define_method("#{method}") { |*args| read_attribute(attr,*args) }
+          class_eval(<<-RUBY,__FILE__,__LINE__)
+          def #{method}(*args,&block)
+            read_attribute('#{attr}',*args,&block)
+          end
+          def #{method}=(value)
+            write_attribute('#{attr}',value)
+          end
+          RUBY
+          # define_method("#{method}") { |*args| read_attribute(attr,*args) }
           # If we skip this check we can delay the attribute type
           # initialization and improve startup speed.
           # unless namespace.attribute_type(attr).no_user_modification?
-            define_method("#{method}="){ |value| write_attribute(attr,value) }
+            # define_method("#{method}="){ |value| write_attribute(attr,value) }
           # end
         end
       end
@@ -150,8 +158,10 @@ module Ldapter
 
       protected
       def inherited(subclass) #:nodoc:
-        @subclasses ||= []
-        @subclasses << subclass
+        if superclass != Object
+          @subclasses ||= []
+          @subclasses << subclass
+        end
       end
 
     end
@@ -233,11 +243,15 @@ module Ldapter
     # If the argument given is a symbol, underscores are translated into
     # hyphens.  Since #method_missing delegates to this method, method names
     # with underscores map to attributes with hyphens.
-    def read_attribute(key, always_array = false)
+    def read_attribute(key, always_array = false, &block)
       key = LDAP.escape(key)
       @attributes[key] ||= ((@original_attributes||{})[key] || []).dup
       values = Ldapter::AttributeSet.new(self, key, @attributes[key])
-      always_array ? values : values.reduce
+      single = values.single_value?
+      if block_given?
+        values = values.map(&block)
+      end
+      (always_array || !single) ? values : values.first
     end
     protected :read_attribute
 
