@@ -2,7 +2,7 @@ require 'ldapter/attribute_set'
 
 module Ldapter
 
-  # When a new Ldapter::Namespace is created, a Ruby class hierarchy is
+  # When a new Ldapter namespace is created, a Ruby class hierarchy is
   # contructed that mirrors the server's object classes.  Ldapter::Entry
   # serves as the base class for this hierarchy.
   class Entry
@@ -370,6 +370,10 @@ module Ldapter
     end
 
     alias find /
+
+    def fetch(dn = self.dn, options = {}) #:nodoc:
+      search({:base => dn}.merge(options))
+    end
 
     # If a Hash or a String containing "=" is given, the argument is treated as
     # an RDN and a search for a child is performed.  +nil+ is returned if no

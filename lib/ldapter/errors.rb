@@ -77,6 +77,7 @@ module Ldapter
     #  97=>"Referral Limit Exceeded",
     #}
 
+    # Error code 32.
     class NoSuchObject < ServerError
     end
 

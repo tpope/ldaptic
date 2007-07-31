@@ -47,9 +47,12 @@ module Ldapter
     public
       attr_reader :adapter
 
+      # Set a new base DN.  Generally, the base DN should be set when the
+      # namespace is created and left unchanged.
       def base=(dn)
         @base = LDAP::DN(dn,self)
       end
+      # Access the base DN.
       def base
         @base ||= LDAP::DN(adapter.default_base_dn,self)
       end
@@ -59,12 +62,12 @@ module Ldapter
         @logger ||= adapter.logger
       end
 
-      # Search for an RDN relative to the base.
+      # Find an RDN relative to the base.
       #
-      #   class L < Ldapter::Class(:base => "DC=org", ...)
+      #   class L < Ldapter::Class(:base => "DC=ruby-lang,DC=org", ...)
       #   end
       #
-      #   (L/{:dc => "ruby-lang"}).dn #=> "DC=ruby-lang,DC=org"
+      #   (L/{:cn => "Matz"}).dn #=> "CN=Matz,DC=ruby-lang,DC=org"
       def /(*args)
         find(base.send(:/,*args))
       end
@@ -90,7 +93,7 @@ module Ldapter
         self[].send(:[]=,*args)
       end
 
-      # Clear the cache of children.  This cache is automatically populated
+      # Clears the cache of children.  This cache is automatically populated
       # when a child is accessed through #[].
       def reload
         if @self
@@ -155,18 +158,28 @@ module Ldapter
 
     public
 
+      # A potential replacement or addition to find.
+      def fetch(dn = self.dn, options = {}) #:nodoc:
+        find_one(dn, options)
+      end
+
       # Find an absolute DN, raising an error when no results are found.
+      #   L.find("CN=Matz,DC=ruby-lang,DC=org")
+      # A hash is treated as an RDN relative to the default base.
+      #   L.find(:cn=>"Matz")
       # Equivalent to
-      #   .search(:base => dn, :scope => :base, :limit => true) or raise ...
+      #   L.search(:base => dn, :scope => :base, :limit => true) or raise ...
       def find(dn = self.dn, options = {})
+        # Some misguided attempts to emulate active record.
         case dn
         when :all   then search({:limit => false}.merge(options))
         when :first then search(options.merge(:limit => true))
-        when Array  then dn.map {|d| find_one(d,options)}
-        else             find_one(dn,options)
+        when Array  then dn.map {|d| fetch(d,options)}
+        else             fetch(dn,options)
         end
       end
 
+      # Performs an LDAP search.
       # * <tt>:base</tt>: The base DN of the search.  The default is derived
       #   from either the <tt>:base</tt> option of the adapter configuration or
       #   by querying the server.
