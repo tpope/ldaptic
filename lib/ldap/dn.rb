@@ -1,6 +1,6 @@
 require 'ldap/escape'
 
-module LDAP
+module LDAP #:nodoc:
 
   # Instantiate a new LDAP::DN object with the arguments given.  Unlike
   # LDAP::DN.new(dn), this method coerces the first argument to a string,

@@ -1,6 +1,6 @@
 require 'ldap/escape'
 
-module LDAP
+module LDAP #:nodoc:
 
   # If the argument is already a valid LDAP::Filter object, return it
   # untouched.  Otherwise, pass it to the appropriate constructer of the
@@ -112,7 +112,7 @@ module LDAP
 
     # Does ? parameter substitution.
     #
-    #   LDAP::Filter(["cn=?*","Sm"]).to_s #=> "cn=Sm*"
+    #   LDAP::Filter(["(cn=?*)","Sm"]).to_s #=> "(cn=Sm*)"
     class Array < Abstract
       def initialize(array) #:nodoc:
         @template = array.first

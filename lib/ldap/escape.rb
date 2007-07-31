@@ -1,4 +1,4 @@
-module LDAP
+module LDAP #:nodoc:
   # Escape a string for use in an LDAP filter, or in a DN.  If the second
   # argument is +true+, asterisks are not escaped.
   #

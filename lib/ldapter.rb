@@ -57,11 +57,8 @@ module Ldapter
   #   me = MyCompany.search(:filter => {:cn => "Name, My"}).first
   #   puts me.login
   #
-  # Options include
-  # * <tt>:adapter</tt>: The LDAP connection adapter to use.
-  # * <tt>:base</tt>: The default base DN for searches.  If unspecified, this
-  #   is guessed by querying the server.
-  # All other options are passed along to the adapter.
+  # Options given to this method are relayed to Ldapter::Adapters.for.  The
+  # documentation for this method should be consulted for further information.
   def self.Class(options)
     klass = ::Class.new(Class)
     klass.instance_variable_set(:@options, Ldapter::Adapters.for(options))
@@ -72,6 +69,8 @@ module Ldapter
     alias Namespace Class
   end
 
+  # An instance of this subclass of ::Module is returned by the Ldapter::Module
+  # method.
   class Module < ::Module
     def initialize(options)
       super()
@@ -84,8 +83,11 @@ module Ldapter
     end
   end
 
+  # The anonymous class returned by the Ldapter::Class method descends from
+  # this class.
   class Class
     class << self
+      # Callback which triggers the magic.
       def inherited(subclass)
         if @options
           # subclass.extend(Methods)

@@ -3,10 +3,15 @@ module Ldapter
   class Error < ::RuntimeError #:nodoc:
   end
 
-  class ServerError < Error #:nodoc:
+  # All server errors are instances of this class.  The error message and error
+  # code can be accessed with <tt>exception.message</tt> and
+  # <tt>exception.code</tt> respectively.
+  class ServerError < Error
     attr_accessor :code
   end
 
+  # The module houses all subclasses of Ldapter::ServerError.  The methods
+  # contained within are for internal use only.
   module Errors
 
     #{
@@ -81,6 +86,7 @@ module Ldapter
 
     class << self
 
+      # Provides a backtrace minus all files shipped with Ldapter.
       def application_backtrace
         dir = File.dirname(File.dirname(__FILE__))
         c = caller
@@ -88,12 +94,14 @@ module Ldapter
         c
       end
 
+      # Raise an exception (object only, no strings or classes) with the
+      # backtrace stripped of all Ldapter files.
       def raise(exception)
         exception.set_backtrace(application_backtrace)
         Kernel.raise exception
       end
 
-      def for(code, message = nil)
+      def for(code, message = nil) #:nodoc:
         message ||= "Unknown error #{code}"
         klass = EXCEPTIONS[code] || ServerError
         exception = klass.new(message)
@@ -101,6 +109,9 @@ module Ldapter
         exception
       end
 
+      # Given an error code and a message, raise an Ldapter::ServerError unless
+      # the code is zero.  The right subclass is selected automatically if it
+      # is available.
       def raise_unless_zero(code, message = nil)
         return if code.zero?
         raise self.for(code, message)

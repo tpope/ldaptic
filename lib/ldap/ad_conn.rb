@@ -1,6 +1,6 @@
 require 'ldap'
 
-module LDAP
+module LDAP #:nodoc:
   # Convenience class which delegates reading operations to one class, and
   # writing operations to another.
   class DualConn < LDAP::Conn
@@ -151,6 +151,8 @@ module LDAP
   # LDAP::AutoConn wrapped around a LDAP::DualConn which connects as a reader
   # to port 3268, and as a writer on port 389.  This in my experience is the
   # ideal setup for an Active Directory connection.
+  #
+  # This class used to be an integral part of the Active Directory adapter.
   class ADConn < AutoConn
 
     # Check whether a set of credentials is valid.  Returns a boolean.

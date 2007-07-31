@@ -87,7 +87,9 @@ module Ldapter
             while cookie
               ctrl = paged_results_control(cookie)
               conn.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[ctrl])
-              result = conn.search2(*parameters, &block)
+              params = parameters
+              # params = parameters[0,5] + [[ctrl],[],50] + parameters[5..-1]
+              result = conn.search2(*params, &block)
               ctrl   = conn.controls.detect {|c| c.oid == ctrl.oid}
               cookie = ctrl && ctrl.decode.last
               cookie = nil if cookie.to_s.empty?
@@ -119,6 +121,35 @@ module Ldapter
       end
 
       private
+
+      def paged_results_control(cookie = "", size = 126)
+        require 'ldap/control'
+        # values above 126 cause problems for slapd, as determined by net/ldap
+        ::LDAP::Control.new(
+          # ::LDAP::LDAP_CONTROL_PAGEDRESULTS,
+          "1.2.840.113556.1.4.319",
+          ::LDAP::Control.encode(size,cookie),
+          true
+        )
+      end
+
+      def search_parameters(options = {})
+        case options[:sort]
+        when Proc, Method then s_attr, s_proc = nil, options[:sort]
+        else s_attr, s_proc = options[:sort], nil
+        end
+        [
+          options[:base],
+          options[:scope],
+          options[:filter],
+          options[:attributes] && Array(options[:attributes]),
+          options[:attributes_only],
+          options[:timeout].to_i,
+          ((options[:timeout].to_f % 1) * 1e6).round,
+          s_attr.to_s,
+          s_proc
+        ]
+      end
 
       def connection_class
         ::LDAP::Conn
@@ -170,35 +201,6 @@ module Ldapter
         end
         Ldapter::Errors.raise_unless_zero(err, message)
         result
-      end
-
-      def paged_results_control(cookie = "", size = 126)
-        require 'ldap/control'
-        # values above 126 cause problems for slapd, as determined by net/ldap
-        ::LDAP::Control.new(
-          # ::LDAP::LDAP_CONTROL_PAGEDRESULTS,
-          "1.2.840.113556.1.4.319",
-          ::LDAP::Control.encode(size,cookie),
-          false
-        )
-      end
-
-      def search_parameters(options = {})
-        case options[:sort]
-        when Proc, Method then s_attr, s_proc = nil, options[:sort]
-        else s_attr, s_proc = options[:sort], nil
-        end
-        [
-          options[:base],
-          options[:scope],
-          options[:filter],
-          options[:attributes] && Array(options[:attributes]),
-          options[:attributes_only],
-          options[:timeout].to_i,
-          ((options[:timeout].to_f % 1) * 1e6).round,
-          s_attr.to_s,
-          s_proc
-        ]
       end
 
       # LDAP::Conn only gives us a worthless string rather than a real error
