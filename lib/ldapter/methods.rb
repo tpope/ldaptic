@@ -34,7 +34,8 @@ module Ldapter
             klass.instance_variable_set(:@namespace, self)
             @object_classes[sub.oid.tr('-','_').downcase] = klass
             Array(sub.name).each do |name|
-              name = name.ldapitalize(true)
+              name = name.tr('-','_')
+              name[0,1] = name[0,1].upcase
               @object_classes[name.downcase] = klass
               const_set(name, klass)
             end
@@ -62,7 +63,7 @@ module Ldapter
         @logger ||= adapter.logger
       end
 
-      # Find an RDN relative to the base.
+      # Find an RDN relative to the base.  This method is experimental.
       #
       #   class L < Ldapter::Class(:base => "DC=ruby-lang,DC=org", ...)
       #   end
@@ -72,7 +73,8 @@ module Ldapter
         find(base.send(:/,*args))
       end
 
-      # Like #/, only the search results are cached.
+      # Like #/, only the search results are cached.  This method is
+      # experimental.
       #
       #   L[:cn=>"Why"].bacon = "chunky"
       #   L[:cn=>"Why"].bacon #=> "chunky"
@@ -86,7 +88,7 @@ module Ldapter
       end
 
       # Like Ldapter::Entry#[]= for the root node.  Only works for assigning
-      # children.
+      # children.  This method is experimental.
       #
       #   MyCompany[:cn=>"New Employee"] = MyCompany::User.new
       def []=(*args) #:nodoc:
@@ -151,6 +153,9 @@ module Ldapter
       def find_one(dn,options)
         objects = search(options.merge(:base => dn, :scope => :base, :limit => false))
         unless objects.size == 1
+          # For a missing DN, the error will be raised automatically.  If the
+          # DN does exist but is not returned (e.g., it doesn't match the given
+          # filter), we'll simulate it instead.
           Ldapter::Errors.raise(Ldapter::Errors::NoSuchObject.new("record not found for #{dn}"))
         end
         objects.first
@@ -158,7 +163,8 @@ module Ldapter
 
     public
 
-      # A potential replacement or addition to find.
+      # A potential replacement or addition to find.  Does not handle array
+      # arguments or do any of the active record monkey business.
       def fetch(dn = self.dn, options = {}) #:nodoc:
         find_one(dn, options)
       end
@@ -179,7 +185,7 @@ module Ldapter
         end
       end
 
-      # Performs an LDAP search.
+      # This is the core method for LDAP searching.
       # * <tt>:base</tt>: The base DN of the search.  The default is derived
       #   from either the <tt>:base</tt> option of the adapter configuration or
       #   by querying the server.
@@ -266,15 +272,15 @@ module Ldapter
         @object_classes[klass.to_s.tr('-','_').downcase]
       end
 
-      # Returns an object encapsulating server provided information about an
-      # attribute type.
+      # Returns an Ldapter::Schema::AttibuteType object encapsulating server
+      # provided information about an attribute type.
       #
       #   L.attribute_type(:cn).desc #=> "RFC2256: common name..."
       def attribute_type(attribute)
         adapter.attribute_types[LDAP.escape(attribute)]
       end
-      # Returns an object encapsulating server provided information about the
-      # syntax of an attribute.
+      # Returns an Ldapter::Schema::LdapSyntax object encapsulating server
+      # provided information about the syntax of an attribute.
       #
       #    L.attribute_syntax(:cn).desc #=> "Directory String"
       def attribute_syntax(attribute)

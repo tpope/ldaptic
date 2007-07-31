@@ -76,8 +76,15 @@ EOF
     SYNTAXES[oid] = syntax
   end
 
+  # The classes nestled here are responsible for casting attributes to and from
+  # the appropriate type.  End users generally need not interact with these
+  # directly.
   module Syntaxes
 
+    # Returns the class for a given syntax name.  Falls back to
+    # DirectoryString if there is not a more specific handler.
+    #   Ldapter::Syntaxes.for("Generalized Time")
+    #   #=> Ldapter::Syntaxes::GeneralizedTime
     def self.for(string)
       string = string.delete(' ')
       if constants.include?(string)
@@ -88,6 +95,9 @@ EOF
     end
 
     class Abstract
+      # The +object+ argument refers back to the LDAP entry from which the
+      # attribute in question came.  This is currently used only for the DN
+      # syntax, to allow <tt>dn.find</tt> to work.
       def initialize(object = nil)
         @object = object
       end
@@ -133,6 +143,7 @@ EOF
       end
     end
 
+    # LDAP timestamps look like <tt>YYYYmmddHHMMSS.uuuuuuZ</tt>.
     class GeneralizedTime < Abstract
       def parse(string)
         require 'time'

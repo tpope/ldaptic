@@ -1,4 +1,5 @@
 require 'ldapter/adapters/ldap_conn_adapter'
+require 'ldapter/adapters/active_directory_ext'
 
 module Ldapter
   module Adapters

@@ -5,14 +5,18 @@ module LDAP #:nodoc:
   # If the argument is already a valid LDAP::Filter object, return it
   # untouched.  Otherwise, pass it to the appropriate constructer of the
   # appropriate subclass.
+  #
+  #   Ldapter::Filter("(cn=Wu*)").to_s        #=> '(cn=Wu*)'
+  #   Ldapter::Filter({:cn=>"Wu*"}).to_s      #=> '(cn=Wu\2A)'
+  #   Ldapter::Filter(["(cn=?*)","Wu*"]).to_s #=> '(cn=Wu\2A*)'
   def self.Filter(argument)
     case argument
     when Filter::Abstract then argument
     when [],nil then nil
-    # when Array  then Filter::Join.new(argument)
-    when Array  then Filter::Array .new(argument)
-    when Hash   then Filter::Hash  .new(argument)
-    when String then Filter::String.new(argument)
+    when Array  then Filter::Array    .new(argument)
+    when Hash   then Filter::Hash     .new(argument)
+    when String then Filter::String   .new(argument)
+    when Symbol then Filter::Attribute.new(argument)
     when Proc, Method
       LDAP::Filter(if argument.arity > 0
         argument.call(Filter::Spawner)
@@ -25,6 +29,8 @@ module LDAP #:nodoc:
 
   # See LDAP.Filter for the contructor and LDAP::Filter::Abstract for methods
   # common to all filters.
+  #
+  # Useful subclasses include String, Array, and Hash.
   module Filter
 
     # The filter class from which all others derive.
@@ -72,7 +78,7 @@ module LDAP #:nodoc:
 
     end
 
-    module Spawner
+    module Spawner # :nodoc:
       def self.method_missing(method)
         Attribute.new(method)
       end
@@ -80,7 +86,10 @@ module LDAP #:nodoc:
 
     class Attribute < Abstract
       def initialize(name)
-        @name = name.to_s
+        if name.kind_of?(Symbol)
+          name = name.to_s.tr('_-','-_')
+        end
+        @name = name
       end
       %w(== =~ >= <=).each do |method|
         define_method(method) do |other|
@@ -252,7 +261,7 @@ module LDAP #:nodoc:
       end
     end
 
-    module Conversions
+    module Conversions #:nodoc:
       def to_ldap_filter
         LDAP::Filter(self)
       end

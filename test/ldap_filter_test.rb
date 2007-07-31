@@ -10,6 +10,7 @@ class LDAPFilterTest < Test::Unit::TestCase
 
   def test_filter_from_hash
     assert_equal nil, LDAP::Filter({}).process
+    assert_ldap_filter "(x-y=*)", :x_y
     assert_ldap_filter "(x=1)", :x => 1
     assert_ldap_filter "(x=*)", :x => true
     assert_ldap_filter "(!(x=1))", :x! => 1

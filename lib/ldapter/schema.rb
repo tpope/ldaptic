@@ -1,5 +1,5 @@
 module Ldapter
-  # RFC4512
+  # RFC4512 - LDAP: Directory Information Models
   module Schema
 
     class ParseError < RuntimeError
@@ -38,12 +38,10 @@ module Ldapter
       end
 
       attr_accessor :oid
-      def attributes
-        @attributes
-      end
+      attr_reader   :attributes
 
       def inspect
-        "#<#{self.class} #{@oid} #{attributes.inspect}>"
+        "#<#{self.class.inspect} #{@oid} #{attributes.inspect}>"
       end
 
       def to_s
@@ -53,6 +51,7 @@ module Ldapter
       def initialize(string)
         @string = string.dup
         string = @string.dup
+        # TODO: refactor to use a StringScanner
         # raise string unless string =~ /^\(\s*(\d[.\d]*\d) (.*?)\s*\)\s*$/
         @oid = extract_oid(string)
         array = build_array(string.dup)
@@ -147,10 +146,14 @@ module Ldapter
 
     end
 
+    # Serves as an abstract base class for the many definitions that feature
+    # +name+, +desc+, and +obsolete+ attributes.
     class NameDescObsoleteDefiniton < AbstractDefinition
       attr_ldap_qdescrs    :name
       attr_ldap_qdstring   :desc
       attr_ldap_boolean    :obsolete
+      # The definition's name(s), always returned as an array for programmatic
+      # ease.
       def names
         Array(name)
       end
@@ -160,6 +163,7 @@ module Ldapter
       attr_ldap_oids       :sup
       attr_ldap_boolean    :structural, :auxiliary, :abstract
       attr_ldap_oids       :must, :may
+      # "ABSTRACT", "STRUCTURAL", or "AUXILIARY"
       def kind
         if abstract?
           "ABSTRACT"
@@ -202,8 +206,9 @@ module Ldapter
       attr_ldap_oids       :applies # mandatory
     end
 
+    # Note that LDAP syntaxes do not have names or the obsolete flag, only
+    # desc[riptions].
     class LdapSyntax < AbstractDefinition
-      # No name or obsolete flag
       attr_ldap_qdstring   :desc
       # def parse(value)
         # object.new.parse(value)
@@ -211,6 +216,8 @@ module Ldapter
       # def format(value)
         # object.new.format(value)
       # end
+
+      # Returns the appropriate parser from the Ldapter::Syntaxes module.
       def object
         Ldapter::Syntaxes.for(desc.delete(" "))
       end

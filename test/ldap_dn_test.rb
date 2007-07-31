@@ -6,8 +6,7 @@ class LDAPDNTest < Test::Unit::TestCase
 
   class FakeSearch
     def search(options)
-      [options]
-    end
+      [options] end
   end
 
   class FakeSearch2
