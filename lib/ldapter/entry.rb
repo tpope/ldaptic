@@ -257,7 +257,7 @@ module Ldapter
 
     # For testing.
     def read_attributes #:nodoc:
-      attributes.keys.inject({}) do |hash,key|
+      @original_attributes.merge(@attributes).keys.inject({}) do |hash,key|
         hash[key] = read_attribute(key)
         hash
       end
@@ -300,7 +300,7 @@ module Ldapter
     end
 
     def replace!(key, *values) #:nodoc:
-      modify_attribute(:add, key, values)
+      modify_attribute(:replace, key, values)
     end
 
     def delete!(key, *values) #:nodoc:
@@ -348,6 +348,14 @@ module Ldapter
         attribute.chop!
         if may_must(attribute)
           return write_attribute(attribute,*args,&block)
+        end
+      elsif attribute[-1] == ??
+        unless args.empty?
+          raise ArgumentError, "wrong number of arguments (#{args.size} for 0)", caller
+        end
+        attribute.chop!
+        if may_must(attribute)
+          return !read_attribute(attribute,true).empty?
         end
       elsif may_must(attribute)
         return read_attribute(attribute,*args,&block)

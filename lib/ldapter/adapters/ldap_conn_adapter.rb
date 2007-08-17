@@ -45,7 +45,12 @@ module Ldapter
       def modify(dn, attributes)
         if attributes.kind_of?(Array)
           attributes = attributes.map do |(op,key,vals)|
-            LDAP::Mod.new(mod(op), key, vals)
+            # if vals.any? {|v| v =~ /[\000-\037]/}
+              bin = LDAP::LDAP_MOD_BVALUES
+            # else
+              # bin = 0
+            # end
+            LDAP::Mod.new(mod(op) | bin, key, vals)
           end
         end
         with_writer do |conn|
@@ -151,15 +156,19 @@ module Ldapter
         ]
       end
 
-      def connection_class
-        ::LDAP::Conn
-      end
-
       def new_connection(default_port = nil)
-        conn = connection_class.new(
-          @options[:host]||"localhost",
-          *[@options[:port] || default_port].compact
-        )
+        if @options[:tls].nil?
+          conn = ::LDAP::Conn.new(
+            @options[:host]||"localhost",
+            *[@options[:port] || default_port].compact
+          )
+        else
+          conn = ::LDAP::SSLConn.new(
+            @options[:host]||"localhost",
+            @options[:port] || default_port || ::LDAP::LDAP_PORT,
+            @options[:tls]
+          )
+        end
         conn.set_option(::LDAP::LDAP_OPT_PROTOCOL_VERSION, @options[:version])
         conn
       end
