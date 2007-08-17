@@ -12,18 +12,18 @@ class LdapterAdaptersTest < Test::Unit::TestCase
   def test_should_parameterize_search_options
     assert_equal(
       ["DC=org",0,"(objectClass=*)",nil,false,1,10_000,"", nil],
-      @ldap_conn.send(:search_parameters,
+      @ldap_conn.instance_eval { search_parameters(
         :base => "DC=org",
         :scope => 0,
         :filter => "(objectClass=*)",
         :attributes_only => false,
         :timeout => 1.01
-      )
+      )}
     )
   end
 
   def test_should_recapitalize
-    assert_equal "objectClass", @net_ldap.send(:recapitalize, "objectclass")
+    assert_equal "objectClass", @net_ldap.instance_eval { recapitalize("objectclass") }
   end
 
   def test_should_reject_invalid_adapter_options

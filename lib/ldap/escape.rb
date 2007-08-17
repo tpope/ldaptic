@@ -16,7 +16,7 @@ module LDAP #:nodoc:
       string.upcase! if allow_asterisks
     end
     string = string.to_s.dup
-    enc = lambda {|l| "\\%02X" % l[0] }
+    enc = lambda {|l| "\\%02X" % l.ord }
     string.gsub!(/[()\\\0-\37"+,;<>]/,&enc)
     string.gsub!(/\A[# ]| \Z/,&enc)
     if allow_asterisks
@@ -30,7 +30,7 @@ module LDAP #:nodoc:
   def self.unescape(string)
     dest = ""
     string = string.strip # Leading and trailing whitespace MUST be encoded
-    if string[0] == ?#
+    if string[0,1] == "#"
       [string[1..-1]].pack("H*")
     else
       backslash = nil
@@ -38,7 +38,7 @@ module LDAP #:nodoc:
         case backslash
         when true
           char = byte.chr
-          if (?0..?9).include?(byte) || ('a'..'f').include?(char.downcase)
+          if ('0'..'9').include?(char) || ('a'..'f').include?(char.downcase)
             backslash = char
           else
             dest << byte
@@ -51,7 +51,7 @@ module LDAP #:nodoc:
 
         else
           backslash = nil
-          if byte == ?\\
+          if byte == 92 # ?\\
             backslash = true
           else
             dest << byte
@@ -71,14 +71,14 @@ module LDAP #:nodoc:
   def self.split(string, character)
     return [] if string.empty?
     array = [""]
-    character = character.to_str[0] if character.respond_to?(:to_str)
+    character = character.to_str.ord if character.respond_to?(:to_str)
     backslash = false
 
     string.each_byte do |byte|
       if backslash
         array.last << byte
         backslash = false
-      elsif byte == ?\\
+      elsif byte == 92 # ?\\
         array.last << byte
         backslash = true
       elsif byte == character
@@ -90,4 +90,12 @@ module LDAP #:nodoc:
     array
   end
 
+end
+
+class String
+  unless method_defined?(:ord)
+    def ord
+      self[0].to_i
+    end
+  end
 end

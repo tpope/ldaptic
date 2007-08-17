@@ -83,7 +83,8 @@ module LDAP #:nodoc:
         Array(source.search(
           :base => self.to_s,
           :scope => scope,
-          :filter => filter
+          :filter => filter,
+          :limit => 1
         ))
       else
         raise RuntimeError, "missing or invalid source for LDAP search", caller
@@ -104,7 +105,7 @@ module LDAP #:nodoc:
       LDAP.split(self, ?,)
     end
 
-    undef_method(:to_a)
+    undef_method(:to_a) if method_defined?(:to_a)
     # ensure Array() doesn't call to_a by trapping it here
     def method_missing(method,*args,&block)
       if method.to_sym == :to_a
@@ -305,7 +306,7 @@ module LDAP #:nodoc:
 
     # Based on ActiveSupport's HashWithIndifferentAccess
 
-    alias_method :regular_writer, :[]= unless method_defined?(:regular_writer)
+    alias_method :regular_writer, '[]=' unless method_defined?(:regular_writer)
     alias_method :regular_update, :update unless method_defined?(:regular_update)
 
     def []=(key, value)

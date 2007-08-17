@@ -1,4 +1,6 @@
 require 'ldapter/schema'
+require 'ldapter/errors'
+
 module Ldapter
 
   # RFC2252.  Second column is "Human Readable"
@@ -87,7 +89,7 @@ EOF
     #   #=> Ldapter::Syntaxes::GeneralizedTime
     def self.for(string)
       string = string.delete(' ')
-      if constants.include?(string)
+      if const_defined?(string)
         const_get(string)
       else
         DirectoryString

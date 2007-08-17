@@ -151,7 +151,7 @@ module Ldapter
         obj.instance_variable_set(:@attributes, {})
         # obj.instance_variable_set(:@attributes, Ldapter::Entry.clone_ldap_hash(attributes))
         # obj.instance_variable_set(:@namespace, namespace || @namespace)
-        obj.send(:common_initializations)
+        obj.instance_eval { common_initializations }
         obj
       end
       # private :instantiate

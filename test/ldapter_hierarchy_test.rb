@@ -1,6 +1,6 @@
 require File.join(File.dirname(__FILE__),'test_helper')
 require 'ldapter'
-require File.join(File.dirname(__FILE__),"/mock_adapter")
+require File.join(File.dirname(__FILE__),'/mock_adapter')
 
 class LdapterHierarchyTest < Test::Unit::TestCase
   class Mock < Ldapter::Class(:adapter => :mock)
@@ -31,7 +31,7 @@ class LdapterHierarchyTest < Test::Unit::TestCase
     # assert_raise(TypeError) { person.distinguishedName.sub!(/z/,'t') }
     assert_raise(NoMethodError) { person.fakeAttribute = 42 }
     assert inspect.include?("Mock::Person CN=Matz,DC=org")
-    assert_match(/cn: .*Matsumoto/, inspect)
+    assert_match(/sn: .*Matsumoto/, inspect)
   end
 
   def test_new_with_aux

@@ -112,7 +112,7 @@ module Ldapter
     def append_features(base)
       base.extend(Methods)
       base.instance_variable_set(:@adapter, Ldapter::Adapters.for(@options))
-      base.send(:build_hierarchy)
+      base.module_eval { build_hierarchy }
     end
   end
 
@@ -122,9 +122,9 @@ module Ldapter
     class << self
       # Callback which triggers the magic.
       def inherited(subclass)
-        if @options
+        if options = @options
           # subclass.extend(Methods)
-          subclass.send(:include, Ldapter::Module.new(@options))
+          subclass.class_eval { include Ldapter::Module.new(options) }
         else
           subclass.instance_variable_set(:@adapter, @adapter)
         end

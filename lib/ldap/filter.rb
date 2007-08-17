@@ -140,7 +140,7 @@ module LDAP #:nodoc:
         @array = [operator] + args.map {|arg| LDAP::Filter(arg)}
       end
       def process
-        "(#{@array})" if @array.compact.size > 1
+        "(#{@array*''})" if @array.compact.size > 1
       end
       def to_net_ldap_filter #:nodoc
         @array[1..-1].inject {|m,o| m.to_net_ldap_filter.send(@array.first,o.to_net_ldap_filter)}
@@ -248,7 +248,7 @@ module LDAP #:nodoc:
               q << "(#{LDAP.escape(k)}<=#{LDAP.escape(v.last,star)})"
             end
           end
-          q = "(&#{q})"
+          q = "(&#{q*""})"
         elsif v == true || v == :*
           q = "(#{LDAP.escape(k)}=*)"
         elsif !v
@@ -267,10 +267,13 @@ module LDAP #:nodoc:
       end
     end
 
-    ::Hash.send(:include, Conversions)
-    ::String.send(:include, Conversions)
-
   end
 
 end
 
+class Hash
+  include LDAP::Filter::Conversions
+end
+class String
+  include LDAP::Filter::Conversions
+end

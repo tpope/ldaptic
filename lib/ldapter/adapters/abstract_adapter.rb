@@ -32,7 +32,7 @@ module Ldapter
           :base => "",
           :scope => Ldapter::SCOPES[:base],
           :filter => "(objectClass=*)",
-          :attributes => attrs && Array(attrs).map {|a| LDAP.escape(a)}
+          :attributes => attrs && [attrs].flatten.map {|a| LDAP.escape(a)}
         ) { |x| break x }
         return nil if result.kind_of?(Fixnum)
         if attrs.kind_of?(Array) || attrs.nil?

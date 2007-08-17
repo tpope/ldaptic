@@ -39,7 +39,7 @@ module Ldapter
               @object_classes[name.downcase] = klass
               const_set(name, klass)
             end
-            klass.send(:create_accessors)
+            klass.class_eval { create_accessors }
             add_constants(klasses, klass)
           end
         end
