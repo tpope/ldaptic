@@ -235,27 +235,27 @@ module LDAP #:nodoc:
         inverse = @inverse
         operator = "=" if operator == "=="
         if v.respond_to?(:to_ary)
-          q = "(|" + v.map {|e| "(#{LDAP.escape(k)}=#{LDAP.escape(e,star)})"}.join + ")"
+          q = "(|" + v.map {|e| "(#{LDAP.encode(k)}=#{LDAP.escape(e,star)})"}.join + ")"
         elsif v.kind_of?(Range)
           q = []
           if v.first != -1.0/0
-            q << "(#{LDAP.escape(k)}>=#{LDAP.escape(v.first,star)})"
+            q << "(#{LDAP.encode(k)}>=#{LDAP.escape(v.first,star)})"
           end
           if v.last != 1.0/0
             if v.exclude_end?
-              q << "(!(#{LDAP.escape(k)}>=#{LDAP.escape(v.last,star)}))"
+              q << "(!(#{LDAP.encode(k)}>=#{LDAP.escape(v.last,star)}))"
             else
-              q << "(#{LDAP.escape(k)}<=#{LDAP.escape(v.last,star)})"
+              q << "(#{LDAP.encode(k)}<=#{LDAP.escape(v.last,star)})"
             end
           end
           q = "(&#{q*""})"
         elsif v == true || v == :*
-          q = "(#{LDAP.escape(k)}=*)"
+          q = "(#{LDAP.encode(k)}=*)"
         elsif !v
-          q = "(#{LDAP.escape(k)}=*)"
+          q = "(#{LDAP.encode(k)}=*)"
           inverse ^= true
         else
-          q = "(#{LDAP.escape(k)}#{operator}#{LDAP.escape(v,star)})"
+          q = "(#{LDAP.encode(k)}#{operator}#{LDAP.escape(v,star)})"
         end
         inverse ? "(!#{q})" : q
       end

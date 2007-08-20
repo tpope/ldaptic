@@ -1,21 +1,35 @@
 module LDAP #:nodoc:
+
+  # Encode an object with LDAP semantics.  Generally this is just to_s, but
+  # dates and booleans get special treatment.
+  #
+  # If a symbol is passed in, underscores are replaced by dashes, aiding in
+  # bridging the gap between LDAP and Ruby conventions.
+  def self.encode(string)
+    if string.respond_to?(:utc)
+      string.utc.strftime("%Y%m%d%H%M%S.0Z")
+    elsif [true,false].include?(string)
+      string.to_s.upcase
+    elsif string.kind_of?(Symbol)
+      string.to_s.gsub('_','-')
+    elsif string.respond_to?(:dn)
+      string.dn.dup
+    else
+      string.to_s.dup
+    end
+  end
+
   # Escape a string for use in an LDAP filter, or in a DN.  If the second
   # argument is +true+, asterisks are not escaped.
   #
-  # But wait, there's more.  If a time or boolean object is passed in, it is
-  # encoded LDAP style.  If a symbol is passed in, underscores are replaced by
-  # dashes, aiding in bridging the gap between LDAP and Ruby conventions.
+  # If the first argument is not a string, it is handed off to LDAP::encode.
   def self.escape(string, allow_asterisks = false)
-    if string.respond_to?(:utc)
-      string = string.utc.strftime("%Y%m%d%H%M%S.0Z")
-    elsif [true,false].include?(string)
-      string = string.to_s.upcase
+    if string.kind_of?(Symbol) && allow_asterisks
+      warn "deprecated call to escape with Symbol and allow_asterisks"
+      string = LDAP.encode(string).upcase
+    else
+      string = LDAP.encode(string)
     end
-    if string.kind_of?(Symbol)
-      string = string.to_s.gsub('_','-')
-      string.upcase! if allow_asterisks
-    end
-    string = string.to_s.dup
     enc = lambda {|l| "\\%02X" % l.ord }
     string.gsub!(/[()\\\0-\37"+,;<>]/,&enc)
     string.gsub!(/\A[# ]| \Z/,&enc)

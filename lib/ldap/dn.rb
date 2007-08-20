@@ -139,7 +139,7 @@ module LDAP #:nodoc:
       end
       normalize = lambda do |hash|
         hash.inject({}) do |m,(k,v)|
-          m[LDAP.escape(k).upcase] = v
+          m[LDAP.encode(k).upcase] = v
           m
         end
       end
@@ -239,7 +239,7 @@ module LDAP #:nodoc:
 
     def to_str
       collect do |k,v|
-        "#{LDAP.escape(k,true)}=#{LDAP.escape(v)}"
+        "#{k.kind_of?(String) ? k : LDAP.encode(k).upcase}=#{LDAP.escape(v)}"
       end.sort.join("+")
     end
 

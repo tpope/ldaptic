@@ -8,15 +8,21 @@ class LDAPEscapeTest < Test::Unit::TestCase
     ["\\28Hello\\5C\\2Aworld!\\29", "(Hello\\*world!)"],
     ["\\23Good-bye\\2C world\\20", "#Good-bye, world "]
   ]
+
+  def test_encode
+    assert_equal "FALSE", LDAP.encode(false)
+    assert_equal "20000101123456.0Z", LDAP.encode(Time.utc(2000,1,1,12,34,56))
+    assert_equal "foo-bar", LDAP.encode(:foo_bar)
+  end
+
   def test_escape
     PAIRS.each do |escaped, unescaped|
       assert_equal escaped, LDAP.escape(unescaped)
     end
     assert_equal "a*b\\2Ac\\00", LDAP.escape("a*b**c\0",true)
     assert_equal "TRUE", LDAP.escape(true)
-    assert_equal "20000101123456.0Z", LDAP.escape(Time.utc(2000,1,1,12,34,56))
     assert_equal "foo-bar", LDAP.escape(:foo_bar)
-    assert_equal "FOO-BAR", LDAP.escape(:foo_bar,true)
+    # assert_equal "FOO-BAR", LDAP.escape(:foo_bar,true)
   end
 
   def test_should_not_mutate
