@@ -81,8 +81,17 @@ module Ldapter
     class NoSuchObject < ServerError
     end
 
+    # Error code 5.
+    class CompareFalse < ServerError
+    end
+    # Error code 6.
+    class CompareTrue < ServerError
+    end
+
     EXCEPTIONS = {
-      32 => NoSuchObject
+      32 => NoSuchObject,
+      5  => CompareFalse,
+      6  => CompareTrue
     }
 
     class << self

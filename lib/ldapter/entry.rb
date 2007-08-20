@@ -35,7 +35,7 @@ module Ldapter
       end
 
       def has_attribute?(attribute)
-        attribute = LDAP.escape(attribute)
+        attribute = LDAP.encode(attribute)
         may.include?(attribute) || must.include?(attribute)
       end
 
@@ -151,7 +151,7 @@ module Ldapter
         obj.instance_variable_set(:@attributes, {})
         # obj.instance_variable_set(:@attributes, Ldapter::Entry.clone_ldap_hash(attributes))
         # obj.instance_variable_set(:@namespace, namespace || @namespace)
-        obj.instance_eval { common_initializations }
+        obj.instance_eval { common_initializations; after_load }
         obj
       end
       # private :instantiate
@@ -181,6 +181,7 @@ module Ldapter
       @attributes['objectClass'] ||= []
       @attributes['objectClass'].insert(0,*self.class.object_classes).uniq!
       common_initializations
+      after_build
     end
 
 
@@ -244,7 +245,7 @@ module Ldapter
     # hyphens.  Since #method_missing delegates to this method, method names
     # with underscores map to attributes with hyphens.
     def read_attribute(key, always_array = false, &block)
-      key = LDAP.escape(key)
+      key = LDAP.encode(key)
       @attributes[key] ||= ((@original_attributes||{})[key] || []).dup
       values = Ldapter::AttributeSet.new(self, key, @attributes[key])
       single = values.single_value?
@@ -276,8 +277,8 @@ module Ldapter
 
     # Note the values are not typecast and thus must be strings.
     def modify_attribute(action, key, *values)
-      key = LDAP.escape(key)
-      values.flatten!
+      key = LDAP.encode(key)
+      values.flatten!.map! {|v| LDAP.encode(v)}
       @original_attributes[key] ||= []
       virgin   = @original_attributes[key].dup
       original = Ldapter::AttributeSet.new(self, key, @original_attributes[key])
@@ -295,6 +296,13 @@ module Ldapter
     end
     private :modify_attribute
 
+    # Commit an array of modifications directly to LDAP, without updating the
+    # local object.
+    def modify_attributes(mods) #:nodoc:
+      namespace.adapter.modify(dn, mods.map {|(action,key,values)| [action,LDAP.encode(key),Array(values)]})
+      self
+    end
+
     def add!(key, *values) #:nodoc:
       modify_attribute(:add, key, values)
     end
@@ -305,6 +313,12 @@ module Ldapter
 
     def delete!(key, *values) #:nodoc:
       modify_attribute(:delete, key, values)
+    end
+
+    # Compare an attribute to see if it has a given value.  This happens at the
+    # server.
+    def compare(key, value)
+      namespace.adapter.compare(dn, LDAP.encode(key), LDAP.encode(value))
     end
 
     # attr_reader :attributes
@@ -329,7 +343,7 @@ module Ldapter
     end
 
     def may_must(attribute)
-      attribute = LDAP.escape(attribute)
+      attribute = LDAP.encode(attribute)
       if must.include?(attribute)
         :must
       elsif may.include?(attribute)
@@ -343,19 +357,20 @@ module Ldapter
 
     # Delegates to +read_attribute+ or +write_attribute+.
     def method_missing(method,*args,&block)
-      attribute = LDAP.escape(method)
+      attribute = LDAP.encode(method)
       if attribute[-1] == ?=
         attribute.chop!
         if may_must(attribute)
           return write_attribute(attribute,*args,&block)
         end
       elsif attribute[-1] == ??
-        unless args.empty?
-          raise ArgumentError, "wrong number of arguments (#{args.size} for 0)", caller
-        end
         attribute.chop!
         if may_must(attribute)
-          return !read_attribute(attribute,true).empty?
+          if args.empty?
+            return !read_attribute(attribute,true).empty?
+          else
+            return args.flatten.any? {|arg| compare(attribute, arg)}
+          end
         end
       elsif may_must(attribute)
         return read_attribute(attribute,*args,&block)
@@ -483,6 +498,11 @@ module Ldapter
     end
 
     private
+
+    def after_build
+    end
+    def after_load
+    end
 
     def common_initializations
       @children ||= {}

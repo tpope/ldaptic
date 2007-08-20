@@ -131,14 +131,14 @@ module Ldapter
         Ldapter::Errors.raise(ArgumentError.new("invalid scope #{original_scope.inspect}")) unless Ldapter::SCOPES.values.include?(options[:scope])
 
         options[:filter] ||= "(objectClass=*)"
-        if [Hash, Proc, Method, Symbol].include?(options[:filter].class)
+        if [Hash, Proc, Method, Symbol, Array].include?(options[:filter].class)
           options[:filter] = LDAP::Filter(options[:filter])
         end
 
         if options[:attributes].respond_to?(:to_ary)
-          options[:attributes] = options[:attributes].map {|x| LDAP.escape(x)}
+          options[:attributes] = options[:attributes].map {|x| LDAP.encode(x)}
         elsif options[:attributes]
-          options[:attributes] = [LDAP.escape(options[:attributes])]
+          options[:attributes] = [LDAP.encode(options[:attributes])]
         end
         if options[:attributes]
           options[:attributes] |= ["objectClass"]
@@ -233,7 +233,7 @@ module Ldapter
             klass = const_get("Top")
             entry = klass.instantiate(entry)
           end
-          entry = entry[LDAP.escape(one_attribute)] if one_attribute
+          entry = entry[LDAP.encode(one_attribute)] if one_attribute
           ary << entry
           block.call(entry) if block_given?
           return entry if first == true
@@ -277,7 +277,7 @@ module Ldapter
       #
       #   L.attribute_type(:cn).desc #=> "RFC2256: common name..."
       def attribute_type(attribute)
-        adapter.attribute_types[LDAP.escape(attribute)]
+        adapter.attribute_types[LDAP.encode(attribute)]
       end
       # Returns an Ldapter::Schema::LdapSyntax object encapsulating server
       # provided information about the syntax of an attribute.

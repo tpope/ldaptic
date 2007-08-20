@@ -45,12 +45,7 @@ module Ldapter
       def modify(dn, attributes)
         if attributes.kind_of?(Array)
           attributes = attributes.map do |(op,key,vals)|
-            # if vals.any? {|v| v =~ /[\000-\037]/}
-              bin = LDAP::LDAP_MOD_BVALUES
-            # else
-              # bin = 0
-            # end
-            LDAP::Mod.new(mod(op) | bin, key, vals)
+            LDAP::Mod.new(mod(op) | LDAP::LDAP_MOD_BVALUES, key, vals)
           end
         end
         with_writer do |conn|
@@ -77,6 +72,16 @@ module Ldapter
             conn.modrdn(dn,new_rdn, delete_old)
           end
         end
+      end
+
+      def compare(dn, attr, value)
+        with_reader do |conn|
+          conn.compare(dn, attr, value)
+        end
+      rescue Ldapter::Errors::CompareFalse
+        false
+      rescue Ldapter::Errors::CompareTrue
+        true
       end
 
       def search(options = {}, &block)

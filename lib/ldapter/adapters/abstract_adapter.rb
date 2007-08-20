@@ -32,7 +32,7 @@ module Ldapter
           :base => "",
           :scope => Ldapter::SCOPES[:base],
           :filter => "(objectClass=*)",
-          :attributes => attrs && [attrs].flatten.map {|a| LDAP.escape(a)}
+          :attributes => attrs && [attrs].flatten.map {|a| LDAP.encode(a)}
         ) { |x| break x }
         return nil if result.kind_of?(Fixnum)
         if attrs.kind_of?(Array) || attrs.nil?
@@ -88,6 +88,12 @@ module Ldapter
       def object_classes
         @object_classes ||= construct_schema_hash('objectClasses',
           Ldapter::Schema::ObjectClass)
+      end
+
+      # Default compare operation, emulated with a search.
+      def compare(dn, attr, value)
+        search(:base => dn, :scope => Ldapter::SCOPES[:base], :filter => "(#{attr}=#{LDAP.escape(value)})") { return true }
+        false
       end
 
       def logger

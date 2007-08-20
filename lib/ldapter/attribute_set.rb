@@ -18,7 +18,7 @@ module Ldapter
 
     def initialize(object, key, target) #:nodoc:
       @object = object
-      @key    = LDAP.escape(key)
+      @key    = LDAP.encode(key)
       @type   = @object.namespace.attribute_type(@key)
       @syntax = @object.namespace.attribute_syntax(@key)
       @target = target
