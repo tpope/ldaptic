@@ -40,15 +40,13 @@ module Ldapter
       end
 
       def create_accessors #:nodoc:
+        to_be_evaled = ""
         (may(false) + must(false)).each do |attr|
           method = attr.to_s.tr_s('-_','_-')
-          class_eval(<<-RUBY,__FILE__,__LINE__)
-          def #{method}(*args,&block)
-            read_attribute('#{attr}',*args,&block)
-          end
-          def #{method}=(value)
-            write_attribute('#{attr}',value)
-          end
+          # class_eval(<<-RUBY,__FILE__,__LINE__)
+          to_be_evaled << <<-RUBY
+          def #{method}(*args,&block) read_attribute('#{attr}',*args,&block) end
+          def #{method}=(value) write_attribute('#{attr}',value) end
           RUBY
           # define_method("#{method}") { |*args| read_attribute(attr,*args) }
           # If we skip this check we can delay the attribute type
@@ -57,6 +55,7 @@ module Ldapter
             # define_method("#{method}="){ |value| write_attribute(attr,value) }
           # end
         end
+        class_eval(to_be_evaled, __FILE__, __LINE__)
       end
 
       # An array of classes that make up the inheritance hierarchy.
@@ -331,7 +330,7 @@ module Ldapter
     end
 
     def aux
-      objectClass.map {|c| namespace.object_class(c)} - self.class.ldap_ancestors
+      self['objectClass'].map {|c| namespace.object_class(c)} - self.class.ldap_ancestors
     end
 
     def must(all = true)
@@ -463,10 +462,19 @@ module Ldapter
 
     alias destroy delete
 
-    def rename(new_rdn, delete_old = false)
+    def rename(new_rdn, delete_old = nil)
       old_rdn = rdn
-      new_rdn = LDAP::RDN(new_rdn)
-      namespace.adapter.rename(dn,new_rdn.to_str,delete_old)
+      if new_rdn.kind_of?(LDAP::DN)
+        new_root = new_rdn.parent
+        new_rdn = new_rdn.rdn
+      else
+        new_rdn = LDAP::RDN(new_rdn)
+        new_root = nil
+      end
+      if delete_old.nil?
+        delete_old = (new_rdn == old_rdn)
+      end
+      namespace.adapter.rename(dn,new_rdn.to_str,delete_old, *[new_root].compact)
       if delete_old
         old_rdn.each do |k,v|
           [@attributes, @original_attributes].each do |hash|
@@ -476,7 +484,11 @@ module Ldapter
       end
       old_dn = LDAP::DN(@dn,self)
       @dn = nil
-      self.dn = old_dn.parent / new_rdn
+      if new_root
+        self.dn = new_root / new_rdn
+      else
+        self.dn = old_dn.parent / new_rdn
+      end
       write_attributes_from_rdn(rdn, @original_attributes)
       if @parent
         children = @parent.instance_variable_get(:@children)

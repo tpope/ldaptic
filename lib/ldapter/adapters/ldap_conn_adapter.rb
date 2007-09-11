@@ -8,12 +8,13 @@ module Ldapter
       def initialize(options)
         require 'ldap'
         if defined?(::LDAP::Conn) && options.kind_of?(::LDAP::Conn)
-          @options = {:adapter => :ldap_conn, :connection => options}
+          options = {:adapter => :ldap_conn, :connection => options}
         else
-          @options = options.dup
+          options = options.dup
         end
-        @options[:version] ||= 3
-        if @connection = @options[:connection]
+        options[:version] ||= 3
+        @options = options
+        if @connection = @options.delete(:connection)
           begin
             host, port = @connection.get_option(::LDAP::LDAP_OPT_HOST_NAME).split(':')
             @options[:host] ||= host
@@ -33,7 +34,8 @@ module Ldapter
           end
           # @connection = @options[:connection] = connection
         end
-        @logger     = @options[:logger]
+        @logger     = @options.delete(:logger)
+        super(@options)
       end
 
       def add(dn, attributes)

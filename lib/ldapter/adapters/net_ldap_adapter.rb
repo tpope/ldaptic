@@ -41,9 +41,9 @@ module Ldapter
             :auth => auth
           )
         end
-        @options    = options
-        @connection = options[:connection]
-        @logger     = options[:logger]
+        @connection = options.delete(:connection)
+        @logger     = options.delete(:logger)
+        super(options)
       end
 
       attr_reader :connection
