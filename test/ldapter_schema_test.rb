@@ -21,7 +21,8 @@ class LdapterSyntaxesTest < Test::Unit::TestCase
     assert_raise(ArgumentError) { name_form.x_lame(1) }
     assert_equal nil, name_form.may
     assert_equal NAME_FORM, name_form.to_s
-    assert name_form.inspect.include?("#<Ldapter::Schema::NameForm 1.2.3 {")
+    assert name_form.inspect.include?("#<Ldapter::Schema::NameForm")
+    assert name_form.inspect.include?("1.2.3")
   end
 
   def test_object_class

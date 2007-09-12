@@ -50,9 +50,32 @@ module Ldapter
 
       def initialize(string)
         @string = string.dup
+        # This StringScanner implementation is much slower.
+        # require 'strscan'
+        # scanner = StringScanner.new(@string)
+        # scanner.skip(/^\s*\(\s*/) or raise ParseError
+        # @oid = scanner.scan(/\w[\w:.-]*\w/)
+        # array = []
+        # loop do
+          # scanner.skip(/\s+/)
+          # if scanner.scan(/'(.*?)'/)
+            # array << scanner[1]
+          # elsif scanner.scan(/\('([\w.{}\s'-]*?)'\)/)
+            # array << scanner[1].split("' '")
+          # elsif scanner.scan(/[A-Z-]+[A-Z]\b/)
+            # array << scanner[0].downcase.tr('-','_').to_sym
+          # elsif scanner.scan(/\((.*?)\)/)
+          # elsif scanner.scan(/\(([\w.{}\s$-]*?)\)/)
+            # array << scanner[1].split('$').map {|s| s.strip}
+          # elsif scanner.scan(/\w[\w.{}-]+/)
+            # array << scanner[0]
+          # elsif scanner.scan(/\)/)
+            # break
+          # else
+            # raise ParseError, scanner.inspect
+          # end
+        # end
         string = @string.dup
-        # TODO: refactor to use a StringScanner
-        # raise string unless string =~ /^\(\s*(\d[.\d]*\d) (.*?)\s*\)\s*$/
         @oid = extract_oid(string)
         array = build_array(string.dup)
         hash = array_to_hash(array)
