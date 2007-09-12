@@ -23,13 +23,9 @@ module Ldapter
         end
       end
 
-      def authenticate(dn, password)
-        super(full_username(dn), password)
-      end
-
       private
 
-      def full_username(username = @options[:username])
+      def full_username(username)
         if username.kind_of?(Hash)
           super
         elsif username && username !~ /[\\=@]/
@@ -37,6 +33,15 @@ module Ldapter
             username = [username,@options[:domain]].join("@")
           elsif @options[:domain]
             username = [@options[:domain],username].join("\\")
+          else
+            conn = new_connection(3268)
+            dn = conn.search2("",0,"(objectClass=*",['defaultNamingContext']).first['defaultNamingContext']
+            if dn
+              domain = LDAP::DN(dn).rdns.map {|rdn| rdn[:dc]}.compact
+              unless domain.empty?
+                username = [username,domain.join(".")].join("@")
+              end
+            end
           end
         end
         username
@@ -44,7 +49,7 @@ module Ldapter
 
       def with_port(port,&block)
         conn = new_connection(port)
-        bind_connection(conn,full_username,@options[:password]) do
+        bind_connection(conn,@options[:username],@options[:password]) do
           with_conn(conn,&block)
         end
       end

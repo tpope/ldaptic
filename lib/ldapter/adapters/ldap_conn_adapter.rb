@@ -22,10 +22,8 @@ module Ldapter
           rescue
           end
         else
-          if @options[:username].kind_of?(Hash)
-            rdn = @options.delete(:username)
-            base = LDAP::DN(default_base_dn || "")
-            @options[:username] = base / rdn
+          if username = @options.delete(:username)
+            @options[:username] = full_username(username)
           end
           if @options[:username]
             connection = new_connection
@@ -115,7 +113,7 @@ module Ldapter
 
       def authenticate(dn, password)
         conn = new_connection
-        bind_connection(conn, dn || "", password)
+        bind_connection(conn, full_username(dn) || "", password)
         true
       rescue ::LDAP::ResultError => exception
         message = exception.message
@@ -186,6 +184,15 @@ module Ldapter
           conn.bind(dn, password, *[@options[:method]].compact, &block)
         else
           block_given? ? yield(conn) : conn
+        end
+      end
+
+      def full_username(username)
+        if username.kind_of?(Hash)
+          base = LDAP::DN(default_base_dn || "")
+          base / username
+        else
+          username
         end
       end
 
