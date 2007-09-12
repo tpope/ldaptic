@@ -32,10 +32,18 @@ module Ldapter
     end
 
     def method_missing(method,*args,&block)
-      if method.to_s =~/(.*)_before_type_cast$/
+      if method.to_s =~ /(.*)_before_type_cast$/
         read_attribute_before_type_cast($1.to_sym,*args,&block)
       else
         super(method,*args,&block)
+      end
+    end
+
+    def respond_to?(method)
+      if method.to_s =~ /(.*)_before_type_cast$/
+        (may + must).include?($1.tr('-_','_-')) || super
+      else
+        super
       end
     end
 
