@@ -25,7 +25,7 @@ module Ldapter
         # Unless the attribute is a single value
         unless namespace.attribute_type(attribute).single_value?
           # Split on newlines to get multiple values
-          value = value.to_str.split("\n") if value.respond_to?(:to_str)
+          value = value.to_str.chomp.split("\n") if value.respond_to?(:to_str)
         end
       end
       super(attribute, value)

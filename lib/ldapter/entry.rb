@@ -160,6 +160,7 @@ module Ldapter
         attribute = attribute[0..0].upcase + attribute[1..-1]
         attribute.gsub!(/([A-Z])([A-Z][a-z])/,'\1 \2')
         attribute.gsub!(/([a-z\d])([A-Z])/,'\1 \2')
+        attribute.gsub!('_','-')
         attribute
       end
 
@@ -201,14 +202,25 @@ module Ldapter
         dn.first if dn.kind_of?(Array)
         self.dn = dn
       end
-      data.each do |key,value|
-        write_attribute(key,value)
-      end
+      merge_attributes(data)
       # @attributes = Ldapter::Entry.clone_ldap_hash(data)
       @attributes['objectClass'] ||= []
       @attributes['objectClass'].insert(0,*self.class.object_classes).uniq!
       common_initializations
       after_build
+    end
+
+    def merge_attributes(data)
+      # If it's a HashWithIndifferentAccess (eg, params in Rails), convert it
+      # to a Hash with symbolic keys.  This causes the underscore/hyphen
+      # translation to take place in write_attribute.  Form helpers in Rails
+      # use a method name to read data,
+      if defined?::HashWithIndifferentAccess && data.is_a?(HashWithIndifferentAccess)
+        data = data.symbolize_keys
+      end
+      data.each do |key,value|
+        write_attribute(key,value)
+      end
     end
 
 
