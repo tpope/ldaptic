@@ -233,7 +233,13 @@ module Ldapter
             klass = const_get("Top")
             entry = klass.instantiate(entry)
           end
-          entry = entry[LDAP.encode(one_attribute)] if one_attribute
+          if one_attribute
+            if entry.respond_to?(:read_attribute)
+              entry = entry.send(:read_attribute,LDAP.encode(one_attribute))
+            else
+              entry = entry[LDAP.encode(one_attribute)]
+            end
+          end
           ary << entry
           block.call(entry) if block_given?
           return entry if first == true

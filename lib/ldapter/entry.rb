@@ -442,12 +442,13 @@ module Ldapter
     # match is found.
     #
     # For a singular String or Symbol argument, that attribute is read with
-    # read_attribute.
+    # read_attribute.  Unlike with method_missing, an array is always returned,
+    # making this variant useful for metaprogramming.
     def [](key)
       if key.kind_of?(Hash) || key =~ /=/
         cached_child(key)
       else
-        read_attribute(key)
+        read_attribute(key, true)
       end
     end
 

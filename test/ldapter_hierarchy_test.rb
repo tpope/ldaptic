@@ -22,8 +22,8 @@ class LdapterHierarchyTest < Test::Unit::TestCase
     assert_equal "Matz", person.cn
     person.sn = "Matsumoto"
     assert_equal "Matsumoto", person.sn
-    assert_equal "Matsumoto", person[:sn]
-    assert_equal "Matsumoto", person['sn']
+    assert_equal %w"Matsumoto", person[:sn]
+    assert_equal %w"Matsumoto", person['sn']
     assert_equal LDAP::DN("cn=Matz,dc=org"), person.dn
     assert_equal "CN=Matz", person.rdn
     inspect = person.inspect
