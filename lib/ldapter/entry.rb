@@ -215,7 +215,7 @@ module Ldapter
       # to a Hash with symbolic keys.  This causes the underscore/hyphen
       # translation to take place in write_attribute.  Form helpers in Rails
       # use a method name to read data,
-      if defined?::HashWithIndifferentAccess && data.is_a?(HashWithIndifferentAccess)
+      if defined?(::HashWithIndifferentAccess) && data.is_a?(HashWithIndifferentAccess)
         data = data.symbolize_keys
       end
       data.each do |key,value|
