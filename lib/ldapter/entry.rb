@@ -371,8 +371,8 @@ module Ldapter
       end
     end
 
-    def respond_to?(method) #:nodoc:
-      super(method) || (may + must + (may+must).map {|x| "#{x}="}).include?(method.to_s.tr('-_','_-'))
+    def respond_to?(method, *args) #:nodoc:
+      super || (may + must + (may+must).map {|x| "#{x}="}).include?(method.to_s.tr('-_','_-'))
     end
 
     # Delegates to +read_attribute+ or +write_attribute+.
