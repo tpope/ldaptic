@@ -9,7 +9,7 @@ module Ldapter
     # Constructs a deep copy of a set of LDAP attributes, normalizing them to
     # arrays as appropriate.  The returned hash has a default value of [].
     def self.clone_ldap_hash(attributes) #:nodoc:
-      hash = Hash.new #{|h,k| h[k] = [] }
+      hash = Hash.new
       attributes.each do |k,v|
         k = k.kind_of?(Symbol) ?  k.to_s.tr('_','-') : k.dup
         hash[k] = Array(v).map {|x| x.dup rescue x}
@@ -43,17 +43,10 @@ module Ldapter
         to_be_evaled = ""
         (may(false) + must(false)).each do |attr|
           method = attr.to_s.tr_s('-_','_-')
-          # class_eval(<<-RUBY,__FILE__,__LINE__)
           to_be_evaled << <<-RUBY
           def #{method}(*args,&block) read_attribute('#{attr}',*args,&block) end
           def #{method}=(value) write_attribute('#{attr}',value) end
           RUBY
-          # define_method("#{method}") { |*args| read_attribute(attr,*args) }
-          # If we skip this check we can delay the attribute type
-          # initialization and improve startup speed.
-          # unless namespace.attribute_type(attr).no_user_modification?
-            # define_method("#{method}="){ |value| write_attribute(attr,value) }
-          # end
         end
         class_eval(to_be_evaled, __FILE__, __LINE__)
       end
@@ -74,10 +67,6 @@ module Ldapter
           ldap_ancestors.reverse.each do |klass|
             core |= Array(klass.may(false))
             nott |= Array(klass.must(false))
-            # if dit = klass.dit_content_rule
-              # memo |= Array(dit.may)
-              # nott |= Array(dit.not)
-            # end
           end
           if dit = dit_content_rule
             core.push(*Array(dit.may))
@@ -95,9 +84,6 @@ module Ldapter
         if all
           core = ldap_ancestors.inject([]) do |memo,klass|
             memo |= Array(klass.must(false))
-            # if dit = klass.dit_content_rule
-              # memo |= Array(dit.must)
-            # end
             memo
           end
           if dit = dit_content_rule
@@ -177,12 +163,9 @@ module Ldapter
         obj.instance_variable_set(:@dn, ::LDAP::DN(Array(attributes.delete('dn')).first,obj))
         obj.instance_variable_set(:@original_attributes, attributes)
         obj.instance_variable_set(:@attributes, {})
-        # obj.instance_variable_set(:@attributes, Ldapter::Entry.clone_ldap_hash(attributes))
-        # obj.instance_variable_set(:@namespace, namespace || @namespace)
         obj.instance_eval { common_initializations; after_load }
         obj
       end
-      # private :instantiate
 
       protected
       def inherited(subclass) #:nodoc:
@@ -203,7 +186,6 @@ module Ldapter
         self.dn = dn
       end
       merge_attributes(data)
-      # @attributes = Ldapter::Entry.clone_ldap_hash(data)
       @attributes['objectClass'] ||= []
       @attributes['objectClass'].insert(0,*self.class.object_classes).uniq!
       common_initializations
@@ -268,7 +250,6 @@ module Ldapter
           end
         end
       end
-      # @attributes.reject {|k,v| v.any? {|x| x =~ /[\000-\037]/}}.inspect
       str << ">"
     end
 
@@ -477,7 +458,6 @@ module Ldapter
         namespace.adapter.add(dn, @attributes)
       end
       @original_attributes = (@original_attributes||{}).merge(@attributes)
-      # @attributes = Ldapter::Entry.clone_ldap_hash(@original_attributes)
       @attributes = {}
       self
     end

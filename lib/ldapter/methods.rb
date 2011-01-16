@@ -104,15 +104,6 @@ module Ldapter
         end
       end
 
-      # Does a search with the given filter and a scope of onelevel.
-      # def *(filter) #:nodoc:
-        # search(:filter => filter, :scope => :onelevel)
-      # end
-      # Does a search with the given filter and a scope of subtree.
-      # def **(filter) #:nodoc:
-        # search(:filter => filter, :scope => :subtree)
-      # end
-
     private
 
       def search_options(options = {})

@@ -97,8 +97,6 @@ module LDAP #:nodoc:
     #   # => [{:cn=>"Thomas, David"},{:dc=>"pragprog"},{:dc=>"com"}]
     def rdns
       rdn_strings.map {|rdn| RDN.new(rdn)}
-    # rescue
-      # raise RuntimeError, "error parsing DN", caller
     end
 
     def rdn_strings
@@ -144,7 +142,6 @@ module LDAP #:nodoc:
         end
       end
       if other.kind_of?(LDAP::DN)
-        # self.to_a.map(&normalize) == other.to_a.map(&normalize)
         self.rdns == other.rdns
       else
         super

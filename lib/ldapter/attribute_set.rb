@@ -8,7 +8,6 @@ module Ldapter
 
     alias proxy_respond_to? respond_to?
     instance_methods.each { |m| undef_method m unless m =~ /(^__|^send$|^funcall$|^equal\?$|^nil\?|^object_id$|^proxy_)/ }
-    # attr_reader :target
 
     # The original attributes before type conversion.  Mutating the result
     # mutates the original attributes.

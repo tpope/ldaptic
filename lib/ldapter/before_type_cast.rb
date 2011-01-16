@@ -20,11 +20,8 @@ module Ldapter
     # This reverses the effect of #read_attribute_before_type_cast.
     def write_attribute(attribute, value)
       syntax = namespace.attribute_syntax(attribute)
-      # unless the syntax is not human readable
       unless syntax && syntax.x_not_human_readable?
-        # Unless the attribute is a single value
         unless namespace.attribute_type(attribute).single_value?
-          # Split on newlines to get multiple values
           value = value.to_str.chomp.split("\n") if value.respond_to?(:to_str)
         end
       end

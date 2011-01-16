@@ -18,7 +18,6 @@ module Ldapter
       def initialize(options)
         super
         if @connection
-          # @connection.unbind rescue nil
           @options[:connection] = @connection = nil
         end
       end

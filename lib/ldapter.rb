@@ -123,7 +123,6 @@ module Ldapter
       # Callback which triggers the magic.
       def inherited(subclass)
         if options = @options
-          # subclass.extend(Methods)
           subclass.class_eval { include Ldapter::Module.new(options) }
         else
           subclass.instance_variable_set(:@adapter, @adapter)

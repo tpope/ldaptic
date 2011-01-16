@@ -30,7 +30,6 @@ module Ldapter
             bind_connection(connection,@options[:username],@options[:password])
             connection.unbind
           end
-          # @connection = @options[:connection] = connection
         end
         @logger     = @options.delete(:logger)
         super(@options)
@@ -98,7 +97,6 @@ module Ldapter
               ctrl = paged_results_control(cookie)
               conn.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[ctrl])
               params = parameters
-              # params = parameters[0,5] + [[ctrl],[],50] + parameters[5..-1]
               result = conn.search2(*params, &block)
               ctrl   = conn.controls.detect {|c| c.oid == ctrl.oid}
               cookie = ctrl && ctrl.decode.last

@@ -50,31 +50,6 @@ module Ldapter
 
       def initialize(string)
         @string = string.dup
-        # This StringScanner implementation is much slower.
-        # require 'strscan'
-        # scanner = StringScanner.new(@string)
-        # scanner.skip(/^\s*\(\s*/) or raise ParseError
-        # @oid = scanner.scan(/\w[\w:.-]*\w/)
-        # array = []
-        # loop do
-          # scanner.skip(/\s+/)
-          # if scanner.scan(/'(.*?)'/)
-            # array << scanner[1]
-          # elsif scanner.scan(/\('([\w.{}\s'-]*?)'\)/)
-            # array << scanner[1].split("' '")
-          # elsif scanner.scan(/[A-Z-]+[A-Z]\b/)
-            # array << scanner[0].downcase.tr('-','_').to_sym
-          # elsif scanner.scan(/\((.*?)\)/)
-          # elsif scanner.scan(/\(([\w.{}\s$-]*?)\)/)
-            # array << scanner[1].split('$').map {|s| s.strip}
-          # elsif scanner.scan(/\w[\w.{}-]+/)
-            # array << scanner[0]
-          # elsif scanner.scan(/\)/)
-            # break
-          # else
-            # raise ParseError, scanner.inspect
-          # end
-        # end
         string = @string.dup
         @oid = extract_oid(string)
         array = build_array(string.dup)
@@ -214,9 +189,7 @@ module Ldapter
         syntax_attribute && syntax_attribute[/\{(.*)\}/,1].to_i
       end
       def syntax_object(*args)
-        Ldapter::SYNTAXES[syntax_oid] # ||
-          # "1.3.6.1.4.1.1466.115.121.1.15" # Directory String
-        # ] #.new(*args)
+        Ldapter::SYNTAXES[syntax_oid]
       end
       alias syntax syntax_object
     end
@@ -233,12 +206,6 @@ module Ldapter
     # desc[riptions].
     class LdapSyntax < AbstractDefinition
       attr_ldap_qdstring   :desc
-      # def parse(value)
-        # object.new.parse(value)
-      # end
-      # def format(value)
-        # object.new.format(value)
-      # end
 
       # Returns the appropriate parser from the Ldapter::Syntaxes module.
       def object
