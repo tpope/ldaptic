@@ -204,6 +204,10 @@ module Ldapter
     alias map! collect!
     alias []= slice!
 
+    def as_json(*args)
+      typecast(@target).as_json(*args)
+    end
+
     #:startdoc:
 
     private
