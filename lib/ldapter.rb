@@ -1,6 +1,4 @@
 #!/usr/bin/ruby
-# $Id$
-# -*- ruby -*- vim:set ft=ruby et sw=2 sts=2:
 
 require 'ldapter/core_ext'
 require 'ldap/dn'
