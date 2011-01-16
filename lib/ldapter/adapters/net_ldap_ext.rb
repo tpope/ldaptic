@@ -2,11 +2,6 @@ require 'net/ldap'
 module Net # :nodoc:
   class LDAP # :nodoc:
 
-    # Erroneously descends from Exception
-    remove_const(:LdapError)
-    class LdapError < RuntimeError # :nodoc:
-    end
-
     class Connection # :nodoc:
       # Monkey-patched in support for new superior.
       def rename args
