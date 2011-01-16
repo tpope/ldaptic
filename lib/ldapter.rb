@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby
 
-require 'ldapter/core_ext'
 require 'ldap/dn'
 require 'ldap/filter'
 require 'ldapter/errors'
