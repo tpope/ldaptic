@@ -291,9 +291,9 @@ module Ldapter
     end
     protected :read_attribute
 
-    # For testing.
-    def read_attributes #:nodoc:
-      @original_attributes.merge(@attributes).keys.inject({}) do |hash,key|
+    # Returns a hash of attributes.
+    def attributes
+      (@original_attributes||{}).merge(@attributes).keys.inject({}) do |hash,key|
         hash[key] = read_attribute(key)
         hash
       end
