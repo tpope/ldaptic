@@ -12,4 +12,5 @@ Gem::Specification.new do |s|
 
   s.add_development_dependency("ruby-ldap", "~> 0.9.0")
   s.add_development_dependency("net-ldap", "~> 0.1.0")
+  s.add_development_dependency("activemodel", "~> 3.0.0")
 end

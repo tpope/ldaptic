@@ -215,11 +215,26 @@ module Ldapter
       self.class.logger
     end
 
+    # Returns +self+. For ActiveModel compatibility.
+    def to_model
+      self
+    end
+
     attr_reader :dn
 
     # The first (relative) component of the distinguished name.
     def rdn
       dn && dn.rdn
+    end
+
+    # Returns an array containing the DN. For ActiveModel compatibility.
+    def to_key
+      [dn] if persisted?
+    end
+
+    # Returns the DN. For ActiveModel compatibility.
+    def to_param
+      dn if persisted?
     end
 
     # The parent object containing this one.
@@ -441,9 +456,14 @@ module Ldapter
       end
     end
 
-    # Has the object been saved before?
+    # Has the object not been saved before?
     def new_entry?
       !@original_attributes
+    end
+
+    # Has the object been saved before?
+    def persisted?
+      !new_entry?
     end
 
     # For new objects, does an LDAP add.  For existing objects, does an LDAP
