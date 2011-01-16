@@ -65,13 +65,15 @@ module Ldapter
       attributes = safe_array(attributes)
       if no_user_modification?
         Ldapter::Errors.raise(TypeError.new("read-only attribute #{@key}"))
-      elsif single_value? && attributes.size > 1
-        Ldapter::Errors.raise(TypeError.new("multiple values for single-valued attribute #{@key}"))
-      elsif mandatory? && attributes.empty?
-        Ldapter::Errors.raise(TypeError.new("value required for attribute #{@key}"))
+      elsif !@object.respond_to?(:valid?) && error = errors_for(attributes).first
+        Ldapter::Errors.raise(TypeError.new("#@key #{error}"))
       end
       @target.replace(attributes)
       self
+    end
+
+    def errors
+      errors_for(@target)
     end
 
     # Replace the entire attribute at the LDAP server immediately.
@@ -205,6 +207,17 @@ module Ldapter
     #:startdoc:
 
     private
+
+    def errors_for(*attributes)
+      attributes = safe_array(attributes)
+      errors = []
+      if single_value? && attributes.size > 1
+        errors << "does not accept multiple values"
+      elsif mandatory? && attributes.empty?
+        errors << "can't be blank"
+      end
+      errors
+    end
 
     def syntax_object
       @syntax && @syntax.object.new(@object)
