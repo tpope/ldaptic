@@ -10,10 +10,6 @@ require 'rake/gempackagetask'
 require 'rake/contrib/sshpublisher'
 require File.join(File.dirname(__FILE__), 'lib', 'ldapter')
 
-PKG_BUILD     = ENV['PKG_BUILD'] ? '.' + ENV['PKG_BUILD'] : ''
-PKG_NAME      = 'ldapter'
-PKG_VERSION   = "0.1" + PKG_BUILD
-
 desc "Default task: test"
 task :default => [ :test ]
 
@@ -37,29 +33,9 @@ task :ri do
   system("rdoc","--ri","lib")
 end
 
-spec = Gem::Specification.new do |s|
-  s.platform = Gem::Platform::RUBY
-  s.name = PKG_NAME
-  s.summary = 'Object Oriented Wrapper around LDAP and Net::LDAP.'
-  s.description = 'Object Oriented Wrapper around LDAP and Net::LDAP.'
-  s.version = PKG_VERSION
-
-  s.author = 'Tim Pope'
-  s.email = 'r*by@tpope.in#o'.tr('*#','uf')
-  s.rubyforge_project = RUBY_FORGE_PROJECT
-
-  s.has_rdoc = true
-  s.require_path = 'lib'
-
-  s.files = [ "Rakefile", "setup.rb" ]
-  s.files = s.files + Dir.glob( "lib/**/*.rb" )
-  s.files = s.files + Dir.glob( "test/**/*" ).reject { |item| item.include?( "\.svn" ) }
-end
-
+spec = eval(File.read(File.join(File.dirname(__FILE__),'ldapter.gemspec')))
 Rake::GemPackageTask.new(spec) do |p|
   p.gem_spec = spec
-  p.need_tar = true
-  p.need_zip = true
 end
 
 begin
