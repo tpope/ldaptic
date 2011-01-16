@@ -13,10 +13,6 @@ require File.join(File.dirname(__FILE__), 'lib', 'ldapter')
 PKG_BUILD     = ENV['PKG_BUILD'] ? '.' + ENV['PKG_BUILD'] : ''
 PKG_NAME      = 'ldapter'
 PKG_VERSION   = "0.1" + PKG_BUILD
-PKG_FILE_NAME   = "#{PKG_NAME}-#{PKG_VERSION}"
-
-RUBY_FORGE_PROJECT = PKG_NAME
-RUBY_FORGE_USER    = "tpope"
 
 desc "Default task: test"
 task :default => [ :test ]
@@ -64,16 +60,6 @@ Rake::GemPackageTask.new(spec) do |p|
   p.gem_spec = spec
   p.need_tar = true
   p.need_zip = true
-end
-
-desc "Publish the gem"
-task :pgem => [:package] do
-  Rake::SshFilePublisher.new("tpope#{'@'}tpope.us", "public_html/gems", "pkg", "#{PKG_FILE_NAME}.gem").upload
-end
-
-desc "Publish the API documentation"
-task :pdoc => [:rdoc] do
-  Rake::SshDirPublisher.new("tpope#{'@'}tpope.us", "public_html/#{PKG_NAME}", "doc").upload
 end
 
 begin
