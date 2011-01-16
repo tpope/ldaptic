@@ -91,7 +91,7 @@ class LDAPDNTest < Test::Unit::TestCase
     assert rdn.include?('Street')
     assert_equal "CN=", rdn[(0..2)]
     assert_equal ["Main","Doe, John"], rdn.values_at(:street, 'CN')
-    assert_raise(IndexError) { rdn.fetch(:uid) }
+    assert_raise(defined?(KeyError) ? KeyError : IndexError) { rdn.fetch(:uid) }
     assert_nothing_raised    { rdn.fetch("STREET") }
   end
 

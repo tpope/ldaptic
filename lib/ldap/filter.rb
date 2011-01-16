@@ -20,6 +20,8 @@ module LDAP #:nodoc:
     when Proc, Method
       LDAP::Filter(if argument.arity > 0
         argument.call(Filter::Spawner)
+      elsif Filter::Spawner.respond_to?(:instance_exec)
+        Filter::Spawner.instance_exec(&argument)
       else
         Filter::Spawner.instance_eval(&argument)
       end)
