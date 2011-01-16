@@ -170,10 +170,15 @@ module Ldapter
         # Some misguided attempts to emulate active record.
         case dn
         when :all   then search({:limit => false}.merge(options))
-        when :first then search(options.merge(:limit => true))
+        when :first then first(options)
         when Array  then dn.map {|d| fetch(d,options)}
         else             fetch(dn,options)
         end
+      end
+
+      # Like #search, but only returns one entry.
+      def first(options = {})
+        search(options.merge(:limit => true))
       end
 
       # This is the core method for LDAP searching.
