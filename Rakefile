@@ -13,20 +13,20 @@ require File.join(File.dirname(__FILE__), 'lib', 'ldapter')
 desc "Default task: test"
 task :default => [ :test ]
 
-Rake::TestTask.new { |t|
+Rake::TestTask.new do |t|
   t.libs << "test"
-  t.test_files = Dir['test/*_test.rb'] + Dir['test/test_*.rb']
+  t.test_files = Dir['test/*_test.rb']
   t.verbose = true
-}
+end
 
-Rake::RDocTask.new { |rdoc|
+Rake::RDocTask.new do |rdoc|
   rdoc.rdoc_dir = 'doc'
   rdoc.rdoc_files.add('lib')
   rdoc.main     = "Ldapter"
   rdoc.title    = "Ldapter"
   rdoc.options << '--inline-source'
   rdoc.options << '-d' if `which dot` =~ /\/dot/
-}
+end
 
 desc "Generate the RDoc documentation for RI"
 task :ri do
@@ -41,7 +41,7 @@ end
 begin
   require 'rcov/rcovtask'
   Rcov::RcovTask.new do |t|
-    t.test_files = Dir['test/*_test.rb'] + Dir['test/test_*.rb']
+    t.test_files = Dir['test/*_test.rb']
     t.verbose = true
     t.rcov_opts << "--exclude '/(ruby-net-ldap|active_support)\\b'"
   end
