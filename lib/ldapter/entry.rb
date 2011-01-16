@@ -139,13 +139,13 @@ module Ldapter
       # Converts an attribute name to a human readable form.  For compatibility
       # with ActiveRecord.
       #
-      #   L::User.human_attribute_name(:givenName) #=> "Given Name"
+      #   L::User.human_attribute_name(:givenName) #=> "Given name"
       def human_attribute_name(attribute)
         attribute = LDAP.encode(attribute)
         attribute = DEFAULT_ATTRIBUTE_NAMES[attribute] || attribute
         attribute = attribute[0..0].upcase + attribute[1..-1]
-        attribute.gsub!(/([A-Z])([A-Z][a-z])/,'\1 \2')
-        attribute.gsub!(/([a-z\d])([A-Z])/,'\1 \2')
+        attribute.gsub!(/([A-Z])([A-Z][a-z])/) { "#$1 #{$2.downcase}" }
+        attribute.gsub!(/([a-z\d])([A-Z])/) { "#$1 #{$2.downcase}" }
         attribute.gsub!('_','-')
         attribute
       end
