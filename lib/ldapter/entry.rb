@@ -124,7 +124,7 @@ module Ldapter
       DEFAULT_ATTRIBUTE_NAMES = {
         'dn'     => 'distinguishedName',
         'cn'     => 'commonName',
-        'l'      => 'LocalityName',
+        'l'      => 'localityName',
         'st'     => 'stateOrProvinceName',
         'o'      => 'organizationName',
         'ou'     => 'organizatonalUnitName',
