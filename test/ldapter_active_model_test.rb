@@ -16,4 +16,9 @@ class LdapterActiveModelTest < Test::Unit::TestCase
     @model = Mock::Person.new
   end
 
+  def test_changes
+    @model.description = 'Bar'
+    assert_equal ['Bar'], @model.changes['description']
+  end
+
 end

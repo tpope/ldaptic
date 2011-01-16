@@ -299,6 +299,15 @@ module Ldapter
       end
     end
 
+    def changes
+      @attributes.reject do |k,v|
+        @original_attributes && @original_attributes[k] == v
+      end.keys.inject({}) do |hash,key|
+        hash[key] = read_attribute(key)
+        hash
+      end
+    end
+
     # Change an attribute.  This is called by #method_missing and
     # <tt>[]=</tt>.  Exceptions are raised if certain server dictated criteria
     # are violated.  For example, a TypeError is raised if you try to assign
