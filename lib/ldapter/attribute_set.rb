@@ -187,6 +187,10 @@ module Ldapter
 
     attr_reader :type
 
+    def to_s
+      @target.join("\n")
+    end
+
     #:stopdoc:
 
     alias <<     add

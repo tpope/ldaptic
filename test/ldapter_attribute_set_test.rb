@@ -41,4 +41,9 @@ class LdapterAttributeSetTest < Test::Unit::TestCase
     assert_equal [], @description
   end
 
+  def test_should_join_on_to_s
+    @description.replace("foo", "bar")
+    assert_equal "foo\nbar", @description.to_s
+  end
+
 end
