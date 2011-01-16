@@ -1,0 +1,14 @@
+= Ldapter
+
+This is an unfinished library I wrote back in 2007 for interfacing with an
+LDAP server in the style of Active Record.  It was mainly a toy to interact
+with my company's Active Directory server, and I lost interest in it when I
+left that job.  Recently, I've become motivated to work on it again, as some
+of the blocking issues I faced are now easily solvable with Active Model.
+
+Ldapter has decent RDoc but currently lacks documentation in tutorial or
+manual format.  Feel free to contribute; otherwise, I plan on getting around
+to it sometime before 1.0.
+
+Also before 1.0, I'd like to replace the name "Ldapter". It's too hard to
+spell.

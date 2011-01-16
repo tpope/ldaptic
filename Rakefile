@@ -22,9 +22,9 @@ end
 
 Rake::RDocTask.new do |rdoc|
   rdoc.rdoc_dir = 'doc'
-  rdoc.rdoc_files.add('lib')
-  rdoc.main     = "Ldapter"
-  rdoc.title    = "Ldapter"
+  rdoc.rdoc_files.add('README.rdoc', 'lib')
+  rdoc.main     = 'README.rdoc'
+  rdoc.title    = 'Ldapter'
   rdoc.options << '--inline-source'
   rdoc.options << '-d' if `which dot` =~ /\/dot/
 end
