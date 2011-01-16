@@ -44,7 +44,7 @@ begin
   Rcov::RcovTask.new do |t|
     t.test_files = Dir['test/*_test.rb']
     t.verbose = true
-    t.rcov_opts << "--exclude '/(ruby-net-ldap|active_support)\\b'"
+    t.rcov_opts << "--exclude '/(net-ldap|active_support)\\b'"
   end
 rescue LoadError
 end

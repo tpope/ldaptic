@@ -23,7 +23,7 @@ module Ldapter
       # * <tt>:ldap_sslconn</tt>: a Ruby/LDAP LDAP::SSLConn connection.
       # * <tt>:active_directory</tt>: A wrapper around Ruby/LDAP which takes
       #   into account some of the idiosyncrasies of Active Directory.
-      # * <tt>:net_ldap</tt>: a ruby-net-ldap Net::LDAP connection.
+      # * <tt>:net_ldap</tt>: a net-ldap Net::LDAP connection.
       #
       # All other options given are passed directly to the adapter.  While
       # different adapters support different options, the following are
