@@ -1,4 +1,4 @@
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
 
 require 'ldapter/core_ext'
 require 'ldap/dn'
