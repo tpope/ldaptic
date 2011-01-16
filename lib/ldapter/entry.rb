@@ -140,7 +140,7 @@ module Ldapter
       # with ActiveRecord.
       #
       #   L::User.human_attribute_name(:givenName) #=> "Given name"
-      def human_attribute_name(attribute)
+      def human_attribute_name(attribute, options={})
         attribute = LDAP.encode(attribute)
         attribute = DEFAULT_ATTRIBUTE_NAMES[attribute] || attribute
         attribute = attribute[0..0].upcase + attribute[1..-1]
