@@ -8,7 +8,8 @@ require 'rake/rdoctask'
 require 'rake/packagetask'
 require 'rake/gempackagetask'
 require 'rake/contrib/sshpublisher'
-require File.join(File.dirname(__FILE__), 'lib', 'ldapter')
+$:.unshift(File.join(File.dirname(__FILE__), 'lib'))
+require 'ldapter'
 
 desc "Default task: test"
 task :default => [ :test ]

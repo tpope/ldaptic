@@ -1,4 +1,4 @@
-require File.join(File.dirname(__FILE__),'test_helper')
+require File.join(File.dirname(File.expand_path(__FILE__)),'test_helper')
 require 'ldapter/schema'
 
 class LdapterSyntaxesTest < Test::Unit::TestCase

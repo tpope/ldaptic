@@ -1,6 +1,6 @@
-require File.join(File.dirname(__FILE__),'test_helper')
+require File.join(File.dirname(File.expand_path(__FILE__)),'test_helper')
 require 'ldapter'
-require File.join(File.dirname(__FILE__),'/mock_adapter')
+require File.join(File.dirname(File.expand_path(__FILE__)),'/mock_adapter')
 
 class LdapterAttributeSetTest < Test::Unit::TestCase
   class Mock < Ldapter::Class(:adapter => :mock)

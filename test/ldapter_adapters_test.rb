@@ -1,4 +1,4 @@
-require File.join(File.dirname(__FILE__),'test_helper')
+require File.join(File.dirname(File.expand_path(__FILE__)),'test_helper')
 require 'ldapter/adapters'
 require 'ldapter/adapters/net_ldap_adapter'
 require 'ldapter/adapters/ldap_conn_adapter'
