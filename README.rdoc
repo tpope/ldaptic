@@ -1,14 +1,46 @@
 = Ldapter
 
 This is an unfinished library I wrote back in 2007 for interfacing with an
-LDAP server in the style of Active Record.  It was mainly a toy to interact
-with my company's Active Directory server, and I lost interest in it when I
-left that job.  Recently, I've become motivated to work on it again, as some
-of the blocking issues I faced are now easily solvable with Active Model.
+LDAP server loosely in the style of Active Record.  It's unique in that it
+creates a class hierarchy (in a namespace your provide) that exactly mirrors
+the class hierarchy on the server.  For example, on a typical server, you'll
+get an +InetOrgPerson+ class which inherits from +OrganizationalPerson+ which
+inherits from +Person+ which inherits from +Top+.  You can reopen any of these
+classes to add additional client side behavior.
 
-Ldapter has decent RDoc but currently lacks documentation in tutorial or
-manual format.  Feel free to contribute; otherwise, I plan on getting around
-to it sometime before 1.0.
+Ldapter started as mainly a tool to interact with my company's Active
+Directory server, and I lost interest in it when I left that job.  Recently,
+I've become motivated to work on it again, as some of the blocking issues I
+faced are now potentially solvable with Active Model.
 
-Also before 1.0, I'd like to replace the name "Ldapter". It's too hard to
-spell.
+== TODO
+
+* Verify everything still works.  The tests take care of much of this, but
+  there are no integration tests for the adapters.  In particular, I have no
+  way to verify the Active Directory adapter still works.
+
+* The test suite (reflecting my fledgling testing abilities from 2007) is more
+  smoke test than BDD.  Perhaps switch to RSpec in the quest to rectify this.
+
+* Right now, violating a server side constraint causes an exception on
+  assignment, but if we are to become Active Model compliant, it would make
+  more sense to issue a validation error on save.
+
+* Active Model validations.  This isn't as simple as it seems, as LDAP
+  attributes are inherently multivalued, and Active Model assumes single
+  values.  Also, does anyone actually need validations above and beyond what
+  the server provides?
+
+* Active Model callbacks, serialization, etc.  This is waiting on the above
+  two.
+
+* Chainable criteria, like Active Record 3.
+  <tt>filter(sn: "Hill").limit(3)</tt>
+
+* The +LDAP+ namespace (which is ostensibly helpers that would be useful
+  outside of Ldapter) should probably be merged into the +Ldapter+ namespace.
+
+* Documentation.  The RDoc is actually pretty solid, but it needs a
+  supplementary manual, along with some examples.
+
+* Pick a better name?  Ldapter has an ambiguous spelling.
