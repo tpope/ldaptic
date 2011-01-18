@@ -4,11 +4,11 @@ module Ldapter
   # joining multiple elements with newlines.  This may prove useful in
   # conjunction with Rails.
   #
-  # class L < Ldapter::Class(:adapter => :ldap_conn)
-  #   class Top
-  #     include Ldapter::BeforeTypeCast
+  #   class L < Ldapter::Class(:adapter => :ldap_conn)
+  #     class Top
+  #       include Ldapter::BeforeTypeCast
+  #     end
   #   end
-  # end
   module BeforeTypeCast
 
     def read_attribute_before_type_cast(attribute)
