@@ -478,6 +478,7 @@ module Ldapter
     # For new objects, does an LDAP add.  For existing objects, does an LDAP
     # modify.  This only sends the modified attributes to the server.
     def save
+      return false if respond_to?(:valid?) && !valid?
       if @original_attributes
         updates = @attributes.reject do |k,v|
           @original_attributes[k] == v
