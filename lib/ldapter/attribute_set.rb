@@ -7,7 +7,11 @@ module Ldapter
   class AttributeSet
 
     alias proxy_respond_to? respond_to?
-    instance_methods.each { |m| undef_method m unless m =~ /(^__|^send$|^funcall$|^equal\?$|^nil\?|^object_id$|^proxy_)/ }
+    instance_methods.each do |m|
+      unless m =~ /(^__|^send$|^funcall$|^equal\?$|^nil\?$|^tap$|^object_id$|^proxy_)/
+        undef_method m
+      end
+    end
 
     # The original attributes before type conversion.  Mutating the result
     # mutates the original attributes.
