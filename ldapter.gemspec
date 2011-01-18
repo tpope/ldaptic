@@ -7,8 +7,8 @@ Gem::Specification.new do |s|
   s.email               = "ruby@tpope.o"+'rg'
   s.homepage            = "http://github.com/tpope/ldapter"
   s.files = [ "Rakefile", "setup.rb", "README.rdoc", "LICENSE" ]
-  s.files = s.files + Dir.glob( "lib/**/*.rb" )
-  s.files = s.files + Dir.glob( "test/**/*" ).reject { |item| item.include?( "\.svn" ) }
+  s.files = s.files + Dir.glob("lib/**/*.rb")
+  s.files = s.files + Dir.glob("test/**/*")
 
   s.add_development_dependency("ruby-ldap", "~> 0.9.0")
   s.add_development_dependency("net-ldap", "~> 0.1.0")
