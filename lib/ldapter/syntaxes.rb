@@ -177,7 +177,7 @@ EOF
     end
 
     %w(ObjectClass AttributeType MatchingRule MatchingRuleUse DITContentRule DITStructureRule NameForm).each do |syntax|
-      class_eval(<<-EOS,__FILE__,__LINE__)
+      class_eval(<<-EOS, __FILE__, __LINE__.succ)
         class #{syntax}Description < Abstract
           def parse(string)
             Ldapter::Schema::#{syntax}.new(string)

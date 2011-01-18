@@ -149,7 +149,7 @@ module Ldapter
     end
 
     %w(delete_at pop shift slice!).each do |method|
-      class_eval(<<-EOS,__FILE__,__LINE__)
+      class_eval(<<-EOS, __FILE__, __LINE__.succ)
         def #{method}(*args,&block)
           array = typecast(@target)
           result = array.#{method}(*args,&block)
@@ -160,7 +160,7 @@ module Ldapter
     end
 
     %w(reverse! sort! uniq!).each do |method|
-      class_eval(<<-EOS,__FILE__,__LINE__)
+      class_eval(<<-EOS, __FILE__, __LINE__.succ)
         def #{method}(*args)
           Ldapter::Errors.raise(NotImplementedError.new)
         end
