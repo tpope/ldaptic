@@ -56,10 +56,12 @@ module Ldapter
       # Returns either the +defaultNamingContext+ (Active Directory specific)
       # or the first of the +namingContexts+ found in the RootDSE.
       def server_default_base_dn
-        result = root_dse(%w(defaultNamingContext namingContexts))
-        if result
-          result["defaultNamingContext"].to_a.first ||
-            result["namingContexts"].to_a.first
+        unless defined?(@naming_contexts)
+          @naming_contexts = root_dse(%w(defaultNamingContext namingContexts))
+        end
+        if @naming_contexts
+          @naming_contexts["defaultNamingContext"].to_a.first ||
+            @naming_contexts["namingContexts"].to_a.first
         end
       end
 
