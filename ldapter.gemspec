@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name                = "ldapter"
-  s.version             = "0.1.1"
+  s.version             = "0.1.2"
 
   s.summary             = 'Object Oriented Wrapper around LDAP and Net::LDAP'
   s.authors             = ["Tim Pope"]
