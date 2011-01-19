@@ -162,7 +162,7 @@ EOF
 
     class DN < Abstract
       def parse(string)
-        ::LDAP::DN(string,@object).freeze
+        ::Ldapter::DN(string,@object).freeze
       end
       def format(dn)
         (dn.respond_to?(:dn) ? dn.dn : dn).to_str

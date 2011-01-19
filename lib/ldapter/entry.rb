@@ -160,7 +160,7 @@ module Ldapter
           logger.warn("ldapter") { "#{self}: invalid object class for #{attributes.inspect}" }
         end
         obj = allocate
-        obj.instance_variable_set(:@dn, ::LDAP::DN(Array(attributes.delete('dn')).first,obj))
+        obj.instance_variable_set(:@dn, ::Ldapter::DN(Array(attributes.delete('dn')).first,obj))
         obj.instance_variable_set(:@original_attributes, attributes)
         obj.instance_variable_set(:@attributes, {})
         obj.instance_eval { common_initializations; after_load }
@@ -497,7 +497,7 @@ module Ldapter
       new = search(:scope => :base, :limit => true)
       @original_attributes = new.instance_variable_get(:@original_attributes)
       @attributes          = new.instance_variable_get(:@attributes)
-      @dn                  = LDAP::DN(new.dn, self)
+      @dn                  = Ldapter::DN(new.dn, self)
       @children            = {}
       self
     end
@@ -515,11 +515,11 @@ module Ldapter
 
     def rename(new_rdn, delete_old = nil)
       old_rdn = rdn
-      if new_rdn.kind_of?(LDAP::DN)
+      if new_rdn.kind_of?(Ldapter::DN)
         new_root = new_rdn.parent
         new_rdn = new_rdn.rdn
       else
-        new_rdn = LDAP::RDN(new_rdn)
+        new_rdn = Ldapter::RDN(new_rdn)
         new_root = nil
       end
       if delete_old.nil?
@@ -533,7 +533,7 @@ module Ldapter
             end
         end
       end
-      old_dn = LDAP::DN(@dn,self)
+      old_dn = Ldapter::DN(@dn,self)
       @dn = nil
       if new_root
         self.dn = new_root / new_rdn
@@ -556,7 +556,7 @@ module Ldapter
       if @dn
         Ldapter::Errors.raise(Ldapter::Error.new("can't reassign DN"))
       end
-      @dn = ::LDAP::DN(value,self)
+      @dn = ::Ldapter::DN(value,self)
       write_attributes_from_rdn(rdn)
     end
 
@@ -580,7 +580,7 @@ module Ldapter
     end
 
     def write_attributes_from_rdn(rdn, attributes = @attributes)
-      LDAP::RDN(rdn).each do |k,v|
+      Ldapter::RDN(rdn).each do |k,v|
         attributes[k.to_s.downcase] ||= []
         attributes[k.to_s.downcase] |= [v]
       end
@@ -588,7 +588,7 @@ module Ldapter
 
     def cached_child(rdn = nil)
       return self if rdn.nil? || rdn.empty?
-      rdn = LDAP::RDN(rdn)
+      rdn = Ldapter::RDN(rdn)
       return @children[rdn] if @children.has_key?(rdn)
       begin
         child = search(:base => rdn, :scope => :base, :limit => true)
@@ -605,12 +605,12 @@ module Ldapter
       if child.dn
         Ldapter::Errors.raise(Ldapter::Error.new("#{child.class} already has a DN of #{child.dn}"))
       end
-      rdn = LDAP::RDN(rdn)
+      rdn = Ldapter::RDN(rdn)
       if cached_child(rdn)
         Ldapter::Errors.raise(Ldapter::Error.new("child #{[rdn,dn].join(",")} already exists"))
       end
       @children[rdn] = child
-      child.dn = LDAP::DN(dn/rdn,child)
+      child.dn = Ldapter::DN(dn/rdn,child)
       child.instance_variable_set(:@parent, self)
     end
 

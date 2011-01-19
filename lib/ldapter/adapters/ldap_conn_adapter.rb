@@ -198,7 +198,7 @@ module Ldapter
 
       def full_username(username)
         if username.kind_of?(Hash)
-          base = LDAP::DN(default_base_dn || "")
+          base = Ldapter::DN(default_base_dn || "")
           base / username
         else
           username

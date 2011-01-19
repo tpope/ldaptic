@@ -51,11 +51,11 @@ module Ldapter
       # Set a new base DN.  Generally, the base DN should be set when the
       # namespace is created and left unchanged.
       def base=(dn)
-        @base = LDAP::DN(dn,self)
+        @base = Ldapter::DN(dn,self)
       end
       # Access the base DN.
       def base
-        @base ||= LDAP::DN(adapter.default_base_dn,self)
+        @base ||= Ldapter::DN(adapter.default_base_dn,self)
       end
       alias dn base
 

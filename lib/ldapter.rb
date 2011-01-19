@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require 'ldap/dn'
+require 'ldapter/dn'
 require 'ldap/filter'
 require 'ldapter/errors'
 require 'ldapter/schema'

@@ -1,15 +1,15 @@
 require 'ldapter/escape'
 
-module LDAP #:nodoc:
+module Ldapter
 
-  # Instantiate a new LDAP::DN object with the arguments given.  Unlike
-  # LDAP::DN.new(dn), this method coerces the first argument to a string,
+  # Instantiate a new Ldapter::DN object with the arguments given.  Unlike
+  # Ldapter::DN.new(dn), this method coerces the first argument to a string,
   # unless it is already a string or an array.  If the first argument is nil,
   # nil is returned.
   def self.DN(dn, source = nil)
     return nil if dn.nil?
     dn = dn.dn if dn.respond_to?(:dn)
-    if dn.kind_of?(::LDAP::DN)
+    if dn.kind_of?(::Ldapter::DN)
       if source
         dn = dn.dup
         dn.source = source
@@ -30,18 +30,18 @@ module LDAP #:nodoc:
   class DN < ::String
 
     OID = '1.3.6.1.4.1.1466.115.121.1.12' unless defined? OID
-    #   LDAP::DN[{:dc => 'com'},{:dc => 'amazon'}]
+    #   Ldapter::DN[{:dc => 'com'},{:dc => 'amazon'}]
     #   => "dc=amazon,dc=com"
     def self.[](*args)
-      LDAP::DN(args.reverse)
+      Ldapter::DN(args.reverse)
     end
 
     attr_accessor :source
 
-    # Create a new LDAP::DN object. dn can either be a string, or an array of
-    # pairs.
+    # Create a new Ldapter::DN object. dn can either be a string, or an array
+    # of pairs.
     #
-    #   LDAP::DN([{:cn=>"Thomas, David"},{:dc=>"pragprog"},{:dc=>"com"}])
+    #   Ldapter::DN([{:cn=>"Thomas, David"},{:dc=>"pragprog"},{:dc=>"com"}])
     #   # => "CN=Thomas\\, David,DC=pragprog,DC=com"
     #
     # The optional second object specifies either an LDAP::Conn object or a
@@ -52,7 +52,7 @@ module LDAP #:nodoc:
       if dn.respond_to?(:to_ary)
         dn = dn.map do |pair|
           if pair.kind_of?(Hash)
-            LDAP::RDN(pair).to_str
+            Ldapter::RDN(pair).to_str
           else
             pair
           end
@@ -93,7 +93,7 @@ module LDAP #:nodoc:
 
     # Convert the DN to an array of RDNs.
     #
-    #   LDAP::DN("cn=Thomas\\, David,dc=pragprog,dc=com").rdns
+    #   Ldapter::DN("cn=Thomas\\, David,dc=pragprog,dc=com").rdns
     #   # => [{:cn=>"Thomas, David"},{:dc=>"pragprog"},{:dc=>"com"}]
     def rdns
       rdn_strings.map {|rdn| RDN.new(rdn)}
@@ -114,7 +114,7 @@ module LDAP #:nodoc:
     end
 
     def parent
-      LDAP::DN(rdns[1..-1], source)
+      Ldapter::DN(rdns[1..-1], source)
     end
 
     def rdn
@@ -122,7 +122,7 @@ module LDAP #:nodoc:
     end
 
     def normalize
-      LDAP::DN(rdns, source)
+      Ldapter::DN(rdns, source)
     end
 
     def normalize!
@@ -133,7 +133,7 @@ module LDAP #:nodoc:
     # RFC4517 - Lightweight Directory Access Protocol (LDAP): Syntaxes and Matching Rules
     def ==(other)
       if other.respond_to?(:dn)
-        other = LDAP::DN(other)
+        other = Ldapter::DN(other)
       end
       normalize = lambda do |hash|
         hash.inject({}) do |m,(k,v)|
@@ -141,7 +141,7 @@ module LDAP #:nodoc:
           m
         end
       end
-      if other.kind_of?(LDAP::DN)
+      if other.kind_of?(Ldapter::DN)
         self.rdns == other.rdns
       else
         super
@@ -154,7 +154,7 @@ module LDAP #:nodoc:
     # the same as String#[]
 
     def [](*args)
-      if args.first.kind_of?(Hash) || args.first.kind_of?(LDAP::DN)
+      if args.first.kind_of?(Hash) || args.first.kind_of?(Ldapter::DN)
         send(:/,*args)
       else
         super
@@ -163,9 +163,9 @@ module LDAP #:nodoc:
 
     # Prepend an RDN to the DN.
     #
-    #   LDAP::DN(:dc => "com")/{:dc => "foobar"} #=> "DC=foobar,DC=com"
+    #   Ldapter::DN(:dc => "com")/{:dc => "foobar"} #=> "DC=foobar,DC=com"
     def /(*args)
-      LDAP::DN(args.reverse + to_a, source)
+      Ldapter::DN(args.reverse + to_a, source)
     end
 
     # With a Hash (and only with a Hash), prepends a RDN to the DN, modifying
@@ -227,7 +227,7 @@ module LDAP #:nodoc:
     end
 
     def /(*args)
-      LDAP::DN([self]).send(:/,*args)
+      Ldapter::DN([self]).send(:/,*args)
     end
 
     def to_rdn
@@ -282,7 +282,7 @@ module LDAP #:nodoc:
       if other.respond_to?(:to_str)
         to_str.casecmp(other.to_str).zero?
       elsif other.kind_of?(Hash)
-        eql?(LDAP::RDN(other)) rescue false
+        eql?(Ldapter::RDN(other)) rescue false
       else
         super
       end
@@ -353,7 +353,7 @@ module LDAP #:nodoc:
       elsif key.respond_to?(:to_sym)
         key.to_sym.to_s
       else
-        raise TypeError, "keys in an LDAP::RDN must be symbols", caller(1)
+        raise TypeError, "keys in an Ldapter::RDN must be symbols", caller(1)
       end.downcase.to_sym
     end
 

@@ -36,7 +36,7 @@ module Ldapter
             conn = new_connection(3268)
             dn = conn.search2("",0,"(objectClass=*",['defaultNamingContext']).first['defaultNamingContext']
             if dn
-              domain = LDAP::DN(dn).rdns.map {|rdn| rdn[:dc]}.compact
+              domain = Ldapter::DN(dn).rdns.map {|rdn| rdn[:dc]}.compact
               unless domain.empty?
                 username = [username,domain.join(".")].join("@")
               end
