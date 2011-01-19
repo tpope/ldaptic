@@ -127,9 +127,9 @@ module Ldapter
         end
 
         if options[:attributes].respond_to?(:to_ary)
-          options[:attributes] = options[:attributes].map {|x| LDAP.encode(x)}
+          options[:attributes] = options[:attributes].map {|x| Ldapter.encode(x)}
         elsif options[:attributes]
-          options[:attributes] = [LDAP.encode(options[:attributes])]
+          options[:attributes] = [Ldapter.encode(options[:attributes])]
         end
         if options[:attributes]
           options[:attributes] |= ["objectClass"]
@@ -231,9 +231,9 @@ module Ldapter
           end
           if one_attribute
             if entry.respond_to?(:read_attribute)
-              entry = entry.send(:read_attribute,LDAP.encode(one_attribute))
+              entry = entry.send(:read_attribute,Ldapter.encode(one_attribute))
             else
-              entry = entry[LDAP.encode(one_attribute)]
+              entry = entry[Ldapter.encode(one_attribute)]
             end
           end
           ary << entry
@@ -279,7 +279,7 @@ module Ldapter
       #
       #   L.attribute_type(:cn).desc #=> "RFC2256: common name..."
       def attribute_type(attribute)
-        adapter.attribute_types[LDAP.encode(attribute)]
+        adapter.attribute_types[Ldapter.encode(attribute)]
       end
       # Returns an Ldapter::Schema::LdapSyntax object encapsulating server
       # provided information about the syntax of an attribute.

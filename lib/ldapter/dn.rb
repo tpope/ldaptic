@@ -1,4 +1,4 @@
-require 'ldap/escape'
+require 'ldapter/escape'
 
 module LDAP #:nodoc:
 
@@ -59,7 +59,7 @@ module LDAP #:nodoc:
         end * ','
       end
       if dn.include?(".") && !dn.include?("=")
-        dn = dn.split(".").map {|dc| "DC=#{LDAP.escape(dc)}"} * ","
+        dn = dn.split(".").map {|dc| "DC=#{Ldapter.escape(dc)}"} * ","
       end
       super(dn)
     end
@@ -100,7 +100,7 @@ module LDAP #:nodoc:
     end
 
     def rdn_strings
-      LDAP.split(self, ?,)
+      Ldapter.split(self, ?,)
     end
 
     undef_method(:to_a) if method_defined?(:to_a)
@@ -137,7 +137,7 @@ module LDAP #:nodoc:
       end
       normalize = lambda do |hash|
         hash.inject({}) do |m,(k,v)|
-          m[LDAP.encode(k).upcase] = v
+          m[Ldapter.encode(k).upcase] = v
           m
         end
       end
@@ -203,8 +203,8 @@ module LDAP #:nodoc:
 
     def self.parse_string(string) #:nodoc:
 
-      LDAP.split(string, ?+).inject({}) do |hash, pair|
-        k,v = LDAP.split(pair, ?=).map {|x| LDAP.unescape(x)}
+      Ldapter.split(string, ?+).inject({}) do |hash, pair|
+        k,v = Ldapter.split(pair, ?=).map {|x| Ldapter.unescape(x)}
         hash[k.downcase.to_sym] = v
         hash
       end
@@ -236,7 +236,7 @@ module LDAP #:nodoc:
 
     def to_str
       collect do |k,v|
-        "#{k.kind_of?(String) ? k : LDAP.encode(k).upcase}=#{LDAP.escape(v)}"
+        "#{k.kind_of?(String) ? k : Ldapter.encode(k).upcase}=#{Ldapter.escape(v)}"
       end.sort.join("+")
     end
 

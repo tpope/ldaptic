@@ -1,4 +1,4 @@
-require 'ldap/escape'
+require 'ldapter/escape'
 require 'ldapter/errors'
 
 module Ldapter
@@ -32,7 +32,7 @@ module Ldapter
           :base => "",
           :scope => Ldapter::SCOPES[:base],
           :filter => "(objectClass=*)",
-          :attributes => attrs && [attrs].flatten.map {|a| LDAP.encode(a)},
+          :attributes => attrs && [attrs].flatten.map {|a| Ldapter.encode(a)},
           :disable_pagination => true
         ) { |x| break x }
         return nil if result.kind_of?(Fixnum)
@@ -95,7 +95,7 @@ module Ldapter
 
       # Default compare operation, emulated with a search.
       def compare(dn, attr, value)
-        search(:base => dn, :scope => Ldapter::SCOPES[:base], :filter => "(#{attr}=#{LDAP.escape(value)})") { return true }
+        search(:base => dn, :scope => Ldapter::SCOPES[:base], :filter => "(#{attr}=#{Ldapter.escape(value)})") { return true }
         false
       end
 

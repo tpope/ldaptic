@@ -1,4 +1,4 @@
-require 'ldap/escape'
+require 'ldapter/escape'
 
 module LDAP #:nodoc:
 
@@ -131,7 +131,7 @@ module LDAP #:nodoc:
       end
       def process
         parameters = @parameters.dup
-        string = @template.gsub('?') { LDAP.escape(parameters.pop) }
+        string = @template.gsub('?') { Ldapter.escape(parameters.pop) }
       end
     end
 
@@ -237,27 +237,27 @@ module LDAP #:nodoc:
         inverse = @inverse
         operator = "=" if operator == "=="
         if v.respond_to?(:to_ary)
-          q = "(|" + v.map {|e| "(#{LDAP.encode(k)}=#{LDAP.escape(e,star)})"}.join + ")"
+          q = "(|" + v.map {|e| "(#{Ldapter.encode(k)}=#{Ldapter.escape(e,star)})"}.join + ")"
         elsif v.kind_of?(Range)
           q = []
           if v.first != -1.0/0
-            q << "(#{LDAP.encode(k)}>=#{LDAP.escape(v.first,star)})"
+            q << "(#{Ldapter.encode(k)}>=#{Ldapter.escape(v.first,star)})"
           end
           if v.last != 1.0/0
             if v.exclude_end?
-              q << "(!(#{LDAP.encode(k)}>=#{LDAP.escape(v.last,star)}))"
+              q << "(!(#{Ldapter.encode(k)}>=#{Ldapter.escape(v.last,star)}))"
             else
-              q << "(#{LDAP.encode(k)}<=#{LDAP.escape(v.last,star)})"
+              q << "(#{Ldapter.encode(k)}<=#{Ldapter.escape(v.last,star)})"
             end
           end
           q = "(&#{q*""})"
         elsif v == true || v == :*
-          q = "(#{LDAP.encode(k)}=*)"
+          q = "(#{Ldapter.encode(k)}=*)"
         elsif !v
-          q = "(#{LDAP.encode(k)}=*)"
+          q = "(#{Ldapter.encode(k)}=*)"
           inverse ^= true
         else
-          q = "(#{LDAP.encode(k)}#{operator}#{LDAP.escape(v,star)})"
+          q = "(#{Ldapter.encode(k)}#{operator}#{Ldapter.escape(v,star)})"
         end
         inverse ? "(!#{q})" : q
       end

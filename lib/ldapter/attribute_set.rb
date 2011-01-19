@@ -1,4 +1,4 @@
-require 'ldap/escape'
+require 'ldapter/escape'
 
 module Ldapter
   # AttributeSet, like the name suggests, represents a set of attributes.  Most
@@ -21,7 +21,7 @@ module Ldapter
 
     def initialize(object, key, target) #:nodoc:
       @object = object
-      @key    = LDAP.encode(key)
+      @key    = Ldapter.encode(key)
       @type   = @object.namespace.attribute_type(@key)
       @syntax = @object.namespace.attribute_syntax(@key)
       @target = target
