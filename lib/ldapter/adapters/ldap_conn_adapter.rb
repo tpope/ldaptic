@@ -95,7 +95,9 @@ module Ldapter
             cookie = ""
             while cookie
               ctrl = paged_results_control(cookie)
-              conn.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[ctrl])
+              if !options[:disable_pagination] && paged_results?
+                conn.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[ctrl])
+              end
               params = parameters
               result = conn.search2(*params, &block)
               ctrl   = conn.controls.detect {|c| c.oid == ctrl.oid}
@@ -130,12 +132,21 @@ module Ldapter
 
       private
 
+      def paged_results?
+        unless @paged_results
+          @paged_results = root_dse('supportedControl').include?(CONTROL_PAGEDRESULTS)
+        end
+        @paged_results
+      end
+
+      # ::LDAP::LDAP_CONTROL_PAGEDRESULTS,
+      CONTROL_PAGEDRESULTS = "1.2.840.113556.1.4.319"
+
       def paged_results_control(cookie = "", size = 126)
         require 'ldap/control'
         # values above 126 cause problems for slapd, as determined by net/ldap
         ::LDAP::Control.new(
-          # ::LDAP::LDAP_CONTROL_PAGEDRESULTS,
-          "1.2.840.113556.1.4.319",
+          CONTROL_PAGEDRESULTS,
           ::LDAP::Control.encode(size,cookie),
           true
         )
