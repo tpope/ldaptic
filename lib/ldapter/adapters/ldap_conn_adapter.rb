@@ -31,7 +31,7 @@ module Ldapter
             connection.unbind
           end
         end
-        @logger     = @options.delete(:logger)
+        @logger = @options.delete(:logger)
         super(@options)
       end
 
