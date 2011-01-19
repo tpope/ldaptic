@@ -133,7 +133,7 @@ module Ldapter
       private
 
       def paged_results?
-        unless @paged_results
+        if @paged_results.nil?
           @paged_results = root_dse('supportedControl').include?(CONTROL_PAGEDRESULTS)
         end
         @paged_results
