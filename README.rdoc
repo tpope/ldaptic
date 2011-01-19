@@ -40,9 +40,6 @@ faced are now potentially solvable with Active Model.
 * Make it possible to put separate classes in separate files with Rails
   autoloading.
 
-* The +LDAP+ namespace (which is ostensibly helpers that would be useful
-  outside of Ldapter) should probably be merged into the +Ldapter+ namespace.
-
 * Documentation.  The RDoc is actually pretty solid, but it needs a
   supplementary manual, along with some examples.
 
