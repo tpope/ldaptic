@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'ldapter/dn'
-require 'ldap/filter'
+require 'ldapter/filter'
 require 'ldapter/errors'
 require 'ldapter/schema'
 require 'ldapter/syntaxes'

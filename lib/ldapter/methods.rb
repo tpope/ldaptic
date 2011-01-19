@@ -123,7 +123,7 @@ module Ldapter
 
         options[:filter] ||= "(objectClass=*)"
         if [Hash, Proc, Method, Symbol, Array].include?(options[:filter].class)
-          options[:filter] = LDAP::Filter(options[:filter])
+          options[:filter] = Ldapter::Filter(options[:filter])
         end
 
         if options[:attributes].respond_to?(:to_ary)
@@ -190,7 +190,7 @@ module Ldapter
       #   the base), and <tt>:subtree</tt> (the base, children, and all
       #   descendants).  The default is <tt>:subtree</tt>.
       # * <tt>:filter</tt>: A standard LDAP filter.  This can be a string, an
-      #   LDAP::Filter object, or parameters for LDAP::Filter().
+      #   Ldapter::Filter object, or parameters for Ldapter::Filter().
       # * <tt>:limit</tt>: Maximum number of results to return.  If the value
       #   is a literal +true+, the first item is returned directly (or +nil+ if
       #   nothing was found).  For a literal +false+, an array always returned
