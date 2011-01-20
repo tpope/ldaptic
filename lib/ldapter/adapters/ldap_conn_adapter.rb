@@ -134,7 +134,7 @@ module Ldapter
 
       def paged_results?
         if @paged_results.nil?
-          @paged_results = root_dse('supportedControl').include?(CONTROL_PAGEDRESULTS)
+          @paged_results = root_dse('supportedControl').to_a.include?(CONTROL_PAGEDRESULTS)
         end
         @paged_results
       end
