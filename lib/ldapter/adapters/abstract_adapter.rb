@@ -44,8 +44,9 @@ module Ldapter
       end
 
       def schema(attrs = nil)
+        @subschema_dn ||= root_dse(['subschemaSubentry'])['subschemaSubentry'].first
         search(
-          :base => root_dse(['subschemaSubentry'])['subschemaSubentry'].first,
+          :base => @subschema_dn,
           :scope => Ldapter::SCOPES[:base],
           :filter => "(objectClass=subSchema)",
           :attributes => attrs
