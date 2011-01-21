@@ -22,6 +22,18 @@ module Ldapter
         end
       end
 
+      # Returns either the +defaultNamingContext+ (Active Directory specific)
+      # or the first of the +namingContexts+ found in the RootDSE.
+      def server_default_base_dn
+        unless defined?(@naming_contexts)
+          @naming_contexts = root_dse(%w(defaultNamingContext namingContexts))
+        end
+        if @naming_contexts
+          @naming_contexts["defaultNamingContext"].to_a.first ||
+            @naming_contexts["namingContexts"].to_a.first
+        end
+      end
+
       private
 
       def full_username(username)
