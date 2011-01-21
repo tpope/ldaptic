@@ -103,13 +103,13 @@ module Ldapter
       Ldapter.split(self, ?,)
     end
 
-    undef_method(:to_a) if method_defined?(:to_a)
-    # ensure Array() doesn't call to_a by trapping it here
-    def method_missing(method,*args,&block)
-      if method.to_sym == :to_a
-        rdns(*args,&block)
+    def to_a
+      # This is really horrid, but the last hack broke.  Consider abandoning
+      # this method entirely.
+      if caller.first =~ /:in `Array'$/
+        [self]
       else
-        super(method,*args,&block)
+        rdns
       end
     end
 

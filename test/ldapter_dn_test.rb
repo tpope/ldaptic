@@ -58,7 +58,7 @@ class LdapterDNTest < Test::Unit::TestCase
     dn = Ldapter::DN("a=b")
     assert_equal ?a, dn[0]
     assert_equal dn, "a=b"
-    assert_equal [dn], Array(dn)
+    assert_kind_of String, Array(dn).first
     assert_raise(NoMethodError) { dn.unknown_method }
     assert dn.include?("=")
     assert_equal "a=bc", (Ldapter::DN("a=b") << "c")
