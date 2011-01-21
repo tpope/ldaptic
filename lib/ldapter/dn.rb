@@ -165,7 +165,7 @@ module Ldapter
     #
     #   Ldapter::DN(:dc => "com")/{:dc => "foobar"} #=> "DC=foobar,DC=com"
     def /(*args)
-      Ldapter::DN(args.reverse + to_a, source)
+      Ldapter::DN(args.reverse + rdns, source)
     end
 
     # With a Hash (and only with a Hash), prepends a RDN to the DN, modifying
