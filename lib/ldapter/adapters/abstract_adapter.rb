@@ -48,7 +48,7 @@ module Ldapter
         search(
           :base => @subschema_dn,
           :scope => Ldapter::SCOPES[:base],
-          :filter => "(objectClass=subSchema)",
+          :filter => "(objectClass=subschema)",
           :attributes => attrs
         ) { |x| return x }
         nil
