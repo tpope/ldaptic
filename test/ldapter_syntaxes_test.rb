@@ -25,4 +25,9 @@ class LdapterSyntaxesTest < Test::Unit::TestCase
     assert_equal 1601, Ldapter::Syntaxes::GeneralizedTime.parse("16010101000001.0Z").year
     assert_equal "20000101123456.000000Z", Ldapter::Syntaxes::GeneralizedTime.format(Time.utc(2000,1,1,12,34,56))
   end
+
+  def test_delivery_method
+    assert_not_nil Ldapter::Syntaxes::DeliveryMethod.new.error('')
+  end
+
 end

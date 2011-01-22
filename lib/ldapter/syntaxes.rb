@@ -208,6 +208,13 @@ EOF
 
     end
 
+    class DeliveryMethod < DirectoryString
+      VALUES = %w(any mhs physical telex teletex g3fax g4fax ia5 videotex telephone)
+      def error(value)
+        'is invalid' unless VALUES.include?(value)
+      end
+    end
+
     %w(ObjectClass AttributeType MatchingRule MatchingRuleUse DITContentRule DITStructureRule NameForm).each do |syntax|
       class_eval(<<-EOS, __FILE__, __LINE__.succ)
         class #{syntax}Description < Abstract
