@@ -33,7 +33,7 @@ module Ldapter
   #   @my_company::User.class_eval do
   #     alias login sAMAccountName
   #   end
-  def self.Object(options, &block)
+  def self.Object(options={}, &block)
     base = ::Module.new do
       include Ldapter::Module(options)
     end
@@ -57,7 +57,7 @@ module Ldapter
   #
   #   me = MyCompany.search(:filter => {:cn => "Name, My"}).first
   #   puts me.login
-  def self.Module(options)
+  def self.Module(options={})
     Ldapter::Module.new(options)
   end
 
@@ -89,7 +89,7 @@ module Ldapter
   #
   # Options given to this method are relayed to Ldapter::Adapters.for.  The
   # documentation for this method should be consulted for further information.
-  def self.Class(options)
+  def self.Class(options={})
     klass = ::Class.new(Class)
     klass.instance_variable_set(:@options, Ldapter::Adapters.for(options))
     klass
@@ -102,7 +102,7 @@ module Ldapter
   # An instance of this subclass of ::Module is returned by the Ldapter::Module
   # method.
   class Module < ::Module #:nodoc:
-    def initialize(options)
+    def initialize(options={})
       super()
       @options = options
     end
