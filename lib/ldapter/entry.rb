@@ -310,9 +310,7 @@ module Ldapter
     end
 
     # Change an attribute.  This is called by #method_missing and
-    # <tt>[]=</tt>.  Exceptions are raised if certain server dictated criteria
-    # are violated.  For example, a TypeError is raised if you try to assign
-    # multiple values to an attribute marked <tt>SINGLE-VALUE</tt>.
+    # <tt>[]=</tt>.
     #
     # Changes are not committed to the server until #save is called.
     def write_attribute(key, values)
