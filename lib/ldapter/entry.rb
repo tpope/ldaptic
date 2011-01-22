@@ -466,14 +466,9 @@ module Ldapter
       end
     end
 
-    # Has the object not been saved before?
-    def new_entry?
-      !@original_attributes
-    end
-
     # Has the object been saved before?
     def persisted?
-      !new_entry?
+      !!@original_attributes
     end
 
     def errors
