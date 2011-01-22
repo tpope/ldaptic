@@ -22,7 +22,7 @@ module Ldapter
       syntax = namespace.attribute_syntax(attribute)
       unless syntax && syntax.x_not_human_readable?
         unless namespace.attribute_type(attribute).single_value?
-          value = value.to_str.chomp.split("\n") if value.respond_to?(:to_str)
+          value = value.to_str.chomp.split(/\r?\n/) if value.respond_to?(:to_str)
         end
       end
       super(attribute, value)
