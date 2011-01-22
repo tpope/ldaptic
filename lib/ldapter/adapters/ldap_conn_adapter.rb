@@ -27,7 +27,7 @@ module Ldapter
           end
           if @options[:username]
             connection = new_connection
-            bind_connection(connection,@options[:username],@options[:password])
+            bind_connection(connection, @options[:username], @options[:password])
             connection.unbind
           end
         end
@@ -43,7 +43,7 @@ module Ldapter
 
       def modify(dn, attributes)
         if attributes.kind_of?(Array)
-          attributes = attributes.map do |(op,key,vals)|
+          attributes = attributes.map do |(op, key, vals)|
             LDAP::Mod.new(mod(op) | LDAP::LDAP_MOD_BVALUES, key, vals)
           end
         end
@@ -68,7 +68,7 @@ module Ldapter
               Ldapter::Errors.raise(NotImplementedError.new("rename unsupported"))
             end
           else
-            conn.modrdn(dn,new_rdn, delete_old)
+            conn.modrdn(dn, new_rdn, delete_old)
           end
         end
       end
@@ -90,13 +90,13 @@ module Ldapter
             if options[:limit]
               # Some servers don't support this option.  If that happens, the
               # higher level interface will simulate it.
-              conn.set_option(LDAP::LDAP_OPT_SIZELIMIT,options[:limit]) rescue nil
+              conn.set_option(LDAP::LDAP_OPT_SIZELIMIT, options[:limit]) rescue nil
             end
             cookie = ""
             while cookie
               ctrl = paged_results_control(cookie)
               if !options[:disable_pagination] && paged_results?
-                conn.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[ctrl])
+                conn.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS, [ctrl])
               end
               params = parameters
               result = conn.search2(*params, &block)
@@ -105,8 +105,8 @@ module Ldapter
               cookie = nil if cookie.to_s.empty?
             end
           ensure
-            conn.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS,[]) rescue nil
-            conn.set_option(LDAP::LDAP_OPT_SIZELIMIT,0) rescue nil
+            conn.set_option(LDAP::LDAP_OPT_SERVER_CONTROLS, []) rescue nil
+            conn.set_option(LDAP::LDAP_OPT_SIZELIMIT, 0) rescue nil
           end
         end
       end
@@ -147,7 +147,7 @@ module Ldapter
         # values above 126 cause problems for slapd, as determined by net/ldap
         ::LDAP::Control.new(
           CONTROL_PAGEDRESULTS,
-          ::LDAP::Control.encode(size,cookie),
+          ::LDAP::Control.encode(size, cookie),
           true
         )
       end
@@ -207,18 +207,18 @@ module Ldapter
 
       def with_reader(&block)
         if @connection
-          with_conn(@connection,&block)
+          with_conn(@connection, &block)
         else
           conn = new_connection
-          bind_connection(conn,@options[:username],@options[:password]) do
-            with_conn(conn,&block)
+          bind_connection(conn, @options[:username], @options[:password]) do
+            with_conn(conn, &block)
           end
         end
       end
 
       alias with_writer with_reader
 
-      def with_conn(conn,&block)
+      def with_conn(conn, &block)
         err, message, result = 0, nil, nil
         begin
           result = yield conn
@@ -240,7 +240,7 @@ module Ldapter
       def error_for_message(msg)
         unless @errors
           with_reader do |conn|
-            @errors = (0..127).inject({}) do |h,err|
+            @errors = (0..127).inject({}) do |h, err|
               h[conn.err2string(err)] = err; h
             end
           end

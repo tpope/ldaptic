@@ -13,7 +13,7 @@ module Ldapter
       def build_hierarchy
         klasses = adapter.object_classes.values
         klasses.uniq!
-        hash = klasses.inject(Hash.new {|h,k|h[k]=[]}) do |hash,k|
+        hash = klasses.inject(Hash.new { |h, k| h[k] = [] }) do |hash, k|
           hash[k.sup] << k; hash
         end
         @object_classes = {}
@@ -21,7 +21,7 @@ module Ldapter
         nil
       end
 
-      def add_constants(klasses,superclass)
+      def add_constants(klasses, superclass)
         (superclass.names.empty? ? [nil] : superclass.names).each do |myname|
           klasses[myname].each do |sub|
             klass = ::Class.new(superclass)
@@ -32,9 +32,9 @@ module Ldapter
               klass.instance_variable_set("@#{prop}", sub.send("#{prop}?"))
             end
             klass.instance_variable_set(:@namespace, self)
-            @object_classes[sub.oid.tr('-','_').downcase] = klass
+            @object_classes[sub.oid.tr('-', '_').downcase] = klass
             Array(sub.name).each do |name|
-              name = name.tr('-','_')
+              name = name.tr('-', '_')
               name[0,1] = name[0,1].upcase
               @object_classes[name.downcase] = klass
               const_set(name, klass)
@@ -51,11 +51,11 @@ module Ldapter
       # Set a new base DN.  Generally, the base DN should be set when the
       # namespace is created and left unchanged.
       def base=(dn)
-        @base = Ldapter::DN(dn,self)
+        @base = Ldapter::DN(dn, self)
       end
       # Access the base DN.
       def base
-        @base ||= Ldapter::DN(adapter.default_base_dn,self)
+        @base ||= Ldapter::DN(adapter.default_base_dn, self)
       end
       alias dn base
 
@@ -70,7 +70,7 @@ module Ldapter
       #
       #   (L/{:cn => "Matz"}).dn #=> "CN=Matz,DC=ruby-lang,DC=org"
       def /(*args)
-        find(base.send(:/,*args))
+        find(base.send(:/, *args))
       end
 
       # Like #/, only the search results are cached.  This method is
@@ -92,7 +92,7 @@ module Ldapter
       #
       #   MyCompany[:cn=>"New Employee"] = MyCompany::User.new
       def []=(*args) #:nodoc:
-        self[].send(:[]=,*args)
+        self[].send(:[]=, *args)
       end
 
       # Clears the cache of children.  This cache is automatically populated
@@ -141,7 +141,7 @@ module Ldapter
         options
       end
 
-      def find_one(dn,options)
+      def find_one(dn, options)
         objects = search(options.merge(:base => dn, :scope => :base, :limit => false))
         unless objects.size == 1
           # For a missing DN, the error will be raised automatically.  If the
@@ -171,8 +171,8 @@ module Ldapter
         case dn
         when :all   then search({:limit => false}.merge(options))
         when :first then first(options)
-        when Array  then dn.map {|d| fetch(d,options)}
-        else             fetch(dn,options)
+        when Array  then dn.map {|d| fetch(d, options)}
+        else             fetch(dn, options)
         end
       end
 
@@ -213,7 +213,7 @@ module Ldapter
       #   MyCompany.search(:attribute => :givenName, :instantiate => false)
       #   # Returns the first object found.
       #   MyCompany.search(:limit => true)
-      def search(options = {},&block)
+      def search(options = {}, &block)
         ary = []
         one_attribute = options[:attributes]
         if one_attribute.respond_to?(:to_ary)
@@ -231,7 +231,7 @@ module Ldapter
           end
           if one_attribute
             if entry.respond_to?(:read_attribute)
-              entry = entry.send(:read_attribute,Ldapter.encode(one_attribute))
+              entry = entry.send(:read_attribute, Ldapter.encode(one_attribute))
             else
               entry = entry[Ldapter.encode(one_attribute)]
             end
@@ -271,7 +271,7 @@ module Ldapter
       #
       #   L.object_class("top") #=> L::Top
       def object_class(klass)
-        @object_classes[klass.to_s.tr('-','_').downcase]
+        @object_classes[klass.to_s.tr('-', '_').downcase]
       end
 
       # Returns an Ldapter::Schema::AttibuteType object encapsulating server

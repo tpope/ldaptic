@@ -8,10 +8,10 @@ module Ldapter
   def self.encode(string)
     if string.respond_to?(:utc)
       string.utc.strftime("%Y%m%d%H%M%S.0Z")
-    elsif [true,false].include?(string)
+    elsif [true, false].include?(string)
       string.to_s.upcase
     elsif string.kind_of?(Symbol)
-      string.to_s.gsub('_','-')
+      string.to_s.gsub('_', '-')
     elsif string.respond_to?(:dn)
       string.dn.dup
     else
@@ -30,13 +30,13 @@ module Ldapter
     else
       string = Ldapter.encode(string)
     end
-    enc = lambda {|l| "\\%02X" % l.ord }
-    string.gsub!(/[()\\\0-\37"+,;<>]/,&enc)
-    string.gsub!(/\A[# ]| \Z/,&enc)
+    enc = lambda { |l| "\\%02X" % l.ord }
+    string.gsub!(/[()\\\0-\37"+,;<>]/, &enc)
+    string.gsub!(/\A[# ]| \Z/, &enc)
     if allow_asterisks
-      string.gsub!('**','\\\\2A')
+      string.gsub!('**', '\\\\2A')
     else
-      string.gsub!('*','\\\\2A')
+      string.gsub!('*', '\\\\2A')
     end
     string
   end

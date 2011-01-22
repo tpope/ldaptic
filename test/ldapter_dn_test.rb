@@ -65,7 +65,7 @@ class LdapterDNTest < Test::Unit::TestCase
   end
 
   def test_should_search
-    dn = Ldapter::DN("a=b",FakeSearch.new)
+    dn = Ldapter::DN("a=b", FakeSearch.new)
     assert_equal "a=b", dn.find[:base]
     dn = Ldapter::DN(dn, FakeSearch2.new)
     assert_equal "a=b", dn.find.first
@@ -90,7 +90,7 @@ class LdapterDNTest < Test::Unit::TestCase
     assert rdn.has_key?(:street)
     assert rdn.include?('Street')
     assert_equal "CN=", rdn[(0..2)]
-    assert_equal ["Main","Doe, John"], rdn.values_at(:street, 'CN')
+    assert_equal ["Main", "Doe, John"], rdn.values_at(:street, 'CN')
     error_class = {}.fetch(1) rescue $!.class
     assert_raise(error_class) { rdn.fetch(:uid) }
     assert_nothing_raised     { rdn.fetch("STREET") }

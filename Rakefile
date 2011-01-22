@@ -31,10 +31,10 @@ end
 
 desc "Generate the RDoc documentation for RI"
 task :ri do
-  system("rdoc","--ri","lib")
+  system("rdoc", "--ri", "lib")
 end
 
-spec = eval(File.read(File.join(File.dirname(__FILE__),'ldapter.gemspec')))
+spec = eval(File.read(File.join(File.dirname(__FILE__), 'ldapter.gemspec')))
 Rake::GemPackageTask.new(spec) do |p|
   p.gem_spec = spec
 end

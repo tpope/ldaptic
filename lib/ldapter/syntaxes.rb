@@ -73,8 +73,8 @@ EOF
       hash[:x_not_human_readable] = "TRUE"
     end
     syntax = Ldapter::Schema::LdapSyntax.allocate
-    syntax.instance_variable_set(:@oid,oid)
-    syntax.instance_variable_set(:@attributes,hash)
+    syntax.instance_variable_set(:@oid, oid)
+    syntax.instance_variable_set(:@attributes, hash)
     SYNTAXES[oid] = syntax
   end
 
@@ -103,30 +103,39 @@ EOF
       def initialize(object = nil)
         @object = object
       end
+
       def format(value)
         value.to_s
       end
+
       def self.format(object)
         new.format(object)
       end
+
       def self.parse(string)
         new.parse(string)
       end
+
     end
 
     class DirectoryString < Abstract
+
       def parse(string)
         string
       end
+
       def format(string)
         string.to_str
       end
+
     end
 
     class Boolean < Abstract
+
       def parse(string)
         return string == "TRUE"
       end
+
       def format(boolean)
         case boolean
         when "TRUE",  true  then "TRUE"
@@ -134,46 +143,61 @@ EOF
         else Ldapter::Errors.raise(TypeError.new("boolean expected"))
         end
       end
+
     end
 
     class INTEGER < Abstract
+
       def parse(string)
         return string.to_i
       end
+
       def format(integer)
         Integer(integer).to_s
       end
+
     end
 
     # LDAP timestamps look like <tt>YYYYmmddHHMMSS.uuuuuuZ</tt>.
     class GeneralizedTime < Abstract
+
       def parse(string)
         require 'time'
-        parseable = string.sub(/(\.\d+)(\w)$/,'\\2')
+        parseable = string.sub(/(\.\d+)(\w)$/, '\\2')
         Time.parse(parseable)+$1.to_f
       rescue ArgumentError
         require 'date'
         DateTime.parse(parseable)
       end
+
       def format(time)
-        time.utc.strftime("%Y%m%d%H%M%S")+".%06dZ" % [time.usec/100_000]
+        time.utc.strftime("%Y%m%d%H%M%S") + ".%06dZ" % [time.usec/100_000]
       end
+
     end
 
     class DN < Abstract
+
       def parse(string)
-        ::Ldapter::DN(string,@object).freeze
+        ::Ldapter::DN(string, @object).freeze
       end
+
       def format(dn)
         (dn.respond_to?(:dn) ? dn.dn : dn).to_str
       end
+
     end
 
     class LDAPSyntaxDescription < Abstract
+
       def parse(string)
         Ldapter::Schema::LdapSyntax.new(string)
       end
-      def format(obj) obj.to_s end
+
+      def format(obj)
+        obj.to_s
+      end
+
     end
 
     %w(ObjectClass AttributeType MatchingRule MatchingRuleUse DITContentRule DITStructureRule NameForm).each do |syntax|
@@ -193,7 +217,7 @@ EOF
   {
     "1.2.840.113556.1.4.906" => "1.3.6.1.4.1.1466.115.121.1.27",
     "1.2.840.113556.1.4.907" => "1.3.6.1.4.1.1466.115.121.1.5"
-  }.each do |k,v|
+  }.each do |k, v|
     SYNTAXES[k] = SYNTAXES[v]
   end
 

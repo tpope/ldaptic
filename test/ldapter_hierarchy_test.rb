@@ -63,7 +63,7 @@ class LdapterHierarchyTest < Test::Unit::TestCase
     assert !result.new_entry?
     assert_equal "CN=Matz,DC=org", result.dn
     assert_equal 0, result.scope
-    result = Mock.find(["CN=Matz,DC=org","CN=Why,DC=org"])
+    result = Mock.find(["CN=Matz,DC=org", "CN=Why,DC=org"])
     assert_equal 2, result.size
   end
 
@@ -83,7 +83,7 @@ class LdapterHierarchyTest < Test::Unit::TestCase
   end
 
   def test_schema
-    assert Mock.schema([:objectClass,:scope]).scope
+    assert Mock.schema([:objectClass, :scope]).scope
   end
 
 end

@@ -33,8 +33,8 @@ module Ldapter
     end
 
     # Delegates to an array.
-    def method_missing(method,*args,&block)
-      typecast(@target).send(method,*args,&block)
+    def method_missing(method, *args, &block)
+      typecast(@target).send(method, *args, &block)
     end
 
     def ===(object) #:nodoc:
@@ -100,7 +100,7 @@ module Ldapter
     #
     # Two passes are made to find each element, one case sensitive and one
     # ignoring case, before giving up.
-    def delete(*attributes,&block)
+    def delete(*attributes, &block)
       return clear if attributes.flatten.empty?
       dest = @target.dup
       ret = []
@@ -139,7 +139,7 @@ module Ldapter
     end
 
     def unshift(*values) #:nodoc:
-      insert(0,*values)
+      insert(0, *values)
     end
 
     def reject!(&block) #:nodoc:
@@ -154,9 +154,9 @@ module Ldapter
 
     %w(delete_at pop shift slice!).each do |method|
       class_eval(<<-EOS, __FILE__, __LINE__.succ)
-        def #{method}(*args,&block)
+        def #{method}(*args, &block)
           array = typecast(@target)
-          result = array.#{method}(*args,&block)
+          result = array.#{method}(*args, &block)
           replace(array)
           result
         end

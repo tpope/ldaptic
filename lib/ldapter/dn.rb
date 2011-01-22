@@ -21,7 +21,7 @@ module Ldapter
     elsif ! dn.respond_to?(:to_ary)
       dn = dn.to_s
     end
-    DN.new(dn,source)
+    DN.new(dn, source)
   end
 
   # RFC4512 - Lightweight Directory Access Protocol (LDAP): Directory Information Models
@@ -30,7 +30,7 @@ module Ldapter
   class DN < ::String
 
     OID = '1.3.6.1.4.1.1466.115.121.1.12' unless defined? OID
-    #   Ldapter::DN[{:dc => 'com'},{:dc => 'amazon'}]
+    #   Ldapter::DN[{:dc => 'com'}, {:dc => 'amazon'}]
     #   => "dc=amazon,dc=com"
     def self.[](*args)
       Ldapter::DN(args.reverse)
@@ -41,12 +41,12 @@ module Ldapter
     # Create a new Ldapter::DN object. dn can either be a string, or an array
     # of pairs.
     #
-    #   Ldapter::DN([{:cn=>"Thomas, David"},{:dc=>"pragprog"},{:dc=>"com"}])
+    #   Ldapter::DN([{:cn=>"Thomas, David"}, {:dc=>"pragprog"}, {:dc=>"com"}])
     #   # => "CN=Thomas\\, David,DC=pragprog,DC=com"
     #
     # The optional second object specifies either an LDAP::Conn object or a
     # Ldapter object to be used to find the DN with #find.
-    def initialize(dn,source = nil)
+    def initialize(dn, source = nil)
       @source = source
       dn = dn.dn if dn.respond_to?(:dn)
       if dn.respond_to?(:to_ary)
@@ -136,7 +136,7 @@ module Ldapter
         other = Ldapter::DN(other)
       end
       normalize = lambda do |hash|
-        hash.inject({}) do |m,(k,v)|
+        hash.inject({}) do |m, (k, v)|
           m[Ldapter.encode(k).upcase] = v
           m
         end
@@ -155,7 +155,7 @@ module Ldapter
 
     def [](*args)
       if args.first.kind_of?(Hash) || args.first.kind_of?(Ldapter::DN)
-        send(:/,*args)
+        send(:/, *args)
       else
         super
       end
@@ -204,7 +204,7 @@ module Ldapter
     def self.parse_string(string) #:nodoc:
 
       Ldapter.split(string, ?+).inject({}) do |hash, pair|
-        k,v = Ldapter.split(pair, ?=).map {|x| Ldapter.unescape(x)}
+        k, v = Ldapter.split(pair, ?=).map {|x| Ldapter.unescape(x)}
         hash[k.downcase.to_sym] = v
         hash
       end
@@ -227,7 +227,7 @@ module Ldapter
     end
 
     def /(*args)
-      Ldapter::DN([self]).send(:/,*args)
+      Ldapter::DN([self]).send(:/, *args)
     end
 
     def to_rdn
@@ -235,7 +235,7 @@ module Ldapter
     end
 
     def to_str
-      collect do |k,v|
+      collect do |k, v|
         "#{k.kind_of?(String) ? k : Ldapter.encode(k).upcase}=#{Ldapter.escape(v)}"
       end.sort.join("+")
     end
@@ -291,7 +291,7 @@ module Ldapter
     alias == eql?
 
     def clone
-      inject(RDN.new) do |h,(k,v)|
+      inject(RDN.new) do |h, (k, v)|
         h[k] = v.dup; h
       end
     end

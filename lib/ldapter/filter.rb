@@ -40,12 +40,12 @@ module Ldapter
 
       # Combine two filters with a logical AND.
       def &(other)
-        And.new(self,other)
+        And.new(self, other)
       end
 
       # Combine two filters with a logical OR.
       def |(other)
-        Or.new(self,other)
+        Or.new(self, other)
       end
 
       # Negate a filter.
@@ -89,13 +89,13 @@ module Ldapter
     class Attribute < Abstract
       def initialize(name)
         if name.kind_of?(Symbol)
-          name = name.to_s.tr('_-','-_')
+          name = name.to_s.tr('_-', '-_')
         end
         @name = name
       end
       %w(== =~ >= <=).each do |method|
         define_method(method) do |other|
-          Pair.new(@name,other,method)
+          Pair.new(@name, other, method)
         end
       end
       def process
@@ -123,7 +123,7 @@ module Ldapter
 
     # Does ? parameter substitution.
     #
-    #   Ldapter::Filter(["(cn=?*)","Sm"]).to_s #=> "(cn=Sm*)"
+    #   Ldapter::Filter(["(cn=?*)", "Sm"]).to_s #=> "(cn=Sm*)"
     class Array < Abstract
       def initialize(array) #:nodoc:
         @template = array.first
@@ -145,7 +145,7 @@ module Ldapter
         "(#{@array*''})" if @array.compact.size > 1
       end
       def to_net_ldap_filter #:nodoc
-        @array[1..-1].inject {|m,o| m.to_net_ldap_filter.send(@array.first,o.to_net_ldap_filter)}
+        @array[1..-1].inject {|m, o| m.to_net_ldap_filter.send(@array.first, o.to_net_ldap_filter)}
       end
     end
 
@@ -197,8 +197,8 @@ module Ldapter
       end
 
       def process
-        string = @hash.map {|k,v| [k.to_s,v]}.sort.map do |(k,v)|
-          Pair.new(k,v,@escape_asterisks ? "==" : "=~").process
+        string = @hash.map {|k, v| [k.to_s, v]}.sort.map do |(k, v)|
+          Pair.new(k, v, @escape_asterisks ? "==" : "=~").process
         end.join
         case @hash.size
         when 0 then nil
@@ -218,7 +218,7 @@ module Ldapter
       }
       def initialize(key, value, operator)
         @key, @value, @operator = key.to_s.dup, value, operator.to_s
-        @inverse = !!@key.sub!(/!$/,'')
+        @inverse = !!@key.sub!(/!$/, '')
         if op = INVERSE_OPERATORS[@operator]
           @inverse ^= true
           @operator = op
@@ -238,17 +238,17 @@ module Ldapter
         inverse = @inverse
         operator = "=" if operator == "=="
         if v.respond_to?(:to_ary)
-          q = "(|" + v.map {|e| "(#{Ldapter.encode(k)}=#{Ldapter.escape(e,star)})"}.join + ")"
+          q = "(|" + v.map {|e| "(#{Ldapter.encode(k)}=#{Ldapter.escape(e, star)})"}.join + ")"
         elsif v.kind_of?(Range)
           q = []
           if v.first != -1.0/0
-            q << "(#{Ldapter.encode(k)}>=#{Ldapter.escape(v.first,star)})"
+            q << "(#{Ldapter.encode(k)}>=#{Ldapter.escape(v.first, star)})"
           end
           if v.last != 1.0/0
             if v.exclude_end?
-              q << "(!(#{Ldapter.encode(k)}>=#{Ldapter.escape(v.last,star)}))"
+              q << "(!(#{Ldapter.encode(k)}>=#{Ldapter.escape(v.last, star)}))"
             else
-              q << "(#{Ldapter.encode(k)}<=#{Ldapter.escape(v.last,star)})"
+              q << "(#{Ldapter.encode(k)}<=#{Ldapter.escape(v.last, star)})"
             end
           end
           q = "(&#{q*""})"
@@ -258,7 +258,7 @@ module Ldapter
           q = "(#{Ldapter.encode(k)}=*)"
           inverse ^= true
         else
-          q = "(#{Ldapter.encode(k)}#{operator}#{Ldapter.escape(v,star)})"
+          q = "(#{Ldapter.encode(k)}#{operator}#{Ldapter.escape(v, star)})"
         end
         inverse ? "(!#{q})" : q
       end

@@ -25,16 +25,16 @@ class LdapterAttributeSetTest < Test::Unit::TestCase
 
   def test_should_delete_from_description
     assert_equal "Foo", @description.delete("fOO")
-    assert_same @description, @description.delete("a","b","c")
+    assert_same @description, @description.delete("a", "b", "c")
   end
 
   def test_should_act_like_array
     assert_equal ["Foo"], @description
     @description.map! { |x| x.downcase }
     assert_same @description, @description.concat(["bar"])
-    assert_equal ["foo","bar"], @description
+    assert_equal ["foo", "bar"], @description
     assert_same @description, @description.unshift([["baz"]])
-    assert_equal ["baz","foo","bar"], @description
+    assert_equal ["baz", "foo", "bar"], @description
     assert_equal "foo", @description.delete("foo")
     assert_nil   @description.delete("foo")
     @description.clear

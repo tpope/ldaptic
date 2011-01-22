@@ -60,7 +60,7 @@ module Ldapter
       private
 
       def extract_oid(string)
-        string.gsub!(/^\s*\(\s*(\w[\w:.-]*\w)\s*(.*?)\s*\)\s*$/,'\\2')
+        string.gsub!(/^\s*\(\s*(\w[\w:.-]*\w)\s*(.*?)\s*\)\s*$/, '\\2')
         $1
       end
 
@@ -70,7 +70,7 @@ module Ldapter
           if string =~ /\A(\(\s*)?'/
             array << eatstr(string)
           elsif string =~ /\A[A-Z-]+[A-Z]\b/
-            array << eat(string,/\A[A-Z0-9-]+/).downcase.gsub('-','_').to_sym
+            array << eat(string, /\A[A-Z0-9-]+/).downcase.gsub('-', '_').to_sym
           elsif string =~ /\A(\(\s*)?[\w-]/
             array << eatary(string)
           else
@@ -102,8 +102,8 @@ module Ldapter
         hash
       end
 
-      def eat(string,regex)
-        string.gsub!(regex,'')
+      def eat(string, regex)
+        string.gsub!(regex, '')
         string.strip!
         $1 || $&
       end
@@ -112,21 +112,21 @@ module Ldapter
         if eaten = eat(string, /^\(\s*'([^)]+)'\s*\)/i)
           eaten.split("' '").collect{|attr| attr.strip }
         else
-          eat(string,/^'([^']*)'\s*/)
+          eat(string, /^'([^']*)'\s*/)
         end
       end
 
       def eatary(string)
         if eaten = eat(string, /^\(([\w\d_.{}\s\$-]+)\)/i)
           eaten.split("$").collect{|attr| attr.strip}
-        elsif eaten = eat(string,/^([\w\d_.{}-]+)/i)
+        elsif eaten = eat(string, /^([\w\d_.{}-]+)/i)
           eaten
         else
           raise ParseError
         end
       end
 
-      def method_missing(key,*args,&block)
+      def method_missing(key, *args, &block)
         if key.to_s =~ /^x_.*[^!=]$/
           if args.size == 0
             if key.to_s[-1] == ??
@@ -138,7 +138,7 @@ module Ldapter
             raise ArgumentError, "wrong number of arguments (#{args.size} for 0)", caller
           end
         else
-          super(key,*args,&block)
+          super(key, *args, &block)
         end
       end
 
@@ -186,7 +186,7 @@ module Ldapter
         syntax_attribute && syntax_attribute[/[0-9.]+/]
       end
       def syntax_len
-        syntax_attribute && syntax_attribute[/\{(.*)\}/,1].to_i
+        syntax_attribute && syntax_attribute[/\{(.*)\}/, 1].to_i
       end
       def syntax_object(*args)
         Ldapter::SYNTAXES[syntax_oid]

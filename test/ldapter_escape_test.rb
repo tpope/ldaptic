@@ -19,7 +19,7 @@ class LdapterEscapeTest < Test::Unit::TestCase
     PAIRS.each do |escaped, unescaped|
       assert_equal escaped, Ldapter.escape(unescaped)
     end
-    assert_equal "a*b\\2Ac\\00", Ldapter.escape("a*b**c\0",true)
+    assert_equal "a*b\\2Ac\\00", Ldapter.escape("a*b**c\0", true)
     assert_equal "TRUE", Ldapter.escape(true)
     assert_equal "foo-bar", Ldapter.escape(:foo_bar)
   end
@@ -39,9 +39,9 @@ class LdapterEscapeTest < Test::Unit::TestCase
   end
 
   def test_split
-    assert_equal ["a","b"],     Ldapter.split("a*b",'*')
-    assert_equal ["a\\*b"],     Ldapter.split("a\\*b",'*')
-    assert_equal ["a\\\\","b"], Ldapter.split("a\\\\*b",?*)
+    assert_equal ["a","b"],     Ldapter.split("a*b", '*')
+    assert_equal ["a\\*b"],     Ldapter.split("a\\*b", '*')
+    assert_equal ["a\\\\","b"], Ldapter.split("a\\\\*b", ?*)
   end
 
 end

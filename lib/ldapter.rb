@@ -33,7 +33,7 @@ module Ldapter
   #   @my_company::User.class_eval do
   #     alias login sAMAccountName
   #   end
-  def self.Object(options,&block)
+  def self.Object(options, &block)
     base = ::Module.new do
       include Ldapter::Module(options)
     end

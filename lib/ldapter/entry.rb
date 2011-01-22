@@ -11,8 +11,8 @@ module Ldapter
     # arrays as appropriate.  The returned hash has a default value of [].
     def self.clone_ldap_hash(attributes) #:nodoc:
       hash = Hash.new
-      attributes.each do |k,v|
-        k = k.kind_of?(Symbol) ?  k.to_s.tr('_','-') : k.dup
+      attributes.each do |k, v|
+        k = k.kind_of?(Symbol) ? k.to_s.tr('_', '-') : k.dup
         hash[k] = Array(v).map {|x| x.dup rescue x}
       end
       hash
@@ -43,10 +43,10 @@ module Ldapter
       def create_accessors #:nodoc:
         to_be_evaled = ""
         (may(false) + must(false)).each do |attr|
-          method = attr.to_s.tr_s('-_','_-')
+          method = attr.to_s.tr_s('-_', '_-')
           to_be_evaled << <<-RUBY
-          def #{method}(*args,&block) read_attribute('#{attr}',*args,&block) end
-          def #{method}=(value) write_attribute('#{attr}',value) end
+          def #{method}(*args, &block) read_attribute('#{attr}', *args, &block) end
+          def #{method}=(value) write_attribute('#{attr}', value) end
           RUBY
         end
         class_eval(to_be_evaled, __FILE__, __LINE__)
@@ -83,7 +83,7 @@ module Ldapter
 
       def must(all = true)
         if all
-          core = ldap_ancestors.inject([]) do |memo,klass|
+          core = ldap_ancestors.inject([]) do |memo, klass|
             memo |= Array(klass.must(false))
             memo
           end
@@ -147,7 +147,7 @@ module Ldapter
         attribute = attribute[0..0].upcase + attribute[1..-1]
         attribute.gsub!(/([A-Z])([A-Z][a-z])/) { "#$1 #{$2.downcase}" }
         attribute.gsub!(/([a-z\d])([A-Z])/) { "#$1 #{$2.downcase}" }
-        attribute.gsub!('_','-')
+        attribute.gsub!('_', '-')
         attribute
       end
 
@@ -161,7 +161,7 @@ module Ldapter
           logger.warn("ldapter") { "#{self}: invalid object class for #{attributes.inspect}" }
         end
         obj = allocate
-        obj.instance_variable_set(:@dn, ::Ldapter::DN(Array(attributes.delete('dn')).first,obj))
+        obj.instance_variable_set(:@dn, ::Ldapter::DN(Array(attributes.delete('dn')).first, obj))
         obj.instance_variable_set(:@original_attributes, attributes)
         obj.instance_variable_set(:@attributes, {})
         obj.instance_eval { common_initializations; after_load }
@@ -182,13 +182,13 @@ module Ldapter
       Ldapter::Errors.raise(TypeError.new("abstract class initialized")) if self.class.oid.nil? || self.class.abstract?
       @attributes = {}
       data = data.dup
-      if dn = data.delete('dn')||data.delete(:dn)
+      if dn = data.delete('dn') || data.delete(:dn)
         dn.first if dn.kind_of?(Array)
         self.dn = dn
       end
       merge_attributes(data)
       @attributes['objectClass'] ||= []
-      @attributes['objectClass'].insert(0,*self.class.object_classes).uniq!
+      @attributes['objectClass'].insert(0, *self.class.object_classes).uniq!
       common_initializations
       after_build
     end
@@ -201,8 +201,8 @@ module Ldapter
       if defined?(::HashWithIndifferentAccess) && data.is_a?(HashWithIndifferentAccess)
         data = data.symbolize_keys
       end
-      data.each do |key,value|
-        write_attribute(key,value)
+      data.each do |key, value|
+        write_attribute(key, value)
       end
     end
 
@@ -249,7 +249,7 @@ module Ldapter
 
     def inspect
       str = "#<#{self.class.inspect} #{dn}"
-      (@original_attributes||{}).merge(@attributes).each do |k,values|
+      (@original_attributes||{}).merge(@attributes).each do |k, values|
         s = (values.size == 1 ? "" : "s")
         at = namespace.attribute_type(k)
         syntax = namespace.attribute_syntax(k)
@@ -294,16 +294,16 @@ module Ldapter
 
     # Returns a hash of attributes.
     def attributes
-      (@original_attributes||{}).merge(@attributes).keys.inject({}) do |hash,key|
+      (@original_attributes||{}).merge(@attributes).keys.inject({}) do |hash, key|
         hash[key] = read_attribute(key)
         hash
       end
     end
 
     def changes
-      @attributes.reject do |k,v|
+      @attributes.reject do |k, v|
         @original_attributes && @original_attributes[k] == v
-      end.keys.inject({}) do |hash,key|
+      end.keys.inject({}) do |hash, key|
         hash[key] = read_attribute(key)
         hash
       end
@@ -315,7 +315,7 @@ module Ldapter
     # multiple values to an attribute marked <tt>SINGLE-VALUE</tt>.
     #
     # Changes are not committed to the server until #save is called.
-    def write_attribute(key,values)
+    def write_attribute(key, values)
       read_attribute(key, true).replace(values)
     end
     protected :write_attribute
@@ -344,7 +344,7 @@ module Ldapter
     # Commit an array of modifications directly to LDAP, without updating the
     # local object.
     def modify_attributes(mods) #:nodoc:
-      namespace.adapter.modify(dn, mods.map {|(action,key,values)| [action,Ldapter.encode(key),Array(values)]})
+      namespace.adapter.modify(dn, mods.map {|(action, key, values)| [action, Ldapter.encode(key), Array(values)]})
       self
     end
 
@@ -397,44 +397,44 @@ module Ldapter
     end
 
     def respond_to?(method, *args) #:nodoc:
-      super || (may + must + (may+must).map {|x| "#{x}="}).include?(method.to_s.tr('-_','_-'))
+      super || (may + must + (may+must).map {|x| "#{x}="}).include?(method.to_s.tr('-_', '_-'))
     end
 
     # Delegates to +read_attribute+ or +write_attribute+.
-    def method_missing(method,*args,&block)
+    def method_missing(method, *args, &block)
       attribute = Ldapter.encode(method)
       if attribute[-1] == ?=
         attribute.chop!
         if may_must(attribute)
-          return write_attribute(attribute,*args,&block)
+          return write_attribute(attribute, *args, &block)
         end
       elsif attribute[-1] == ??
         attribute.chop!
         if may_must(attribute)
           if args.empty?
-            return !read_attribute(attribute,true).empty?
+            return !read_attribute(attribute, true).empty?
           else
             return args.flatten.any? {|arg| compare(attribute, arg)}
           end
         end
       elsif may_must(attribute)
-        return read_attribute(attribute,*args,&block)
+        return read_attribute(attribute, *args, &block)
       end
-      super(method,*args,&block)
+      super(method, *args, &block)
     end
 
     # Searches for children.  This is identical to Ldapter::Base#search, only
     # the default base is the current object's DN.
-    def search(options,&block)
+    def search(options, &block)
       if options[:base].kind_of?(Hash)
         options = options.merge(:base => dn/options[:base])
       end
-      namespace.search({:base => dn}.merge(options),&block)
+      namespace.search({:base => dn}.merge(options), &block)
     end
 
     # Searches for a child, given an RDN.
     def /(*args)
-      search(:base => dn.send(:/,*args), :scope => :base, :limit => true)
+      search(:base => dn.send(:/, *args), :scope => :base, :limit => true)
     end
 
     alias find /
@@ -506,7 +506,7 @@ module Ldapter
     def save
       return false unless valid?
       if @original_attributes
-        updates = @attributes.reject do |k,v|
+        updates = @attributes.reject do |k, v|
           @original_attributes[k] == v
         end
         namespace.adapter.modify(dn, updates) unless updates.empty?
@@ -555,15 +555,15 @@ module Ldapter
       if delete_old.nil?
         delete_old = (new_rdn == old_rdn)
       end
-      namespace.adapter.rename(dn,new_rdn.to_str,delete_old, *[new_root].compact)
+      namespace.adapter.rename(dn, new_rdn.to_str, delete_old, *[new_root].compact)
       if delete_old
-        old_rdn.each do |k,v|
+        old_rdn.each do |k, v|
           [@attributes, @original_attributes].each do |hash|
-            hash.delete_if {|k2,v2| k.to_s.downcase == k2.to_s.downcase && v.to_s.downcase == v2.to_s.downcase }
+            hash.delete_if {|k2, v2| k.to_s.downcase == k2.to_s.downcase && v.to_s.downcase == v2.to_s.downcase }
             end
         end
       end
-      old_dn = Ldapter::DN(@dn,self)
+      old_dn = Ldapter::DN(@dn, self)
       @dn = nil
       if new_root
         self.dn = new_root / new_rdn
@@ -586,7 +586,7 @@ module Ldapter
       if @dn
         Ldapter::Errors.raise(Ldapter::Error.new("can't reassign DN"))
       end
-      @dn = ::Ldapter::DN(value,self)
+      @dn = ::Ldapter::DN(value, self)
       write_attributes_from_rdn(rdn)
     end
 
@@ -610,7 +610,7 @@ module Ldapter
     end
 
     def write_attributes_from_rdn(rdn, attributes = @attributes)
-      Ldapter::RDN(rdn).each do |k,v|
+      Ldapter::RDN(rdn).each do |k, v|
         attributes[k.to_s.downcase] ||= []
         attributes[k.to_s.downcase] |= [v]
       end
@@ -628,7 +628,7 @@ module Ldapter
       end
     end
 
-    def assign_child(rdn,child)
+    def assign_child(rdn, child)
       unless child.respond_to?(:dn)
         Ldapter::Errors.raise(TypeError.new("#{child.class} cannot be a child"))
       end
@@ -637,10 +637,10 @@ module Ldapter
       end
       rdn = Ldapter::RDN(rdn)
       if cached_child(rdn)
-        Ldapter::Errors.raise(Ldapter::Error.new("child #{[rdn,dn].join(",")} already exists"))
+        Ldapter::Errors.raise(Ldapter::Error.new("child #{[rdn, dn].join(",")} already exists"))
       end
       @children[rdn] = child
-      child.dn = Ldapter::DN(dn/rdn,child)
+      child.dn = Ldapter::DN(dn/rdn, child)
       child.instance_variable_set(:@parent, self)
     end
 

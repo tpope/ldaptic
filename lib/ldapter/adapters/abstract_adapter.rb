@@ -108,9 +108,9 @@ module Ldapter
 
       private
 
-      def construct_schema_hash(element,klass)
-        @schema_hash ||= schema(['attributeTypes','dITContentRules','objectClasses'])
-        @schema_hash[element.to_s].to_a.inject({}) do |hash,val|
+      def construct_schema_hash(element, klass)
+        @schema_hash ||= schema(['attributeTypes', 'dITContentRules', 'objectClasses'])
+        @schema_hash[element.to_s].to_a.inject({}) do |hash, val|
           object = klass.new(val)
           hash[object.oid] = object
           Array(object.name).each do |name|

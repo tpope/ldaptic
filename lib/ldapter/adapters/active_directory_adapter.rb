@@ -41,16 +41,16 @@ module Ldapter
           super
         elsif username && username !~ /[\\=@]/
           if @options[:domain].include?(".")
-            username = [username,@options[:domain]].join("@")
+            username = [username, @options[:domain]].join("@")
           elsif @options[:domain]
-            username = [@options[:domain],username].join("\\")
+            username = [@options[:domain], username].join("\\")
           else
             conn = new_connection(3268)
-            dn = conn.search2("",0,"(objectClass=*",['defaultNamingContext']).first['defaultNamingContext']
+            dn = conn.search2("", 0, "(objectClass=*", ['defaultNamingContext']).first['defaultNamingContext']
             if dn
               domain = Ldapter::DN(dn).rdns.map {|rdn| rdn[:dc]}.compact
               unless domain.empty?
-                username = [username,domain.join(".")].join("@")
+                username = [username, domain.join(".")].join("@")
               end
             end
           end
@@ -58,19 +58,19 @@ module Ldapter
         username
       end
 
-      def with_port(port,&block)
+      def with_port(port, &block)
         conn = new_connection(port)
-        bind_connection(conn,@options[:username],@options[:password]) do
-          with_conn(conn,&block)
+        bind_connection(conn, @options[:username], @options[:password]) do
+          with_conn(conn, &block)
         end
       end
 
       def with_reader(&block)
-        with_port(3268,&block)
+        with_port(3268, &block)
       end
 
       def with_writer(&block)
-        with_port(389,&block)
+        with_port(389, &block)
       end
 
     end

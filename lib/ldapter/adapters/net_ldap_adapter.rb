@@ -55,7 +55,7 @@ module Ldapter
 
       def modify(dn, attributes)
         if attributes.kind_of?(Hash)
-          attributes = attributes.map {|k,v| [:replace, k, v]}
+          attributes = attributes.map {|k, v| [:replace, k, v]}
         end
         connection.modify(
           :dn => dn,
@@ -109,13 +109,13 @@ module Ldapter
         supportedLDAPPolicies
         supportedLDAPVersion
         supportedSASLMechanisms
-      ].inject({}) { |h,k| h[k.downcase] = k; h }
+      ].inject({}) { |h, k| h[k.downcase] = k; h }
 
       def search(options = {}, &block)
         options = options.merge(:return_result => false)
         connection.search(options) do |entry|
           hash = {}
-          entry.each do |attr,val|
+          entry.each do |attr, val|
             attr = recapitalize(attr)
             hash[attr] = val
           end
