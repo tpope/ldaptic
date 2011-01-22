@@ -302,7 +302,7 @@ module Ldapter
 
     def changes
       @attributes.reject do |k, v|
-        @original_attributes && @original_attributes[k] == v
+        (@original_attributes || {})[k].to_a == v
       end.keys.inject({}) do |hash, key|
         hash[key] = read_attribute(key)
         hash
@@ -485,7 +485,7 @@ module Ldapter
     end
 
     def check_server_contraints
-      (must | @attributes.keys).each do |k|
+      ((persisted? ? [] : must) | changes.keys).each do |k|
         set = read_attribute(k, true)
         set.errors.each do |message|
           errors.add(k, message)
@@ -499,9 +499,9 @@ module Ldapter
     # server constraint was violated, populates #errors and returns false.
     def save
       return false unless valid?
-      if @original_attributes
-        updates = @attributes.reject do |k, v|
-          @original_attributes[k] == v
+      if persisted?
+        updates = changes.keys.inject({}) do |m, o|
+          m.update(o => @attributes[o])
         end
         namespace.adapter.modify(dn, updates) unless updates.empty?
       else
