@@ -206,6 +206,7 @@ module Ldapter
       end
     end
 
+    alias attributes= merge_attributes
 
     # A link back to the namespace.
     def namespace
