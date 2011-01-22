@@ -133,7 +133,7 @@ EOF
     class Boolean < Abstract
 
       def parse(string)
-        return string == "TRUE"
+        string == "TRUE"
       end
 
       def format(boolean)
@@ -149,7 +149,7 @@ EOF
     class INTEGER < Abstract
 
       def parse(string)
-        return string.to_i
+        string.to_i
       end
 
       def format(integer)
@@ -194,10 +194,6 @@ EOF
         Ldapter::Schema::LdapSyntax.new(string)
       end
 
-      def format(obj)
-        obj.to_s
-      end
-
     end
 
     %w(ObjectClass AttributeType MatchingRule MatchingRuleUse DITContentRule DITStructureRule NameForm).each do |syntax|
@@ -206,7 +202,6 @@ EOF
           def parse(string)
             Ldapter::Schema::#{syntax}.new(string)
           end
-          def format(obj) obj.to_s end
         end
       EOS
     end

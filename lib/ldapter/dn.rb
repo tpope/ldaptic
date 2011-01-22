@@ -7,7 +7,7 @@ module Ldapter
   # unless it is already a string or an array.  If the first argument is nil,
   # nil is returned.
   def self.DN(dn, source = nil)
-    return nil if dn.nil?
+    return if dn.nil?
     dn = dn.dn if dn.respond_to?(:dn)
     if dn.kind_of?(::Ldapter::DN)
       if source

@@ -126,8 +126,7 @@ module Ldapter
       # the code is zero.  The right subclass is selected automatically if it
       # is available.
       def raise_unless_zero(code, message = nil)
-        return if code.zero?
-        raise self.for(code, message)
+        raise self.for(code, message) unless code.zero?
       end
 
     end

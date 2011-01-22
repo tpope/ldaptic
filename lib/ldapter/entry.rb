@@ -380,11 +380,11 @@ module Ldapter
     end
 
     def must(all = true)
-      return self.class.must(all) + aux.map {|a|a.must(false)}.flatten
+      self.class.must(all) + aux.map {|a|a.must(false)}.flatten
     end
 
     def may(all = true)
-      return self.class.may(all)  + aux.map {|a|a.may(false)}.flatten
+      self.class.may(all)  + aux.map {|a|a.may(false)}.flatten
     end
 
     def may_must(attribute)
@@ -620,12 +620,10 @@ module Ldapter
       return self if rdn.nil? || rdn.empty?
       rdn = Ldapter::RDN(rdn)
       return @children[rdn] if @children.has_key?(rdn)
-      begin
-        child = search(:base => rdn, :scope => :base, :limit => true)
-        child.instance_variable_set(:@parent, self)
-        @children[rdn] = child
-      rescue Ldapter::Errors::NoSuchObject
-      end
+      child = search(:base => rdn, :scope => :base, :limit => true)
+      child.instance_variable_set(:@parent, self)
+      @children[rdn] = child
+    rescue Ldapter::Errors::NoSuchObject
     end
 
     def assign_child(rdn, child)

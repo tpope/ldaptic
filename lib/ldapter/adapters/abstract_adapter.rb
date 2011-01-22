@@ -35,7 +35,7 @@ module Ldapter
           :attributes => attrs && [attrs].flatten.map {|a| Ldapter.encode(a)},
           :disable_pagination => true
         ) { |x| break x }
-        return nil if result.kind_of?(Fixnum)
+        return if result.kind_of?(Fixnum)
         if attrs.kind_of?(Array) || attrs.nil?
           result
         else
