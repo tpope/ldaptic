@@ -36,7 +36,7 @@ module Ldapter
       end
     end
 
-    def respond_to?(method)
+    def respond_to?(method, *)
       if method.to_s =~ /(.*)_before_type_cast$/
         (may + must).include?($1.tr('-_', '_-')) || super
       else
