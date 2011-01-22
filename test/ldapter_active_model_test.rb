@@ -8,7 +8,7 @@ class LdapterActiveModelTest < Test::Unit::TestCase
 
   class Mock < Ldapter::Class(:adapter => :mock)
     class Top
-      include ActiveModel::Validations
+      extend ActiveModel::Naming
     end
   end
 
@@ -19,6 +19,11 @@ class LdapterActiveModelTest < Test::Unit::TestCase
   def test_changes
     @model.description = 'Bar'
     assert_equal ['Bar'], @model.changes['description']
+  end
+
+  def test_errors
+    assert @model.invalid?
+    assert_equal ['Common name is mandatory'], @model.errors.full_messages
   end
 
 end

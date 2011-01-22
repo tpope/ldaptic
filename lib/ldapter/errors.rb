@@ -1,6 +1,9 @@
 module Ldapter
 
-  class Error < ::RuntimeError #:nodoc:
+  class Error < ::RuntimeError
+  end
+
+  class EntryNotSaved < Error
   end
 
   # All server errors are instances of this class.  The error message and error

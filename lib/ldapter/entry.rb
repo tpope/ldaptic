@@ -1,4 +1,5 @@
 require 'ldapter/attribute_set'
+require 'ldapter/error_set'
 
 module Ldapter
 
@@ -475,10 +476,35 @@ module Ldapter
       !new_entry?
     end
 
+    def errors
+      @errors ||= Ldapter::ErrorSet.new(self)
+    end
+
+    def valid?
+      errors.clear
+      check_server_contraints
+      errors.empty?
+    end
+
+    # Inverse of #valid?
+    def invalid?(*args)
+      !valid?(*args)
+    end
+
+    def check_server_contraints
+      (must | @attributes.keys).each do |k|
+        set = read_attribute(k, true)
+        set.errors.each do |message|
+          errors.add(k, message)
+        end
+      end
+    end
+    private :check_server_contraints
+
     # For new objects, does an LDAP add.  For existing objects, does an LDAP
     # modify.  This only sends the modified attributes to the server.
     def save
-      return false if respond_to?(:valid?) && !valid?
+      return false unless valid?
       if @original_attributes
         updates = @attributes.reject do |k,v|
           @original_attributes[k] == v
@@ -489,7 +515,11 @@ module Ldapter
       end
       @original_attributes = (@original_attributes||{}).merge(@attributes)
       @attributes = {}
-      self
+      true
+    end
+
+    def save!
+      save ? self : raise(EntryNotSaved)
     end
 
     # Refetches the attributes from the server.
