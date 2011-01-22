@@ -24,6 +24,12 @@ class LdapterActiveModelTest < Test::Unit::TestCase
   def test_errors
     assert @model.invalid?
     assert_equal ['Common name is mandatory'], @model.errors.full_messages
+    @model.cn = 'Douglas'
+    @model.age = 'forty two'
+    assert @model.invalid?
+    assert_equal ['Age must be an integer'], @model.errors.full_messages
+    @model.age = 42
+    assert @model.valid?
   end
 
 end

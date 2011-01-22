@@ -105,7 +105,20 @@ EOF
       end
 
       def format(value)
-        value.to_s
+        if value.respond_to?(:utc)
+          value.utc.strftime("%Y%m%d%H%M%S") + ".%06dZ" % [value.usec/100_000]
+        elsif value == true
+          'TRUE'
+        elsif value == false
+          'FALSE'
+        elsif value.respond_to?(:dn)
+          value.dn.to_s
+        else
+          value.to_s
+        end
+      end
+
+      def error(value)
       end
 
       def self.format(object)
@@ -124,10 +137,6 @@ EOF
         string
       end
 
-      def format(string)
-        string.to_str
-      end
-
     end
 
     class Boolean < Abstract
@@ -136,12 +145,8 @@ EOF
         string == "TRUE"
       end
 
-      def format(boolean)
-        case boolean
-        when "TRUE",  true  then "TRUE"
-        when "FALSE", false then "FALSE"
-        else Ldapter::Errors.raise(TypeError.new("boolean expected"))
-        end
+      def error(string)
+        "must be a boolean" unless %w(TRUE FALSE).include?(string)
       end
 
     end
@@ -152,14 +157,16 @@ EOF
         string.to_i
       end
 
-      def format(integer)
-        Integer(integer).to_s
+      def error(string)
+        "must be an integer" unless string =~ /\A\d+\z/
       end
 
     end
 
     # LDAP timestamps look like <tt>YYYYmmddHHMMSS.uuuuuuZ</tt>.
     class GeneralizedTime < Abstract
+
+      PATTERN = /\A\d{14}\.\d{6}Z\z/
 
       def parse(string)
         require 'time'
@@ -170,8 +177,17 @@ EOF
         DateTime.parse(parseable)
       end
 
-      def format(time)
-        time.utc.strftime("%Y%m%d%H%M%S") + ".%06dZ" % [time.usec/100_000]
+      def error(string)
+        'must be a time' unless string =~ PATTERN
+      end
+
+      def format(value)
+        require 'time'
+        if value.respond_to?(:to_str) && value !~ PATTERN && !Date._parse(value).empty?
+          super(Time.parse(value))
+        else
+          super
+        end
       end
 
     end
@@ -180,10 +196,6 @@ EOF
 
       def parse(string)
         ::Ldapter::DN(string, @object).freeze
-      end
-
-      def format(dn)
-        (dn.respond_to?(:dn) ? dn.dn : dn).to_str
       end
 
     end

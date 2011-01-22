@@ -8,8 +8,8 @@ class Ldapter::Adapters::MockAdapter < Ldapter::Adapters::AbstractAdapter
   def schema(arg = nil)
     {
       'objectClasses' => [
-        "( 2.5.6.0 NAME 'top' ABSTRACT MUST (objectClass) MAY (cn $ description $ distinguishedName ) )",
-        "( 2.5.6.6 NAME 'person' SUP top STRUCTURAL MUST (cn) MAY (sn) )",
+        "( 2.5.6.0 NAME 'top' ABSTRACT MUST (objectClass) MAY (cn $ description $ distinguishedName) )",
+        "( 2.5.6.6 NAME 'person' SUP top STRUCTURAL MUST (cn) MAY (sn $ age) )",
         "( 0.9.2342.19200300.100.4.19 NAME 'simpleSecurityObject' SUP top AUXILIARY MAY userPassword )",
         "( 9.9.9.1 NAME 'searchResult' SUP top STRUCTURAL MUST (filter $ scope) )"
       ],
@@ -21,7 +21,8 @@ class Ldapter::Adapters::MockAdapter < Ldapter::Adapters::AbstractAdapter
         "( 2.5.4.4 NAME 'sn' SYNTAX '1.3.6.1.4.1.1466.115.121.1.15' SINGLE-VALUE )",
         "( 2.5.4.35 NAME 'userPassword' SYNTAX '1.3.6.1.4.1.1466.115.121.1.40' )",
         "( 2.5.4.4 NAME 'filter' SYNTAX '1.3.6.1.4.1.1466.115.121.1.15' SINGLE-VALUE )",
-        "( 9.9.9.2 NAME 'scope' SYNTAX '1.3.6.1.4.1.1466.115.121.1.27' SINGLE-VALUE )"
+        "( 9.9.9.2 NAME 'scope' SYNTAX '1.3.6.1.4.1.1466.115.121.1.27' SINGLE-VALUE )",
+        "( 9.9.9.2 NAME 'age' SYNTAX '1.3.6.1.4.1.1466.115.121.1.27' SINGLE-VALUE )",
       ],
       "dITContentRules" => [
         "( 2.5.6.6 NAME 'person' AUX simpleSecurityObject )"

@@ -22,17 +22,12 @@ faced are now potentially solvable with Active Model.
 * The test suite (reflecting my fledgling testing abilities from 2007) is more
   smoke test than BDD.  Perhaps switch to RSpec in the quest to rectify this.
 
-* Right now, violating a server side constraint causes an exception on
-  assignment, but if we are to become Active Model compliant, it would make
-  more sense to issue a validation error on save.
-
 * Active Model validations.  This isn't as simple as it seems, as LDAP
   attributes are inherently multivalued, and Active Model assumes single
   values.  Also, does anyone actually need validations above and beyond what
   the server provides?
 
-* Active Model callbacks, serialization, etc.  This is waiting on the above
-  two.
+* Active Model callbacks, serialization, etc.
 
 * Chainable criteria, like Active Record 3.
   <tt>filter(sn: "Hill").limit(3)</tt>

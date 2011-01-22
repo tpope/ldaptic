@@ -43,8 +43,8 @@ class LdapterHierarchyTest < Test::Unit::TestCase
   end
 
   def test_attributes
-    assert_equal %w(sn), Mock::Person.may(false).sort
-    assert_equal %w(description distinguishedName sn), Mock::Person.may.sort
+    assert_equal %w(age sn), Mock::Person.may(false).sort
+    assert_equal %w(age description distinguishedName sn), Mock::Person.may.sort
     assert_equal %w(cn), Mock::Person.must(false).sort
     assert_equal %w(cn objectClass), Mock::Person.must.sort
     assert_equal %w(cn description distinguishedName objectClass), Mock::Top.attributes

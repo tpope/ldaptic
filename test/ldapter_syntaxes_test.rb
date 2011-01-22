@@ -12,7 +12,6 @@ class LdapterSyntaxesTest < Test::Unit::TestCase
     assert_equal false,   Ldapter::Syntaxes::Boolean.parse("FALSE")
     assert_equal "TRUE",  Ldapter::Syntaxes::Boolean.format(true)
     assert_equal "FALSE", Ldapter::Syntaxes::Boolean.format(false)
-    assert_raise(TypeError) { Ldapter::Syntaxes::Boolean.format(Object.new) }
   end
 
   def test_integers
