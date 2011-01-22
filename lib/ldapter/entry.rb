@@ -502,7 +502,8 @@ module Ldapter
     private :check_server_contraints
 
     # For new objects, does an LDAP add.  For existing objects, does an LDAP
-    # modify.  This only sends the modified attributes to the server.
+    # modify.  This only sends the modified attributes to the server.  If a
+    # server constraint was violated, populates #errors and returns false.
     def save
       return false unless valid?
       if @original_attributes
@@ -518,6 +519,7 @@ module Ldapter
       true
     end
 
+    # Like #save, but raise an exception if the entry could not be saved.
     def save!
       save ? self : raise(EntryNotSaved)
     end
