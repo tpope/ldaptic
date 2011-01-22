@@ -534,16 +534,19 @@ module Ldapter
       self
     end
 
-    # Deletes the object from the server and freezes it locally.
+    # Deletes the object from the server.  If #save is invoked afterwards, the
+    # entry will be recreated.
     def delete
       namespace.adapter.delete(dn)
-      if @parent
-        @parent.instance_variable_get(:@children).delete(rdn)
-      end
-      freeze
+      @attributes = (@original_attributes||{}).merge(@attributes)
+      @original_attributes = nil
+      self
     end
 
-    alias destroy delete
+    # Alias for #delete.
+    def destroy
+      delete
+    end
 
     def rename(new_rdn, delete_old = nil)
       old_rdn = rdn
