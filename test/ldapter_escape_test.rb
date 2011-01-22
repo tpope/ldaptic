@@ -22,7 +22,6 @@ class LdapterEscapeTest < Test::Unit::TestCase
     assert_equal "a*b\\2Ac\\00", Ldapter.escape("a*b**c\0",true)
     assert_equal "TRUE", Ldapter.escape(true)
     assert_equal "foo-bar", Ldapter.escape(:foo_bar)
-    # assert_equal "FOO-BAR", Ldapter.escape(:foo_bar,true)
   end
 
   def test_should_not_mutate

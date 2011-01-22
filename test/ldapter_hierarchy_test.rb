@@ -28,7 +28,6 @@ class LdapterHierarchyTest < Test::Unit::TestCase
     assert_equal "CN=Matz", person.rdn
     inspect = person.inspect
     assert_raise(TypeError) { person.distinguishedName = "Why" }
-    # assert_raise(TypeError) { person.distinguishedName.sub!(/z/,'t') }
     assert_raise(NoMethodError) { person.fakeAttribute = 42 }
     assert inspect.include?("Mock::Person CN=Matz,DC=org")
     assert_match(/sn: .*Matsumoto/, inspect)
@@ -70,9 +69,6 @@ class LdapterHierarchyTest < Test::Unit::TestCase
 
   def test_children
     matz = Mock.find("CN=Matz,DC=org")
-    # assert_equal 0, matz.child("data").scope
-    # assert_equal 1, matz.child(:*).first.scope
-    # assert_equal '(child=*)', matz.child(:*).first.filter
     assert_equal 0, (matz/{:child=>:data}).scope
     assert_equal 0, matz[:child=>:data].scope
     matz[:child=>:data].scope = 1
@@ -84,7 +80,6 @@ class LdapterHierarchyTest < Test::Unit::TestCase
       assert_equal 1, Mock[:cn=>"Matz"].scope
     end
     assert_equal 0, Mock[:cn=>"Matz"].scope
-    #assert_equal "(objectClass=*)", matz.children.first.filter
   end
 
   def test_schema
