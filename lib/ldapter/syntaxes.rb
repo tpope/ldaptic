@@ -228,6 +228,17 @@ EOF
     class TelephoneNumber < PrintableString
     end
 
+    class FacsimileTelephoneNumber < TelephoneNumber
+      def error(string)
+        unless string =~ /\A[#{PRINTABLE}][$#{PRINTABLE}]*\z/
+          'contains invalid characters'
+        end
+      end
+    end
+
+    class TelexNumber < FacsimileTelephoneNumber
+    end
+
     class DeliveryMethod < PrintableString
       VALUES = %w(any mhs physical telex teletex g3fax g4fax ia5 videotex telephone)
       def error(string)

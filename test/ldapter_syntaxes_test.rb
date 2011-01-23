@@ -37,6 +37,12 @@ class LdapterSyntaxesTest < Test::Unit::TestCase
     assert_not_nil Ldapter::Syntaxes::PrintableString.new("\t")
   end
 
+  def test_facsimile_telephone_number
+    assert_nil Ldapter::Syntaxes::FacsimileTelephoneNumber.new.error("911")
+    assert_nil Ldapter::Syntaxes::FacsimileTelephoneNumber.new.error("911$b4Length")
+    assert_not_nil Ldapter::Syntaxes::FacsimileTelephoneNumber.new("\t")
+  end
+
   def test_country_string
     assert_nil Ldapter::Syntaxes::CountryString.new.error('ab')
     assert_not_nil Ldapter::Syntaxes::CountryString.new.error('a')
