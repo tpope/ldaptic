@@ -19,6 +19,10 @@ class LdapterSyntaxesTest < Test::Unit::TestCase
     assert_equal "FALSE", Ldapter::Syntaxes::Boolean.format(false)
   end
 
+  def test_postal_address
+    assert_not_nil Ldapter::Syntaxes::PostalAddress.new.error('\\a')
+  end
+
   def test_generalized_time
     assert_equal Time.utc(2000,1,1,12,34,56), Ldapter::Syntaxes::GeneralizedTime.parse("20000101123456.0Z")
     assert_equal Time.utc(2000,1,1,12,34,56), Ldapter::Syntaxes::GeneralizedTime.parse("20000101123456.0Z")

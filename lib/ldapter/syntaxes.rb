@@ -167,6 +167,17 @@ EOF
 
     end
 
+    class PostalAddress < DirectoryString
+
+      def error(string)
+        if string.gsub(/\\[\\$]/, '').include?('\\')
+          "contains an invalid escape"
+        else
+          super
+        end
+      end
+    end
+
     class DN < Abstract
 
       def parse(string)
