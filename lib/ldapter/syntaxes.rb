@@ -178,15 +178,19 @@ EOF
     # LDAP timestamps look like <tt>YYYYmmddHHMMSS.uuuuuuZ</tt>.
     class GeneralizedTime < Abstract
 
-      PATTERN = /\A\d{14}\.\d{6}Z\z/
+      PATTERN = /\A\d{14}(?:\.\d{1,6})?Z\z/
 
       def parse(string)
         require 'time'
-        parseable = string.sub(/(\.\d+)(\w)$/, '\\2')
-        Time.parse(parseable)+$1.to_f
+        parseable = string.sub(/(\.\d+)?(\w)$/, '\\2')
+        Time.parse(parseable) + $1.to_f
       rescue ArgumentError
-        require 'date'
-        DateTime.parse(parseable)
+        begin
+          require 'date'
+          DateTime.parse(parseable) + $1.to_f
+        rescue ArgumentError
+          Time.now
+        end
       end
 
       def error(string)
