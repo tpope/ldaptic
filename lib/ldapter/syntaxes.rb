@@ -218,6 +218,22 @@ EOF
 
     end
 
+    class IA5String < Abstract
+      PATTERN = /\A[\x00-\x7f]*\z/
+
+      def parse(string)
+        string
+      end
+
+      def errors(string)
+        'contains invalid characters' unless string =~ PATTERN
+      end
+
+    end
+
+    class OtherMailbox < IA5String
+    end
+
     class PrintableString < Abstract
 
       def parse(string)
