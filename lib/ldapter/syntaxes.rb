@@ -82,7 +82,6 @@ EOF
   # the appropriate type.  End users generally need not interact with these
   # directly.
   module Syntaxes
-
     # Returns the class for a given syntax name.  Falls back to
     # DirectoryString if there is not a more specific handler.
     #   Ldapter::Syntaxes.for("Generalized Time")
@@ -102,6 +101,13 @@ EOF
       # syntax, to allow <tt>dn.find</tt> to work.
       def initialize(object = nil)
         @object = object
+      end
+
+      # RFC2522 Allows single but not double quotes, and slapd implements the
+      # opposite of that. We'll allow both for now.
+      PRINTABLE = "A-Za-z0-9'\"()+,./:? =-"
+      def printable?(string)
+        string =~ /\A[#{PRINTABLE}]+\z/
       end
 
       def format(value)
@@ -208,10 +214,24 @@ EOF
 
     end
 
-    class DeliveryMethod < DirectoryString
+    class PrintableString < Abstract
+
+      def parse(string)
+        string
+      end
+
+      def error(string)
+        'contains invalid characters' unless printable?(string)
+      end
+    end
+
+    class TelephoneNumber < PrintableString
+    end
+
+    class DeliveryMethod < PrintableString
       VALUES = %w(any mhs physical telex teletex g3fax g4fax ia5 videotex telephone)
-      def error(value)
-        'is invalid' unless VALUES.include?(value)
+      def error(string)
+        'is invalid' unless VALUES.include?(string)
       end
     end
 

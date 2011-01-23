@@ -30,4 +30,11 @@ class LdapterSyntaxesTest < Test::Unit::TestCase
     assert_not_nil Ldapter::Syntaxes::DeliveryMethod.new.error('')
   end
 
+  def test_printable_string
+    assert_nil Ldapter::Syntaxes::PrintableString.new.error("Az0'\"()+,-./:? =")
+    assert_not_nil Ldapter::Syntaxes::PrintableString.new('$')
+    assert_not_nil Ldapter::Syntaxes::PrintableString.new("\\")
+    assert_not_nil Ldapter::Syntaxes::PrintableString.new("\t")
+  end
+
 end
