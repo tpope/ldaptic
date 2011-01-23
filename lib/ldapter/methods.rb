@@ -276,7 +276,7 @@ module Ldapter
     #
     #   L.attribute_type(:cn).desc #=> "RFC2256: common name..."
     def attribute_type(attribute)
-      adapter.attribute_types[Ldapter.encode(attribute)]
+      adapter.attribute_type(Ldapter.encode(attribute))
     end
     # Returns an Ldapter::Schema::LdapSyntax object encapsulating server
     # provided information about the syntax of an attribute.

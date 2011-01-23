@@ -74,7 +74,9 @@ module Ldapter
 
       def attribute_type(key = nil)
         if key
-          attribute_types[key]
+          attribute_types[key] || attribute_types.values.detect do |at|
+            at.names.map {|n| n.downcase}.include?(key.downcase)
+          end
         else
           attribute_types.values.uniq
         end
