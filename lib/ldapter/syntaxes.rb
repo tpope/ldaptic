@@ -137,18 +137,6 @@ EOF
 
     end
 
-    class DirectoryString < Abstract
-
-      def parse(string)
-        string
-      end
-
-      def error(string)
-        "can't be blank" if string.empty?
-      end
-
-    end
-
     class BitString < Abstract
       def error(string)
         "is invalid" unless string =~ /\A'[01]*'B\z/
@@ -167,14 +155,22 @@ EOF
 
     end
 
-    class INTEGER < Abstract
+    class DirectoryString < Abstract
 
       def parse(string)
-        string.to_i
+        string
       end
 
       def error(string)
-        "must be an integer" unless string =~ /\A\d+\z/
+        "can't be blank" if string.empty?
+      end
+
+    end
+
+    class DN < Abstract
+
+      def parse(string)
+        ::Ldapter::DN(string, @object).freeze
       end
 
     end
@@ -208,22 +204,6 @@ EOF
 
     end
 
-    class DN < Abstract
-
-      def parse(string)
-        ::Ldapter::DN(string, @object).freeze
-      end
-
-    end
-
-    class LDAPSyntaxDescription < Abstract
-
-      def parse(string)
-        Ldapter::Schema::LdapSyntax.new(string)
-      end
-
-    end
-
     class IA5String < Abstract
       PATTERN = /\A[\x00-\x7f]*\z/
 
@@ -240,6 +220,26 @@ EOF
     class OtherMailbox < IA5String
     end
 
+    class INTEGER < Abstract
+
+      def parse(string)
+        string.to_i
+      end
+
+      def error(string)
+        "must be an integer" unless string =~ /\A\d+\z/
+      end
+
+    end
+
+    class LDAPSyntaxDescription < Abstract
+
+      def parse(string)
+        Ldapter::Schema::LdapSyntax.new(string)
+      end
+
+    end
+
     class PrintableString < Abstract
 
       def parse(string)
@@ -249,6 +249,19 @@ EOF
       def error(string)
         return "can't be blank" if string.empty?
         'contains invalid characters' unless printable?(string)
+      end
+    end
+
+    class CountryString < PrintableString
+      def error(string)
+        'must be two letters' unless printable?(string) && string =~ /\A..\z/
+      end
+    end
+
+    class DeliveryMethod < PrintableString
+      VALUES = %w(any mhs physical telex teletex g3fax g4fax ia5 videotex telephone)
+      def error(string)
+        'is invalid' unless VALUES.include?(string)
       end
     end
 
@@ -265,19 +278,6 @@ EOF
     end
 
     class TelexNumber < FacsimileTelephoneNumber
-    end
-
-    class DeliveryMethod < PrintableString
-      VALUES = %w(any mhs physical telex teletex g3fax g4fax ia5 videotex telephone)
-      def error(string)
-        'is invalid' unless VALUES.include?(string)
-      end
-    end
-
-    class CountryString < PrintableString
-      def error(string)
-        'must be two letters' unless printable?(string) && string =~ /\A..\z/
-      end
     end
 
     %w(ObjectClass AttributeType MatchingRule MatchingRuleUse DITContentRule DITStructureRule NameForm).each do |syntax|
