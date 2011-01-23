@@ -37,4 +37,11 @@ class LdapterSyntaxesTest < Test::Unit::TestCase
     assert_not_nil Ldapter::Syntaxes::PrintableString.new("\t")
   end
 
+  def test_country_string
+    assert_nil Ldapter::Syntaxes::CountryString.new.error('ab')
+    assert_not_nil Ldapter::Syntaxes::CountryString.new.error('a')
+    assert_not_nil Ldapter::Syntaxes::CountryString.new.error('abc')
+    assert_not_nil Ldapter::Syntaxes::CountryString.new.error('a_')
+  end
+
 end

@@ -235,6 +235,12 @@ EOF
       end
     end
 
+    class CountryString < PrintableString
+      def error(string)
+        'must be two letters' unless printable?(string) && string =~ /\A..\z/
+      end
+    end
+
     %w(ObjectClass AttributeType MatchingRule MatchingRuleUse DITContentRule DITStructureRule NameForm).each do |syntax|
       class_eval(<<-EOS, __FILE__, __LINE__.succ)
         class #{syntax}Description < Abstract
