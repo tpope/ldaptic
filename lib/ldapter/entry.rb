@@ -481,7 +481,7 @@ module Ldapter
 
     def valid?
       errors.clear
-      check_server_contraints
+      check_server_constraints
       errors.empty?
     end
 
@@ -490,7 +490,7 @@ module Ldapter
       !valid?(*args)
     end
 
-    def check_server_contraints
+    def check_server_constraints
       ((persisted? ? [] : must) | changes.keys).each do |k|
         set = read_attribute(k, true)
         set.errors.each do |message|
@@ -498,7 +498,7 @@ module Ldapter
         end
       end
     end
-    private :check_server_contraints
+    private :check_server_constraints
 
     # For new objects, does an LDAP add.  For existing objects, does an LDAP
     # modify.  This only sends the modified attributes to the server.  If a
