@@ -81,7 +81,9 @@ module Ldapter
       elsif mandatory? && @target.empty?
         errors << "is mandatory"
       end
-      errors += @target.map { |v| syntax_object.error(v) }.compact
+      if syntax_object
+        errors += @target.map { |v| syntax_object.error(v) }.compact
+      end
       errors
     end
 
