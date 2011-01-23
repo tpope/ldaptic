@@ -211,7 +211,7 @@ EOF
         string
       end
 
-      def errors(string)
+      def error(string)
         'contains invalid characters' unless string =~ PATTERN
       end
 

@@ -26,6 +26,10 @@ class LdapterSyntaxesTest < Test::Unit::TestCase
     assert_equal "20000101123456.000000Z", Ldapter::Syntaxes::GeneralizedTime.format(Time.utc(2000,1,1,12,34,56))
   end
 
+  def test_ia5_string
+    assert_nil Ldapter::Syntaxes::IA5String.new.error('a')
+  end
+
   def test_integer
     assert_equal 1,   Ldapter::Syntaxes::INTEGER.parse("1")
     assert_equal "1", Ldapter::Syntaxes::INTEGER.format(1)
