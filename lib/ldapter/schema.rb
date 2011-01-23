@@ -150,11 +150,19 @@ module Ldapter
       attr_ldap_qdescrs    :name
       attr_ldap_qdstring   :desc
       attr_ldap_boolean    :obsolete
+
       # The definition's name(s), always returned as an array for programmatic
       # ease.
       def names
         Array(name)
       end
+
+      # The longest (and hopefully most descriptive) name.  Used by
+      # +human_attribute_name+.
+      def verbose_name
+        names.sort_by { |n| n.size }.last
+      end
+
     end
 
     class ObjectClass < NameDescObsoleteDefiniton

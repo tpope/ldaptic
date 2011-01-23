@@ -127,28 +127,15 @@ module Ldapter
 
       alias objectClass object_classes
 
-      DEFAULT_ATTRIBUTE_NAMES = {
-        'dn'     => 'distinguishedName',
-        'cn'     => 'commonName',
-        'l'      => 'localityName',
-        'st'     => 'stateOrProvinceName',
-        'o'      => 'organizationName',
-        'ou'     => 'organizatonalUnitName',
-        'c'      => 'countryName',
-        'street' => 'streetAddress',
-        'dc'     => 'domainComponent',
-        'uid'    => 'userId',
-        'co'     => 'friendlyCountryName',
-        'sn'     => 'surname'
-      }
-
       # Converts an attribute name to a human readable form.  For compatibility
       # with ActiveRecord.
       #
       #   L::User.human_attribute_name(:givenName) #=> "Given name"
       def human_attribute_name(attribute, options={})
         attribute = Ldapter.encode(attribute)
-        attribute = DEFAULT_ATTRIBUTE_NAMES[attribute] || attribute
+        if at = namespace.attribute_type(attribute)
+          attribute = at.verbose_name
+        end
         attribute = attribute[0..0].upcase + attribute[1..-1]
         attribute.gsub!(/([A-Z])([A-Z][a-z])/) { "#$1 #{$2.downcase}" }
         attribute.gsub!(/([a-z\d])([A-Z])/) { "#$1 #{$2.downcase}" }

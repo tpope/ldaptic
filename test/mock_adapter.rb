@@ -15,10 +15,10 @@ class Ldapter::Adapters::MockAdapter < Ldapter::Adapters::AbstractAdapter
       ],
       'attributeTypes' => [
         "( 2.5.4.0 NAME 'objectClass' SYNTAX '1.3.6.1.4.1.1466.115.121.1.38' NO-USER-MODIFICATION )",
-        "( 2.5.4.3 NAME 'cn' SYNTAX '1.3.6.1.4.1.1466.115.121.1.15' SINGLE-VALUE )",
+        "( 2.5.4.3 NAME ( 'cn' 'commonName' ) SYNTAX '1.3.6.1.4.1.1466.115.121.1.15' SINGLE-VALUE )",
         "( 2.5.4.49 NAME 'distinguishedName' SYNTAX '1.3.6.1.4.1.1466.115.121.1.12' SINGLE-VALUE NO-USER-MODIFICATION )",
         "( 2.5.4.13 NAME 'description' SYNTAX '1.3.6.1.4.1.1466.115.121.1.15' )",
-        "( 2.5.4.4 NAME 'sn' SYNTAX '1.3.6.1.4.1.1466.115.121.1.15' SINGLE-VALUE )",
+        "( 2.5.4.4 NAME ( 'sn' 'surname' ) SYNTAX '1.3.6.1.4.1.1466.115.121.1.15' SINGLE-VALUE )",
         "( 2.5.4.35 NAME 'userPassword' SYNTAX '1.3.6.1.4.1.1466.115.121.1.40' )",
         "( 2.5.4.4 NAME 'filter' SYNTAX '1.3.6.1.4.1.1466.115.121.1.15' SINGLE-VALUE )",
         "( 9.9.9.2 NAME 'scope' SYNTAX '1.3.6.1.4.1.1466.115.121.1.27' SINGLE-VALUE )",
