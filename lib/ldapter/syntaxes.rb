@@ -143,6 +143,10 @@ EOF
         string
       end
 
+      def error(string)
+        "can't be blank" if string.empty?
+      end
+
     end
 
     class Boolean < Abstract
@@ -221,6 +225,7 @@ EOF
       end
 
       def error(string)
+        return "can't be blank" if string.empty?
         'contains invalid characters' unless printable?(string)
       end
     end
@@ -230,6 +235,7 @@ EOF
 
     class FacsimileTelephoneNumber < TelephoneNumber
       def error(string)
+        return "can't be blank" if string.empty?
         unless string =~ /\A[#{PRINTABLE}][$#{PRINTABLE}]*\z/
           'contains invalid characters'
         end
