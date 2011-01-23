@@ -7,6 +7,11 @@ class LdapterSyntaxesTest < Test::Unit::TestCase
     assert_equal Ldapter::Syntaxes::GeneralizedTime, Ldapter::Syntaxes.for("Generalized Time")
   end
 
+  def test_bit_string
+    assert_nil Ldapter::Syntaxes::BitString.new.error("'01'B")
+    assert_not_nil Ldapter::Syntaxes::BitString.new.error("01'B")
+  end
+
   def test_booleans
     assert_equal true,    Ldapter::Syntaxes::Boolean.parse("TRUE")
     assert_equal false,   Ldapter::Syntaxes::Boolean.parse("FALSE")

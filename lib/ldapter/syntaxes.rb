@@ -149,6 +149,12 @@ EOF
 
     end
 
+    class BitString < Abstract
+      def error(string)
+        "is invalid" unless string =~ /\A'[01]*'B\z/
+      end
+    end
+
     class Boolean < Abstract
 
       def parse(string)
