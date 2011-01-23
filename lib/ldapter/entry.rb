@@ -18,6 +18,11 @@ module Ldapter
       hash
     end
 
+    # For Active Model compliance.  Delegates to #namespace.
+    def self.model_name
+      namespace.model_name
+    end
+
     class << self
       attr_reader :oid, :desc, :sup
       %w(obsolete abstract structural auxiliary).each do |attr|

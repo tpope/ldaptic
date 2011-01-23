@@ -297,6 +297,15 @@ module Ldapter
       adapter.authenticate(dn, password)
     end
 
+    # Delegated to from Ldapter::Entry for Active Model compliance.
+    def model_name
+      if defined?(ActiveSupport::ModelName)
+        ActiveSupport::ModelName.new(name)
+      else
+        ActiveModel::Name.new(self)
+      end
+    end
+
     # Convenience method for use with Rails.  Allows the singleton to be used
     # as a before filter, an after filter, or an around filter.
     #

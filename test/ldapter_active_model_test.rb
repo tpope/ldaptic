@@ -7,9 +7,6 @@ class LdapterActiveModelTest < Test::Unit::TestCase
   include ActiveModel::Lint::Tests
 
   class Mock < Ldapter::Class(:adapter => :mock)
-    class Top
-      extend ActiveModel::Naming
-    end
   end
 
   def setup
