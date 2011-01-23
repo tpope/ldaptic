@@ -83,7 +83,7 @@ EOF
   # directly.
   module Syntaxes
     # Returns the class for a given syntax name.  Falls back to
-    # DirectoryString if there is not a more specific handler.
+    # OctetString if there is not a more specific handler.
     #   Ldapter::Syntaxes.for("Generalized Time")
     #   #=> Ldapter::Syntaxes::GeneralizedTime
     def self.for(string)
@@ -91,7 +91,7 @@ EOF
       if const_defined?(string)
         const_get(string)
       else
-        DirectoryString
+        OctetString
       end
     end
 
@@ -243,6 +243,15 @@ EOF
       end
 
     end
+
+    class OctetString < Abstract
+
+      def parse(string)
+        string
+      end
+
+    end
+
 
     class PrintableString < Abstract
 
