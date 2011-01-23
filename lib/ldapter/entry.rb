@@ -152,6 +152,7 @@ module Ldapter
         attribute = attribute[0..0].upcase + attribute[1..-1]
         attribute.gsub!(/([A-Z])([A-Z][a-z])/) { "#$1 #{$2.downcase}" }
         attribute.gsub!(/([a-z\d])([A-Z])/) { "#$1 #{$2.downcase}" }
+        attribute.gsub!(/\b[a-z][A-Z]/) { $&.upcase }
         attribute.gsub!('_', '-')
         attribute
       end
