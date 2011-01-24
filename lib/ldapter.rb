@@ -27,6 +27,19 @@ module Ldapter
     :subtree  => 2  # ::LDAP::LDAP_SCOPE_SUBTREE
   }
 
+  # Default logger.  If none given, creates a new logger on $stderr.
+  def self.logger
+    unless @logger
+      require 'logger'
+      @logger = Logger.new($stderr)
+    end
+    @logger
+  end
+
+  def self.logger=(logger)
+    @logger = logger
+  end
+
   # Returns an object that can be assigned directly to a variable.  This allows
   # for an "anonymous" Ldapter object.
   #   @my_company = Ldapter::Object(options)

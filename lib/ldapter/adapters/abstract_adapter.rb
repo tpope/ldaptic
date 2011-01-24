@@ -101,11 +101,7 @@ module Ldapter
       end
 
       def logger
-        unless @logger
-          require 'logger'
-          @logger = Logger.new($stderr)
-        end
-        @logger
+        @logger || Ldapter.logger
       end
 
       private
