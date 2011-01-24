@@ -29,4 +29,9 @@ class LdapterActiveModelTest < Test::Unit::TestCase
     assert @model.valid?
   end
 
+  def test_before_type_cast
+    @model.description = ''
+    assert_equal [], @model.description_before_type_cast
+  end
+
 end

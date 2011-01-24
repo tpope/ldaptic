@@ -308,7 +308,13 @@ module Ldapter
     #
     # Changes are not committed to the server until #save is called.
     def write_attribute(key, values)
-      read_attribute(key, true).replace(values)
+      set = read_attribute(key, true)
+      if values.respond_to?(:to_str) && set.syntax_object && set.syntax_object.error("1\n1")
+        values = values.split(/\r?\n/)
+      elsif values == ''
+        values = []
+      end
+      set.replace(values)
     end
     protected :write_attribute
 
@@ -389,7 +395,8 @@ module Ldapter
     end
 
     def respond_to?(method, *) #:nodoc:
-      super || (may + must + (may+must).map {|x| "#{x}="}).include?(method.to_s.tr('-_', '_-'))
+      both = may + must
+      super || (both + both.map {|x| "#{x}="} + both.map {|x| "#{x}-before-type-cast"}).include?(Ldapter.encode(method.to_sym))
     end
 
     # Delegates to +read_attribute+ or +write_attribute+.
@@ -409,6 +416,8 @@ module Ldapter
             return args.flatten.any? {|arg| compare(attribute, arg)}
           end
         end
+      elsif attribute =~ /\A(.*)-before-type-cast\z/ && may_must($1)
+        return read_attribute($1, true, *args, &block)
       elsif may_must(attribute)
         return read_attribute(attribute, *args, &block)
       end
