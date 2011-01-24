@@ -74,10 +74,9 @@ module Ldapter
     def add(*attributes)
       dest = @target.dup
       safe_array(attributes).each do |attribute|
-        dest.push(attribute) unless self.include?(attribute)
+        dest.push(attribute) unless include?(attribute)
       end
       replace(dest)
-      self
     end
     alias <<     add
     alias concat add
@@ -93,9 +92,7 @@ module Ldapter
     # be given as either multiple arguments or as an array.
     def replace(*attributes)
       attributes = safe_array(attributes)
-      if no_user_modification?
-        Ldapter::Errors.raise(TypeError.new("read-only attribute #{@name}"))
-      end
+      user_modification_guard
       @target.replace(attributes)
       self
     end
@@ -152,7 +149,9 @@ module Ldapter
     alias map! collect!
 
     def insert(index, *objects)
-      replace(to_a.insert(index, *objects.flatten))
+      user_modification_guard
+      @target.insert(index, *safe_array(objects))
+      self
     end
 
     def unshift(*values)
@@ -160,8 +159,10 @@ module Ldapter
     end
 
     def reject!(&block)
-      array = to_a
-      replace(array) if array.reject!(&block)
+      user_modification_guard
+      @target.reject! do |value|
+        yield(typecast(value))
+      end
     end
 
     def delete_if(&block)
@@ -172,10 +173,8 @@ module Ldapter
     %w(delete_at pop shift slice!).each do |method|
       class_eval(<<-EOS, __FILE__, __LINE__.succ)
         def #{method}(*args, &block)
-          array = to_a
-          result = array.#{method}(*args, &block)
-          replace(array)
-          result
+          user_modification_guard
+          typecast(@target.#{method}(*args, &block))
         end
       EOS
     end
@@ -251,6 +250,12 @@ module Ldapter
       when Array then value.map {|x| typecast(x)}
       when nil   then nil
       else            @syntax ? syntax_object.parse(value) : value
+      end
+    end
+
+    def user_modification_guard
+      if no_user_modification?
+        Ldapter::Errors.raise(TypeError.new("read-only attribute #{@name}"))
       end
     end
 
