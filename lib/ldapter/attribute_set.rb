@@ -228,16 +228,11 @@ module Ldapter
     end
 
     def format(value)
-      case value
-      when Array then value.map {|x| format(x)}
-      when nil   then nil
+      value = @syntax ? syntax_object.format(value) : value
+      if no_user_modification? && value.kind_of?(String)
+        value.dup.freeze
       else
-        value = @syntax ? syntax_object.format(value) : value
-        if @type && @type.no_user_modification?
-          value.dup.freeze if value.kind_of?(String)
-        else
-          value
-        end
+        value
       end
     end
 
