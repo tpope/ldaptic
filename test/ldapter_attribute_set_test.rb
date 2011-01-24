@@ -46,4 +46,8 @@ class LdapterAttributeSetTest < Test::Unit::TestCase
     assert_equal "foo\nbar", @description.to_s
   end
 
+  def test_should_add_angles_on_inspect
+    assert_equal '<["Foo"]>', @description.inspect
+  end
+
 end

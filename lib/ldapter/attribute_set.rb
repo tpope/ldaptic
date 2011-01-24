@@ -204,6 +204,10 @@ module Ldapter
       @target.join("\n")
     end
 
+    def inspect
+      "<#{to_a.inspect}>"
+    end
+
     #:stopdoc:
 
     alias <<     add
