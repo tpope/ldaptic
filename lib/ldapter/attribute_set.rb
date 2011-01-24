@@ -6,12 +6,7 @@ module Ldapter
   # work transparently.
   class AttributeSet
 
-    alias proxy_respond_to? respond_to?
-    instance_methods.each do |m|
-      unless m =~ /(^__|^send$|^funcall$|^equal\?$|^nil\?$|^tap$|^object_id$|^proxy_)/
-        undef_method m
-      end
-    end
+    attr_reader :entry, :name, :type, :syntax
 
     # The original attributes before type conversion.  Mutating the result
     # mutates the original attributes.
@@ -19,59 +14,27 @@ module Ldapter
       @target
     end
 
-    def initialize(object, key, target) #:nodoc:
-      @object = object
-      @key    = Ldapter.encode(key)
-      @type   = @object.namespace.attribute_type(@key)
-      @syntax = @object.namespace.attribute_syntax(@key)
+    def to_a
+      typecast(@target)
+    end
+    alias to_ary to_a
+
+    include Enumerable
+    def each(&block)
+      to_a.each(&block)
+    end
+
+    def initialize(entry, name, target)
+      @entry  = entry
+      @name   = Ldapter.encode(name)
+      @type   = @entry.namespace.attribute_type(@name)
+      @syntax = @entry.namespace.attribute_syntax(@name)
       @target = target
       if @type.nil?
-        @object.logger.warn("ldapter") { "Unknown attribute type #{@key}" }
+        @entry.logger.warn("ldapter") { "Unknown attribute type #{@name}" }
       elsif @syntax.nil?
-        @object.logger.warn("ldapter") { "Unknown syntax #{@type.syntax_oid} for attribute type #{Array(@type.name).first}" }
+        @entry.logger.warn("ldapter") { "Unknown syntax #{@type.syntax_oid} for attribute type #{Array(@type.name).first}" }
       end
-    end
-
-    # Delegates to an array.
-    def method_missing(method, *args, &block)
-      typecast(@target).send(method, *args, &block)
-    end
-
-    def ===(object) #:nodoc:
-      typecast(@target) === object
-    end
-
-    def respond_to?(method) #:nodoc:
-      proxy_respond_to?(method) || @target.respond_to?(method)
-    end
-
-    # Adds the given attributes, discarding duplicates.  Currently, a duplicate
-    # is determined by == (case sensitive) rather than by the server (typically
-    # case insensitive).  All arrays are flattened.
-    def add(*attributes)
-      dest = @target.dup
-      safe_array(attributes).each do |attribute|
-        dest.push(attribute) unless self.include?(attribute)
-      end
-      replace(dest)
-      self
-    end
-
-    # Add the desired attributes to the LDAP server immediately.
-    def add!(*attributes)
-      @object.add!(@key, safe_array(attributes))
-      self
-    end
-
-    # Does a complete replacement of the attributes.  Multiple attributes can
-    # be given as either multiple arguments or as an array.
-    def replace(*attributes)
-      attributes = safe_array(attributes)
-      if no_user_modification?
-        Ldapter::Errors.raise(TypeError.new("read-only attribute #{@key}"))
-      end
-      @target.replace(attributes)
-      self
     end
 
     def errors
@@ -87,13 +50,63 @@ module Ldapter
       errors
     end
 
-    # Replace the entire attribute at the LDAP server immediately.
-    def replace!(*attributes)
-      @object.replace!(@key, safe_array(attributes))
+    # Delegates to an array.
+    def method_missing(method, *args, &block)
+      to_a.send(method, *args, &block)
+    end
+
+    def ===(object)
+      to_a === object
+    end
+
+    def eql?(object)
+      to_a.eql?(object)
+    end
+    alias == eql?
+
+    def respond_to?(method, *args) #:nodoc:
+      super || @target.respond_to?(method, *args)
+    end
+
+    # Adds the given attributes, discarding duplicates.  Currently, a duplicate
+    # is determined by == (case sensitive) rather than by the server (typically
+    # case insensitive).  All arrays are flattened.
+    def add(*attributes)
+      dest = @target.dup
+      safe_array(attributes).each do |attribute|
+        dest.push(attribute) unless self.include?(attribute)
+      end
+      replace(dest)
+      self
+    end
+    alias <<     add
+    alias concat add
+    alias push   add
+
+    # Add the desired attributes to the LDAP server immediately.
+    def add!(*attributes)
+      @entry.add!(@name, safe_array(attributes))
       self
     end
 
-    def clear #:nodoc:
+    # Does a complete replacement of the attributes.  Multiple attributes can
+    # be given as either multiple arguments or as an array.
+    def replace(*attributes)
+      attributes = safe_array(attributes)
+      if no_user_modification?
+        Ldapter::Errors.raise(TypeError.new("read-only attribute #{@name}"))
+      end
+      @target.replace(attributes)
+      self
+    end
+
+    # Replace the entire attribute at the LDAP server immediately.
+    def replace!(*attributes)
+      @entry.replace!(@name, safe_array(attributes))
+      self
+    end
+
+    def clear
       replace([])
       self
     end
@@ -121,36 +134,37 @@ module Ldapter
       if attributes.size == 1 && !attributes.first.kind_of?(Array)
         typecast ret.first
       else
-        # typecast ret
         self
       end
     end
+    alias subtract delete
 
     # Delete the desired values from the attribute at the LDAP server.
     # If no values are given, the entire attribute is removed.
     def delete!(*attributes)
-      @object.delete!(@key, safe_array(attributes))
+      @entry.delete!(@name, safe_array(attributes))
       self
     end
 
-    def collect!(&block) #:nodoc:
-      replace(typecast(@target).collect(&block))
+    def collect!(&block)
+      replace(to_a.collect(&block))
+    end
+    alias map! collect!
+
+    def insert(index, *objects)
+      replace(to_a.insert(index, *objects.flatten))
     end
 
-    def insert(index, *objects) #:nodoc:
-      replace(typecast(@target).insert(index, *objects.flatten))
-    end
-
-    def unshift(*values) #:nodoc:
+    def unshift(*values)
       insert(0, *values)
     end
 
-    def reject!(&block) #:nodoc:
-      array = typecast(@target)
+    def reject!(&block)
+      array = to_a
       replace(array) if array.reject!(&block)
     end
 
-    def delete_if(&block) #:nodoc:
+    def delete_if(&block)
       reject!(&block)
       self
     end
@@ -158,13 +172,14 @@ module Ldapter
     %w(delete_at pop shift slice!).each do |method|
       class_eval(<<-EOS, __FILE__, __LINE__.succ)
         def #{method}(*args, &block)
-          array = typecast(@target)
+          array = to_a
           result = array.#{method}(*args, &block)
           replace(array)
           result
         end
       EOS
     end
+    alias []= slice!
 
     %w(reverse! sort! uniq!).each do |method|
       class_eval(<<-EOS, __FILE__, __LINE__.succ)
@@ -176,7 +191,7 @@ module Ldapter
 
     # Returns +true+ if the attribute is marked MUST in the object class.
     def mandatory?
-      @object.must.include?(@key)
+      @entry.must.include?(@name)
     end
 
     # Returns +true+ if the attribute may not be specified more than once.
@@ -208,28 +223,15 @@ module Ldapter
       "<#{to_a.inspect}>"
     end
 
-    #:stopdoc:
-
-    alias <<     add
-    alias concat add
-    alias push   add
-
-    alias subtract delete
-
-    alias map! collect!
-    alias []= slice!
-
-    def as_json(*args)
-      typecast(@target).as_json(*args)
+    def as_json(*args) #:nodoc:
+      to_a.as_json(*args)
     end
-
-    #:startdoc:
-
-    private
 
     def syntax_object
-      @syntax && @syntax.object.new(@object)
+      @syntax && @syntax.object.new(@entry)
     end
+
+    private
 
     def format(value)
       value = @syntax ? syntax_object.format(value) : value
