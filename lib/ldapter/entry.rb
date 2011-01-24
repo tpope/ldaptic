@@ -511,6 +511,18 @@ module Ldapter
       save ? self : raise(EntryNotSaved)
     end
 
+    # Assign the given attribute hash, then #save.
+    def update_attributes(hash)
+      merge_attributes(hash)
+      save
+    end
+
+    # Like #update_attributes but raise on failure.
+    def update_attributes!(hash)
+      merge_attributes(hash)
+      save!
+    end
+
     # Refetches the attributes from the server.
     def reload
       new = search(:scope => :base, :limit => true)
