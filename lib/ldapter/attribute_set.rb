@@ -205,7 +205,7 @@ module Ldapter
     end
 
     # If the attribute is a single value, return it, otherwise, return self.
-    def reduce
+    def one
       if single_value?
         first
       else
