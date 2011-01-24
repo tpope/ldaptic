@@ -253,11 +253,5 @@ module Ldapter
       end
     end
 
-    def clone_into_original_attributes
-      originals = @object.instance_variable_get(:@original_attributes)
-      originals[@key] = @target.map {|x| x.dup}
-      self
-    end
-
   end
 end
