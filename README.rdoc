@@ -22,20 +22,11 @@ faced are now potentially solvable with Active Model.
 * The test suite (reflecting my fledgling testing abilities from 2007) is more
   smoke test than BDD.  Perhaps switch to RSpec in the quest to rectify this.
 
-* Active Model validations.  This isn't as simple as it seems, as LDAP
-  attributes are inherently multivalued, and Active Model assumes single
-  values.  Also, does anyone actually need validations above and beyond what
-  the server provides?
-
-* Active Model callbacks, serialization, etc.
-
-* Chainable criteria, like Active Record 3.
-  <tt>filter(sn: "Hill").limit(3)</tt>
-
-* Make it possible to put separate classes in separate files with Rails
-  autoloading.
-
 * Documentation.  The RDoc is actually pretty solid, but it needs a
   supplementary manual, along with some examples.
+
+* Features (mostly along the lines of "make it more like Active Record") in
+  the GitHub issue tracker.  Vote for and comment on the ones you would find
+  useful, as most are on hold until someone has a real use case.
 
 * Pick a better name?  Ldapter has an ambiguous spelling.
