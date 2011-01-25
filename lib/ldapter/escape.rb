@@ -5,17 +5,17 @@ module Ldapter
   #
   # If a symbol is passed in, underscores are replaced by dashes, aiding in
   # bridging the gap between LDAP and Ruby conventions.
-  def self.encode(string)
-    if string.respond_to?(:utc)
-      string.utc.strftime("%Y%m%d%H%M%S.0Z")
-    elsif [true, false].include?(string)
-      string.to_s.upcase
-    elsif string.kind_of?(Symbol)
-      string.to_s.gsub('_', '-')
-    elsif string.respond_to?(:dn)
-      string.dn.dup
+  def self.encode(value)
+    if value.respond_to?(:utc)
+      value.dup.utc.strftime("%Y%m%d%H%M%S") + ".%06dZ" % value.usec
+    elsif [true, false].include?(value)
+      value.to_s.upcase
+    elsif value.respond_to?(:dn)
+      value.dn.dup
+    elsif value.kind_of?(Symbol)
+      value.to_s.gsub('_', '-')
     else
-      string.to_s.dup
+      value.to_s.dup
     end
   end
 

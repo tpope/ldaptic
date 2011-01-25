@@ -111,17 +111,7 @@ EOF
       end
 
       def format(value)
-        if value.respond_to?(:utc)
-          value.utc.strftime("%Y%m%d%H%M%S") + ".%06dZ" % [value.usec/100_000]
-        elsif value == true
-          'TRUE'
-        elsif value == false
-          'FALSE'
-        elsif value.respond_to?(:dn)
-          value.dn.to_s
-        else
-          value.to_s
-        end
+        Ldapter.encode(value.kind_of?(Symbol) ? value.to_s : value)
       end
 
       def error(value)

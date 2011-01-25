@@ -11,7 +11,7 @@ class LdapterEscapeTest < Test::Unit::TestCase
 
   def test_encode
     assert_equal "FALSE", Ldapter.encode(false)
-    assert_equal "20000101123456.0Z", Ldapter.encode(Time.utc(2000,1,1,12,34,56))
+    assert_equal "20000101123456.000000Z", Ldapter.encode(Time.utc(2000,1,1,12,34,56))
     assert_equal "foo-bar", Ldapter.encode(:foo_bar)
   end
 
