@@ -24,12 +24,7 @@ module Ldapter
   #
   # If the first argument is not a string, it is handed off to LDAP::encode.
   def self.escape(string, allow_asterisks = false)
-    if string.kind_of?(Symbol) && allow_asterisks
-      warn "deprecated call to escape with Symbol and allow_asterisks"
-      string = Ldapter.encode(string).upcase
-    else
-      string = Ldapter.encode(string)
-    end
+    string = Ldapter.encode(string)
     enc = lambda { |l| "\\%02X" % l.ord }
     string.gsub!(/[()\\\0-\37"+,;<>]/, &enc)
     string.gsub!(/\A[# ]| \Z/, &enc)
