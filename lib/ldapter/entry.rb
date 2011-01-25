@@ -151,7 +151,7 @@ module Ldapter
           return subclass.instantiate(attributes)
         end
         unless structural? || ocs.empty?
-          logger.warn("ldapter") { "#{self}: invalid object class for #{attributes.inspect}" }
+          logger.warn "#{name}: invalid object class for #{attributes.inspect}"
         end
         obj = allocate
         obj.instance_variable_set(:@dn, ::Ldapter::DN(Array(attributes.delete('dn')).first, obj))
@@ -612,14 +612,6 @@ module Ldapter
 
     def common_initializations
       @children ||= {}
-    end
-
-    def warn(message)
-      if logger
-        logger.warn('ldapter') { message }
-      else
-        Kernel.warn message
-      end
     end
 
     def write_attributes_from_rdn(rdn, attributes = @attributes)

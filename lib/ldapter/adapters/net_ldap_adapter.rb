@@ -155,7 +155,7 @@ module Ldapter
         if caps
           caps
         else
-          logger.warn('ldapter') { "#{attribute} could not be capitalized" }
+          logger.warn "Original capitalization for #{attribute} unknown"
           @cached_capitalizations[attribute] = attribute
         end
       end

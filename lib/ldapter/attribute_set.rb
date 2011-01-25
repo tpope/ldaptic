@@ -31,9 +31,9 @@ module Ldapter
       @syntax = @entry.namespace.attribute_syntax(@name)
       @target = target
       if @type.nil?
-        @entry.logger.warn("ldapter") { "Unknown attribute type #{@name}" }
+        @entry.logger "Unknown type for attribute #@name"
       elsif @syntax.nil?
-        @entry.logger.warn("ldapter") { "Unknown syntax #{@type.syntax_oid} for attribute type #{Array(@type.name).first}" }
+        @entry.logger "Unknown syntax #{@type.syntax_oid} for attribute #{@name}"
       end
     end
 
