@@ -211,6 +211,7 @@ module Ldapter
     #   # Returns the first object found.
     #   MyCompany.search(:limit => true)
     def search(options = {}, &block)
+      logger.debug("#{inspect}.search(#{options.inspect[1..-2]})")
       ary = []
       one_attribute = options[:attributes]
       if one_attribute.respond_to?(:to_ary)
@@ -250,12 +251,14 @@ module Ldapter
 
     # Performs an LDAP add.
     def add(dn, attributes)
+      log_dispatch(:add, dn, attributes)
       attributes = normalize_attributes(attributes)
       adapter.add(dn, attributes)
     end
 
     # Performs an LDAP modify.
     def modify(dn, attributes)
+      log_dispatch(:modify, dn, attributes)
       if attributes.kind_of?(Hash)
         attributes = normalize_attributes(attributes)
       else
@@ -266,16 +269,19 @@ module Ldapter
 
     # Performs an LDAP delete.
     def delete(dn)
+      log_dispatch(:delete, dn)
       adapter.delete(dn)
     end
 
     # Performs an LDAP modrdn.
     def rename(dn, new_rdn, delete_old, *args)
+      log_dispatch(:delete, dn, new_rdn, delete_old, *args)
       adapter.rename(dn, new_rdn.to_str, delete_old, *args)
     end
 
     # Performs an LDAP compare.
     def compare(dn, key, value)
+      log_dispatch(:compare, dn, key, value)
       adapter.compare(dn, Ldapter.encode(key), Ldapter.encode(value))
     end
 
@@ -372,5 +378,13 @@ module Ldapter
       end
       self
     end
+
+    def log_dispatch(method, *args)
+      if logger.debug?
+        logger.debug("#{inspect}.#{method}(#{args.inspect[1..-2]})")
+      end
+    end
+
+  end
 
 end
