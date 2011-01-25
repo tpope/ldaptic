@@ -188,7 +188,7 @@ module Ldapter
     end
     alias []= slice!
 
-    %w(reverse! sort! uniq!).each do |method|
+    %w(reverse! shuffle! sort! uniq!).each do |method|
       class_eval(<<-EOS, __FILE__, __LINE__.succ)
         def #{method}(*args)
           Ldapter::Errors.raise(NotImplementedError.new)
