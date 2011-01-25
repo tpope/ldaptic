@@ -30,8 +30,13 @@ module Ldapter
   # Default logger.  If none given, creates a new logger on $stderr.
   def self.logger
     unless @logger
-      require 'logger'
-      @logger = Logger.new($stderr)
+      if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+        return Rails.logger
+      else
+        require 'logger'
+        @logger = Logger.new($stderr)
+        @logger.level = Logger::WARN
+      end
     end
     @logger
   end
