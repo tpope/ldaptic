@@ -241,6 +241,48 @@ module Ldapter
       first ? ary.first : ary
     end
 
+    def normalize_attributes(attributes)
+      attributes.inject({}) do |h, (k, v)|
+        h.update(Ldapter.encode(k) => v.respond_to?(:before_type_cast) ? v.before_type_cast : Array(v))
+      end
+    end
+    private :normalize_attributes
+
+    # Performs an LDAP add.
+    def add(dn, attributes)
+      attributes = normalize_attributes(attributes)
+      adapter.add(dn, attributes)
+    end
+
+    # Performs an LDAP modify.
+    def modify(dn, attributes)
+      if attributes.kind_of?(Hash)
+        attributes = normalize_attributes(attributes)
+      else
+        attributes = attributes.map {|(action, key, values)| [action, Ldapter.encode(key), Array(values)]}
+      end
+      adapter.modify(dn, attributes) unless attributes.empty?
+    end
+
+    # Performs an LDAP delete.
+    def delete(dn)
+      adapter.delete(dn)
+    end
+
+    # Performs an LDAP modrdn.
+    def rename(dn, new_rdn, delete_old, *args)
+      adapter.rename(dn, new_rdn.to_str, delete_old, *args)
+    end
+
+    # Performs an LDAP compare.
+    def compare(dn, key, value)
+      adapter.compare(dn, Ldapter.encode(key), Ldapter.encode(value))
+    end
+
+    def dit_content_rule(oid)
+      adapter.dit_content_rules[oid]
+    end
+
     # Retrieves attributes from the Root DSE.  If +attrs+ is an array, a hash
     # is returned keyed on the attribute.
     #
@@ -330,7 +372,5 @@ module Ldapter
       end
       self
     end
-
-  end
 
 end

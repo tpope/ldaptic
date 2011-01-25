@@ -114,7 +114,7 @@ module Ldapter
       end
 
       def dit_content_rule
-        namespace.adapter.dit_content_rules[oid]
+        namespace.dit_content_rule(oid)
       end
 
       def object_class
@@ -327,7 +327,7 @@ module Ldapter
       original = Ldapter::AttributeSet.new(self, key, @original_attributes[key])
       original.__send__(action, values)
       begin
-        namespace.adapter.modify(dn, [[action, key, values]])
+        namespace.modify(dn, [[action, key, values]])
       rescue
         @original_attributes[key] = virgin
         raise $!
@@ -342,7 +342,7 @@ module Ldapter
     # Commit an array of modifications directly to LDAP, without updating the
     # local object.
     def modify_attributes(mods) #:nodoc:
-      namespace.adapter.modify(dn, mods.map {|(action, key, values)| [action, Ldapter.encode(key), Array(values)]})
+      namespace.modify(dn, mods)
       self
     end
 
@@ -361,7 +361,7 @@ module Ldapter
     # Compare an attribute to see if it has a given value.  This happens at the
     # server.
     def compare(key, value)
-      namespace.adapter.compare(dn, Ldapter.encode(key), Ldapter.encode(value))
+      namespace.compare(dn, key, value)
     end
 
     # attr_reader :attributes
@@ -503,12 +503,9 @@ module Ldapter
     def save
       return false unless valid?
       if persisted?
-        updates = changes.keys.inject({}) do |m, o|
-          m.update(o => @attributes[o])
-        end
-        namespace.adapter.modify(dn, updates) unless updates.empty?
+        namespace.modify(dn, changes)
       else
-        namespace.adapter.add(dn, @attributes)
+        namespace.add(dn, changes)
       end
       @original_attributes = (@original_attributes||{}).merge(@attributes)
       @attributes = {}
@@ -545,7 +542,7 @@ module Ldapter
     # Deletes the object from the server.  If #save is invoked afterwards, the
     # entry will be recreated.
     def delete
-      namespace.adapter.delete(dn)
+      namespace.delete(dn)
       @attributes = (@original_attributes||{}).merge(@attributes)
       @original_attributes = nil
       self
@@ -568,7 +565,7 @@ module Ldapter
       if delete_old.nil?
         delete_old = (new_rdn == old_rdn)
       end
-      namespace.adapter.rename(dn, new_rdn.to_str, delete_old, *[new_root].compact)
+      namespace.rename(dn, new_rdn.to_str, delete_old, *[new_root].compact)
       if delete_old
         old_rdn.each do |k, v|
           [@attributes, @original_attributes].each do |hash|
