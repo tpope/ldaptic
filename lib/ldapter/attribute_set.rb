@@ -39,9 +39,9 @@ module Ldapter
 
     def errors
       errors = []
-      if single_value? && @target.size > 1
+      if single_value? && size > 1
         errors << "does not accept multiple values"
-      elsif mandatory? && @target.empty?
+      elsif mandatory? && empty?
         errors << "is mandatory"
       end
       if syntax_object
@@ -66,6 +66,14 @@ module Ldapter
 
     def respond_to?(method, *args) #:nodoc:
       super || @target.respond_to?(method, *args)
+    end
+
+    def size
+      @target.size
+    end
+
+    def empty?
+      @target.empty?
     end
 
     # Adds the given attributes, discarding duplicates.  Currently, a duplicate
