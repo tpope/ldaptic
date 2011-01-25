@@ -238,6 +238,11 @@ module Ldapter
       @syntax && @syntax.object.new(@entry)
     end
 
+    # Invokes +human_attribute_name+ on the attribute's name.
+    def human_name
+      @entry.class.human_attribute_name(@name)
+    end
+
     private
 
     def format(value)

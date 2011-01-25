@@ -50,4 +50,8 @@ class LdapterAttributeSetTest < Test::Unit::TestCase
     assert_equal '<["Foo"]>', @description.inspect
   end
 
+  def test_should_humanize
+    assert_equal 'Description', @description.human_name
+  end
+
 end
