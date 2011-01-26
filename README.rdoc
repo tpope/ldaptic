@@ -61,7 +61,7 @@ Predictably, entries have attribute readers and writers.
   => <["root"]>
   >> entry[:cn] = "admin"
 
-The returned object is an attribute set and behaves similar to an array.  Some
+The returned object is an attribute set and is similar to an array.  Some
 attributes are marked by the server as "single value;" those will return the
 first element on method access but an attribute set on indexing access, for
 programmatic convenience.
