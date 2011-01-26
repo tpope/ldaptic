@@ -2,7 +2,8 @@ Gem::Specification.new do |s|
   s.name                = "ldapter"
   s.version             = "0.1.2"
 
-  s.summary             = 'Object Oriented Wrapper around LDAP and Net::LDAP'
+  s.summary             = 'Object-oriented schema-aware LDAP wrapper'
+  s.description         = 'Include a parameterized dynamic module in a namespace and get a full LDAP class hierarchy at your disposal.'
   s.authors             = ["Tim Pope"]
   s.email               = "ruby@tpope.o"+'rg'
   s.homepage            = "http://github.com/tpope/ldapter"
