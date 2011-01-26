@@ -100,5 +100,3 @@ methods like search), Ldaptic::Entry, and Ldaptic::AttributeSet.
   Record") are in the GitHub issue tracker.  Vote for and comment on the ones
   you would find useful, as most are on hold until someone has a real use
   case.
-
-* Pick a better name?  Ldaptic has an ambiguous spelling.
