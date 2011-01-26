@@ -489,7 +489,7 @@ module Ldapter
     end
 
     def check_server_constraints
-      ((persisted? ? [] : must) | changes.keys).each do |k|
+      ((changes.has_key?('objectClass') ? must : []) | changes.keys).each do |k|
         set = read_attribute(k, true)
         set.errors.each do |message|
           errors.add(k, message)
