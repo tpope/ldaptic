@@ -228,11 +228,8 @@ module Ldapter
           entry = klass.instantiate(entry)
         end
         if one_attribute
-          if entry.respond_to?(:read_attribute)
-            entry = entry.send(:read_attribute, Ldapter.encode(one_attribute))
-          else
-            entry = entry[Ldapter.encode(one_attribute)]
-          end
+          entry = entry[Ldapter.encode(one_attribute)]
+          entry = entry.one if entry.respond_to?(:one)
         end
         ary << entry
         block.call(entry) if block_given?

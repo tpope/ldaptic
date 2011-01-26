@@ -50,7 +50,7 @@ module Ldapter
         (may(false) + must(false)).each do |attr|
           method = attr.to_s.tr_s('-_', '_-')
           to_be_evaled << <<-RUBY
-          def #{method}(*args, &block) read_attribute('#{attr}', *args, &block) end
+          def #{method}() read_attribute('#{attr}').one end
           def #{method}=(value) write_attribute('#{attr}', value) end
           RUBY
         end
@@ -268,29 +268,21 @@ module Ldapter
       "#<#{self.class} #{dn}>"
     end
 
-    # Reads an attribute and typecasts it if neccessary.  If the server
-    # indicates the attribute is <tt>SINGLE-VALUE</tt>, the sole attribute or
-    # +nil+ is returned.  Otherwise, an array is returned.
-    #
-    # If the argument given is a symbol, underscores are translated into
-    # hyphens.  Since #method_missing delegates to this method, method names
-    # with underscores map to attributes with hyphens.
-    def read_attribute(key, always_array = false, &block)
+    # Reads an attribute and typecasts it if neccessary.  If the argument given
+    # is a symbol, underscores are translated into hyphens.  Since
+    # #method_missing delegates to this method, method names with underscores
+    # map to attributes with hyphens.
+    def read_attribute(key)
       key = Ldapter.encode(key)
-      @attributes[key] ||= ((@original_attributes||{})[key] || []).dup
-      values = Ldapter::AttributeSet.new(self, key, @attributes[key])
-      single = values.single_value?
-      if block_given?
-        values = values.map(&block)
-      end
-      (always_array || !single) ? values : values.first
+      @attributes[key] ||= ((@original_attributes || {}).fetch(key, [])).dup
+      Ldapter::AttributeSet.new(self, key, @attributes[key])
     end
     protected :read_attribute
 
     # Returns a hash of attributes.
     def attributes
       (@original_attributes||{}).merge(@attributes).keys.inject({}) do |hash, key|
-        hash[key] = read_attribute(key, true)
+        hash[key] = read_attribute(key)
         hash
       end
     end
@@ -299,7 +291,7 @@ module Ldapter
       @attributes.reject do |k, v|
         (@original_attributes || {})[k].to_a == v
       end.keys.inject({}) do |hash, key|
-        hash[key] = read_attribute(key, true)
+        hash[key] = read_attribute(key)
         hash
       end
     end
@@ -309,7 +301,7 @@ module Ldapter
     #
     # Changes are not committed to the server until #save is called.
     def write_attribute(key, values)
-      set = read_attribute(key, true)
+      set = read_attribute(key)
       if values.respond_to?(:to_str) && set.syntax_object && set.syntax_object.error("1\n1")
         values = values.split(/\r?\n/)
       elsif values == ''
@@ -334,7 +326,7 @@ module Ldapter
         raise $!
       end
       if @attributes[key]
-        read_attribute(key, true).__send__(action, values)
+        read_attribute(key).__send__(action, values)
       end
       self
     end
@@ -400,7 +392,8 @@ module Ldapter
       super || (both + both.map {|x| "#{x}="} + both.map {|x| "#{x}-before-type-cast"}).include?(Ldapter.encode(method.to_sym))
     end
 
-    # Delegates to +read_attribute+ or +write_attribute+.
+    # Delegates to +read_attribute+ or +write_attribute+.  Pops an element out
+    # of its set if the attribute is marked SINGLE-VALUE.
     def method_missing(method, *args, &block)
       attribute = Ldapter.encode(method)
       if attribute[-1] == ?=
@@ -412,15 +405,15 @@ module Ldapter
         attribute.chop!
         if may_must(attribute)
           if args.empty?
-            return !read_attribute(attribute, true).empty?
+            return !read_attribute(attribute).empty?
           else
             return args.flatten.any? {|arg| compare(attribute, arg)}
           end
         end
       elsif attribute =~ /\A(.*)-before-type-cast\z/ && may_must($1)
-        return read_attribute($1, true, *args, &block)
+        return read_attribute($1, *args, &block)
       elsif may_must(attribute)
-        return read_attribute(attribute, *args, &block)
+        return read_attribute(attribute, *args, &block).one
       end
       super(method, *args, &block)
     end
@@ -456,7 +449,7 @@ module Ldapter
       if key.kind_of?(Hash) || key =~ /=/
         cached_child(key)
       else
-        read_attribute(key, true)
+        read_attribute(key)
       end
     end
 
@@ -494,7 +487,7 @@ module Ldapter
       else
         changes.keys
       end.each do |k|
-        set = read_attribute(k, true)
+        set = read_attribute(k)
         set.errors.each do |message|
           errors.add(k, message)
         end
