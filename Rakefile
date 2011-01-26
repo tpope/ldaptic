@@ -2,17 +2,13 @@ begin
   require 'rubygems'
 rescue LoadError
 end
-require 'rake'
 require 'rake/testtask'
 require 'rake/rdoctask'
 require 'rake/packagetask'
 require 'rake/gempackagetask'
-require 'rake/contrib/sshpublisher'
 $:.unshift(File.join(File.dirname(__FILE__), 'lib'))
-require 'ldapter'
 
-desc "Default task: test"
-task :default => [ :test ]
+task :default => :test
 
 Rake::TestTask.new do |t|
   t.libs << "test"
@@ -27,11 +23,6 @@ Rake::RDocTask.new do |rdoc|
   rdoc.title    = 'Ldapter'
   rdoc.options << '--inline-source'
   rdoc.options << '-d' if `which dot` =~ /\/dot/
-end
-
-desc "Generate the RDoc documentation for RI"
-task :ri do
-  system("rdoc", "--ri", "lib")
 end
 
 spec = eval(File.read(File.join(File.dirname(__FILE__), 'ldapter.gemspec')))
