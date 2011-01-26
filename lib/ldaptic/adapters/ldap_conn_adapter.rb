@@ -1,6 +1,6 @@
-require 'ldapter/adapters/abstract_adapter'
+require 'ldaptic/adapters/abstract_adapter'
 
-module Ldapter
+module Ldaptic
   module Adapters
     class LDAPConnAdapter < AbstractAdapter
       register_as(:ldap_conn)
@@ -65,7 +65,7 @@ module Ldapter
             if conn.respond_to?(:rename)
               conn.rename(dn, new_rdn, new_superior, delete_old)
             else
-              Ldapter::Errors.raise(NotImplementedError.new("rename unsupported"))
+              Ldaptic::Errors.raise(NotImplementedError.new("rename unsupported"))
             end
           else
             conn.modrdn(dn, new_rdn, delete_old)
@@ -77,9 +77,9 @@ module Ldapter
         with_reader do |conn|
           conn.compare(dn, attr, value)
         end
-      rescue Ldapter::Errors::CompareFalse
+      rescue Ldaptic::Errors::CompareFalse
         false
-      rescue Ldapter::Errors::CompareTrue
+      rescue Ldaptic::Errors::CompareTrue
         true
       end
 
@@ -119,7 +119,7 @@ module Ldapter
         message = exception.message
         err = error_for_message(message)
         unless err == 49 # Invalid credentials
-          Ldapter::Errors.raise_unless_zero(err, message)
+          Ldaptic::Errors.raise_unless_zero(err, message)
         end
         false
       ensure
@@ -198,7 +198,7 @@ module Ldapter
 
       def full_username(username)
         if username.kind_of?(Hash)
-          base = Ldapter::DN(default_base_dn || "")
+          base = Ldaptic::DN(default_base_dn || "")
           base / username
         else
           username
@@ -231,7 +231,7 @@ module Ldapter
           err = conn_err
           message = conn.err2string(err) rescue nil
         end
-        Ldapter::Errors.raise_unless_zero(err, message)
+        Ldaptic::Errors.raise_unless_zero(err, message)
         result
       end
 

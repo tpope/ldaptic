@@ -1,12 +1,12 @@
 require File.join(File.dirname(File.expand_path(__FILE__)),'test_helper')
-require 'ldapter/adapters'
-require 'ldapter/adapters/net_ldap_adapter'
-require 'ldapter/adapters/ldap_conn_adapter'
+require 'ldaptic/adapters'
+require 'ldaptic/adapters/net_ldap_adapter'
+require 'ldaptic/adapters/ldap_conn_adapter'
 
-class LdapterAdaptersTest < Test::Unit::TestCase
+class LdapticAdaptersTest < Test::Unit::TestCase
   def setup
-    @ldap_conn = Ldapter::Adapters::LDAPConnAdapter.allocate
-    @net_ldap  = Ldapter::Adapters::NetLDAPAdapter.allocate
+    @ldap_conn = Ldaptic::Adapters::LDAPConnAdapter.allocate
+    @net_ldap  = Ldaptic::Adapters::NetLDAPAdapter.allocate
   end
 
   def test_should_parameterize_search_options
@@ -27,9 +27,9 @@ class LdapterAdaptersTest < Test::Unit::TestCase
   end
 
   def test_should_reject_invalid_adapter_options
-    assert_raise(ArgumentError) { Ldapter::Adapters.for(:adapter => "fake") }
-    assert_raise(TypeError)     { Ldapter::Adapters.for(Object.new) }
-    assert_not_nil Ldapter::Adapters.for(@ldap_conn)
+    assert_raise(ArgumentError) { Ldaptic::Adapters.for(:adapter => "fake") }
+    assert_raise(TypeError)     { Ldaptic::Adapters.for(Object.new) }
+    assert_not_nil Ldaptic::Adapters.for(@ldap_conn)
   end
 
 end

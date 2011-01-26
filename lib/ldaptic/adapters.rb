@@ -1,4 +1,4 @@
-module Ldapter
+module Ldaptic
   # RFC1823 - The LDAP Application Program Interface
   module Adapters
 
@@ -13,11 +13,11 @@ module Ldapter
       end
 
       # Returns a new adapter for a given set of options.  This method is not
-      # for end user use but is instead called by the Ldapter::Class,
-      # Ldapter::Module, and Ldapter::Object methods.
+      # for end user use but is instead called by the Ldaptic::Class,
+      # Ldaptic::Module, and Ldaptic::Object methods.
       #
       # The <tt>:adapter</tt> key of the +options+ hash selects which adapter
-      # to use.  The following adapters are included with Ldapter.
+      # to use.  The following adapters are included with Ldaptic.
       #
       # * <tt>:ldap_conn</tt>: a Ruby/LDAP LDAP::Conn connection.
       # * <tt>:ldap_sslconn</tt>: a Ruby/LDAP LDAP::SSLConn connection.
@@ -38,7 +38,7 @@ module Ldapter
       # * <tt>:base</tt>: The default base DN.  Derived from the server by
       #   default.
       def for(options)
-        require 'ldapter/adapters/abstract_adapter'
+        require 'ldaptic/adapters/abstract_adapter'
         # Allow an adapter to be passed directly in for backwards compatibility.
         if defined?(::LDAP::Conn) && options.kind_of?(::LDAP::Conn)
           options = {:adapter => :ldap_conn, :connection => options}
@@ -52,22 +52,22 @@ module Ldapter
           end
           options[:adapter] ||= default_adapter
           unless options[:adapter]
-            Ldapter::Errors.raise(ArgumentError.new("No adapter specfied"))
+            Ldaptic::Errors.raise(ArgumentError.new("No adapter specfied"))
           end
           begin
-            require "ldapter/adapters/#{options[:adapter]}_adapter"
+            require "ldaptic/adapters/#{options[:adapter]}_adapter"
           rescue LoadError
           end
           if adapter = @adapters[options[:adapter].to_sym]
             adapter.new(options)
           else
-            Ldapter::Errors.raise(ArgumentError.new("Adapter #{options[:adapter]} not found"))
+            Ldaptic::Errors.raise(ArgumentError.new("Adapter #{options[:adapter]} not found"))
           end
         else
-          if options.kind_of?(::Ldapter::Adapters::AbstractAdapter)
+          if options.kind_of?(::Ldaptic::Adapters::AbstractAdapter)
             options
           else
-            Ldapter::Errors.raise(TypeError.new("#{options.class} is not a valid connection type"))
+            Ldaptic::Errors.raise(TypeError.new("#{options.class} is not a valid connection type"))
           end
         end
       end

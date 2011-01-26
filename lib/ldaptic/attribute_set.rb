@@ -1,6 +1,6 @@
-require 'ldapter/escape'
+require 'ldaptic/escape'
 
-module Ldapter
+module Ldaptic
   # AttributeSet, like the name suggests, represents a set of attributes.  Most
   # operations are delegated to an array, so the usual array methods should
   # work transparently.
@@ -26,7 +26,7 @@ module Ldapter
 
     def initialize(entry, name, target)
       @entry  = entry
-      @name   = Ldapter.encode(name)
+      @name   = Ldaptic.encode(name)
       @type   = @entry.namespace.attribute_type(@name)
       @syntax = @entry.namespace.attribute_syntax(@name)
       @target = target
@@ -192,7 +192,7 @@ module Ldapter
     %w(reverse! shuffle! sort! uniq!).each do |method|
       class_eval(<<-EOS, __FILE__, __LINE__.succ)
         def #{method}(*args)
-          Ldapter::Errors.raise(NotImplementedError.new)
+          Ldaptic::Errors.raise(NotImplementedError.new)
         end
       EOS
     end
@@ -275,7 +275,7 @@ module Ldapter
 
     def user_modification_guard
       if no_user_modification?
-        Ldapter::Errors.raise(TypeError.new("read-only attribute #{@name}"))
+        Ldaptic::Errors.raise(TypeError.new("read-only attribute #{@name}"))
       end
     end
 

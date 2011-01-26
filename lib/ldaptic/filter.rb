@@ -1,14 +1,14 @@
-require 'ldapter/escape'
+require 'ldaptic/escape'
 
-module Ldapter
+module Ldaptic
 
-  # If the argument is already a valid Ldapter::Filter object, return it
+  # If the argument is already a valid Ldaptic::Filter object, return it
   # untouched.  Otherwise, pass it to the appropriate constructer of the
   # appropriate subclass.
   #
-  #   Ldapter::Filter("(cn=Wu*)").to_s        #=> '(cn=Wu*)'
-  #   Ldapter::Filter({:cn=>"Wu*"}).to_s      #=> '(cn=Wu\2A)'
-  #   Ldapter::Filter(["(cn=?*)","Wu*"]).to_s #=> '(cn=Wu\2A*)'
+  #   Ldaptic::Filter("(cn=Wu*)").to_s        #=> '(cn=Wu*)'
+  #   Ldaptic::Filter({:cn=>"Wu*"}).to_s      #=> '(cn=Wu\2A)'
+  #   Ldaptic::Filter(["(cn=?*)","Wu*"]).to_s #=> '(cn=Wu\2A*)'
   def self.Filter(argument)
     case argument
     when Filter::Abstract then argument
@@ -18,7 +18,7 @@ module Ldapter
     when String then Filter::String   .new(argument)
     when Symbol then Filter::Attribute.new(argument)
     when Proc, Method
-      Ldapter::Filter(if argument.arity > 0
+      Ldaptic::Filter(if argument.arity > 0
         argument.call(Filter::Spawner)
       elsif Filter::Spawner.respond_to?(:instance_exec)
         Filter::Spawner.instance_exec(&argument)
@@ -29,7 +29,7 @@ module Ldapter
     end
   end
 
-  # See Ldapter.Filter for the contructor and Ldapter::Filter::Abstract for
+  # See Ldaptic.Filter for the contructor and Ldaptic::Filter::Abstract for
   # methods common to all filters.
   #
   # Useful subclasses include String, Array, and Hash.
@@ -50,7 +50,7 @@ module Ldapter
 
       # Negate a filter.
       #
-      #   ~Ldapter::Filter("(a=1)").to_s # => "(!(a=1))"
+      #   ~Ldaptic::Filter("(a=1)").to_s # => "(!(a=1))"
       def ~
         Not.new(self)
       end
@@ -64,9 +64,9 @@ module Ldapter
 
       def inspect
         if string = process
-          "#<#{Ldapter::Filter.inspect} #{string}>"
+          "#<#{Ldaptic::Filter.inspect} #{string}>"
         else
-          "#<#{Ldapter::Filter.inspect} invalid>"
+          "#<#{Ldaptic::Filter.inspect} invalid>"
         end
       end
 
@@ -106,8 +106,8 @@ module Ldapter
     # This class is used for raw LDAP queries.  Note that the outermost set of
     # parentheses *must* be used.
     #
-    #   Ldapter::Filter("a=1")   # Wrong
-    #   Ldapter::Filter("(a=1)") # Correct
+    #   Ldaptic::Filter("a=1")   # Wrong
+    #   Ldaptic::Filter("(a=1)") # Correct
     class String < Abstract
 
       def initialize(string) #:nodoc:
@@ -123,7 +123,7 @@ module Ldapter
 
     # Does ? parameter substitution.
     #
-    #   Ldapter::Filter(["(cn=?*)", "Sm"]).to_s #=> "(cn=Sm*)"
+    #   Ldaptic::Filter(["(cn=?*)", "Sm"]).to_s #=> "(cn=Sm*)"
     class Array < Abstract
       def initialize(array) #:nodoc:
         @template = array.first
@@ -131,15 +131,15 @@ module Ldapter
       end
       def process
         parameters = @parameters.dup
-        string = @template.gsub('?') { Ldapter.escape(parameters.pop) }
+        string = @template.gsub('?') { Ldaptic.escape(parameters.pop) }
       end
     end
 
-    # Used in the implementation of Ldapter::Filter::And and
-    # Ldapter::Filter::Or.  For internal use only.
+    # Used in the implementation of Ldaptic::Filter::And and
+    # Ldaptic::Filter::Or.  For internal use only.
     class Join < Abstract
       def initialize(operator, *args) #:nodoc:
-        @array = [operator] + args.map {|arg| Ldapter::Filter(arg)}
+        @array = [operator] + args.map {|arg| Ldaptic::Filter(arg)}
       end
       def process
         "(#{@array*''})" if @array.compact.size > 1
@@ -163,7 +163,7 @@ module Ldapter
 
     class Not < Abstract
       def initialize(object)
-        @object = Ldapter::Filter(object)
+        @object = Ldaptic::Filter(object)
       end
       def process
         process = @object.process and "(!#{process})"
@@ -175,7 +175,7 @@ module Ldapter
 
     # A hash is the most general and most useful type of filter builder.
     #
-    #   Ldapter::Filter(
+    #   Ldaptic::Filter(
     #     :givenName => "David",
     #     :sn! => "Thomas",
     #     :postalCode => (70000..80000)
@@ -184,12 +184,12 @@ module Ldapter
     # Including :* => true allows asterisks to pass through unaltered.
     # Otherwise, they are escaped.
     #
-    #    Ldapter::Filter(:givenName => "Dav*", :* => true).to_s # => "(givenName=Dav*)"
+    #    Ldaptic::Filter(:givenName => "Dav*", :* => true).to_s # => "(givenName=Dav*)"
     class Hash < Abstract
 
       attr_accessor :escape_asterisks
       attr_reader   :hash
-      # Call Ldapter::Filter(hash) instead of instantiating this class
+      # Call Ldaptic::Filter(hash) instead of instantiating this class
       # directly.
       def initialize(hash)
         @hash = hash.dup
@@ -238,27 +238,27 @@ module Ldapter
         inverse = @inverse
         operator = "=" if operator == "=="
         if v.respond_to?(:to_ary)
-          q = "(|" + v.map {|e| "(#{Ldapter.encode(k)}=#{Ldapter.escape(e, star)})"}.join + ")"
+          q = "(|" + v.map {|e| "(#{Ldaptic.encode(k)}=#{Ldaptic.escape(e, star)})"}.join + ")"
         elsif v.kind_of?(Range)
           q = []
           if v.first != -1.0/0
-            q << "(#{Ldapter.encode(k)}>=#{Ldapter.escape(v.first, star)})"
+            q << "(#{Ldaptic.encode(k)}>=#{Ldaptic.escape(v.first, star)})"
           end
           if v.last != 1.0/0
             if v.exclude_end?
-              q << "(!(#{Ldapter.encode(k)}>=#{Ldapter.escape(v.last, star)}))"
+              q << "(!(#{Ldaptic.encode(k)}>=#{Ldaptic.escape(v.last, star)}))"
             else
-              q << "(#{Ldapter.encode(k)}<=#{Ldapter.escape(v.last, star)})"
+              q << "(#{Ldaptic.encode(k)}<=#{Ldaptic.escape(v.last, star)})"
             end
           end
           q = "(&#{q*""})"
         elsif v == true || v == :*
-          q = "(#{Ldapter.encode(k)}=*)"
+          q = "(#{Ldaptic.encode(k)}=*)"
         elsif !v
-          q = "(#{Ldapter.encode(k)}=*)"
+          q = "(#{Ldaptic.encode(k)}=*)"
           inverse ^= true
         else
-          q = "(#{Ldapter.encode(k)}#{operator}#{Ldapter.escape(v, star)})"
+          q = "(#{Ldaptic.encode(k)}#{operator}#{Ldaptic.escape(v, star)})"
         end
         inverse ? "(!#{q})" : q
       end
@@ -266,7 +266,7 @@ module Ldapter
 
     module Conversions #:nodoc:
       def to_ldap_filter
-        Ldapter::Filter(self)
+        Ldaptic::Filter(self)
       end
     end
 
@@ -275,8 +275,8 @@ module Ldapter
 end
 
 class Hash
-  include Ldapter::Filter::Conversions
+  include Ldaptic::Filter::Conversions
 end
 class String
-  include Ldapter::Filter::Conversions
+  include Ldaptic::Filter::Conversions
 end

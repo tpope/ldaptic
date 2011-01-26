@@ -1,4 +1,4 @@
-= Ldapter
+= Ldaptic
 
 This is an object-oriented LDAP wrapper library I started back in 2007 but
 only recently polished up and released.  It's unique in that it creates a
@@ -8,7 +8,7 @@ hierarchy on the server.  For example, on a typical server, you'll get an
 inherits from +Person+ which inherits from +Top+.  You can reopen any of these
 classes to add additional client side behavior.
 
-Ldapter started as mainly a tool to interact with my company's Active
+Ldaptic started as mainly a tool to interact with my company's Active
 Directory server, and I lost interest in it when I left that job.  Recently,
 I've become motivated to work on it again, as some of the blocking issues I
 faced are now potentially solvable with Active Model.
@@ -16,11 +16,11 @@ faced are now potentially solvable with Active Model.
 == Getting Started
 
 You need to have either the ruby-ldap or net-ldap gem installed.  The former
-is preferred because it's faster native C.  Ldapter is configured by including
+is preferred because it's faster native C.  Ldaptic is configured by including
 a dynamically created module into a namespace of your choosing.
 
   module Example
-    include Ldapter::Module(
+    include Ldaptic::Module(
       :adapter => :ldap_conn,
       :base => 'ou=Users,dc=example,dc=com',
       :host => 'example.com',
@@ -84,8 +84,8 @@ Entries also implement many of the standard methods you've come to expect in
 an Active Record world (save, valid?, errors, to_param, attributes, ...).
 In fact, it is fully Active Model compliant.
 
-For more information, see in particular Ldapter::Methods (for namespace
-methods like search), Ldapter::Entry, and Ldapter::AttributeSet.
+For more information, see in particular Ldaptic::Methods (for namespace
+methods like search), Ldaptic::Entry, and Ldaptic::AttributeSet.
 
 == To Do
 
@@ -101,4 +101,4 @@ methods like search), Ldapter::Entry, and Ldapter::AttributeSet.
   you would find useful, as most are on hold until someone has a real use
   case.
 
-* Pick a better name?  Ldapter has an ambiguous spelling.
+* Pick a better name?  Ldaptic has an ambiguous spelling.

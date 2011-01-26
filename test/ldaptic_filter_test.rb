@@ -1,15 +1,15 @@
 $:.unshift(File.join(File.dirname(__FILE__),'..','lib')).uniq!
-require 'ldapter/filter'
+require 'ldaptic/filter'
 require 'test/unit'
 
-class LdapterFilterTest < Test::Unit::TestCase
+class LdapticFilterTest < Test::Unit::TestCase
 
   def assert_ldap_filter(string, filter)
-    assert_equal string.downcase, Ldapter::Filter(filter).process.downcase
+    assert_equal string.downcase, Ldaptic::Filter(filter).process.downcase
   end
 
   def test_filter_from_hash
-    assert_equal nil, Ldapter::Filter({}).process
+    assert_equal nil, Ldaptic::Filter({}).process
     assert_ldap_filter "(x-y=*)", :x_y
     assert_ldap_filter "(x=1)", :x => 1
     assert_ldap_filter "(x=*)", :x => true
@@ -37,9 +37,9 @@ class LdapterFilterTest < Test::Unit::TestCase
   end
 
   def test_boolean_logic
-    assert_ldap_filter "(&(a=1)(b=2))", Ldapter::Filter(:a => 1) & {:b => 2}
-    assert_ldap_filter "(|(a=1)(b=2))", Ldapter::Filter(:a => 1) | "(b=2)"
-    assert_ldap_filter "(!(a=1))",     ~Ldapter::Filter(:a => 1)
+    assert_ldap_filter "(&(a=1)(b=2))", Ldaptic::Filter(:a => 1) & {:b => 2}
+    assert_ldap_filter "(|(a=1)(b=2))", Ldaptic::Filter(:a => 1) | "(b=2)"
+    assert_ldap_filter "(!(a=1))",     ~Ldaptic::Filter(:a => 1)
   end
 
   def test_conversions
@@ -47,7 +47,7 @@ class LdapterFilterTest < Test::Unit::TestCase
   end
 
   def test_errors
-    assert_raise(TypeError) { Ldapter::Filter(Object.new) }
+    assert_raise(TypeError) { Ldaptic::Filter(Object.new) }
   end
 
 end

@@ -1,4 +1,4 @@
-module Ldapter
+module Ldaptic
 
   class Error < ::RuntimeError
   end
@@ -13,7 +13,7 @@ module Ldapter
     attr_accessor :code
   end
 
-  # The module houses all subclasses of Ldapter::ServerError.  The methods
+  # The module houses all subclasses of Ldaptic::ServerError.  The methods
   # contained within are for internal use only.
   module Errors
 
@@ -99,7 +99,7 @@ module Ldapter
 
     class << self
 
-      # Provides a backtrace minus all files shipped with Ldapter.
+      # Provides a backtrace minus all files shipped with Ldaptic.
       def application_backtrace
         dir = File.dirname(File.dirname(__FILE__))
         c = caller
@@ -108,7 +108,7 @@ module Ldapter
       end
 
       # Raise an exception (object only, no strings or classes) with the
-      # backtrace stripped of all Ldapter files.
+      # backtrace stripped of all Ldaptic files.
       def raise(exception)
         exception.set_backtrace(application_backtrace)
         Kernel.raise exception
@@ -122,7 +122,7 @@ module Ldapter
         exception
       end
 
-      # Given an error code and a message, raise an Ldapter::ServerError unless
+      # Given an error code and a message, raise an Ldaptic::ServerError unless
       # the code is zero.  The right subclass is selected automatically if it
       # is available.
       def raise_unless_zero(code, message = nil)

@@ -1,10 +1,10 @@
-module Ldapter
+module Ldaptic
 
-  # These methods are accessible directly from the Ldapter object.
+  # These methods are accessible directly from the Ldaptic object.
   module Methods
 
     # For duck typing.
-    def to_ldapter
+    def to_ldaptic
       self
     end
 
@@ -15,7 +15,7 @@ module Ldapter
         hash[k.sup] << k; hash
       end
       @object_classes = {}
-      add_constants(hash, Ldapter::Entry)
+      add_constants(hash, Ldaptic::Entry)
       nil
     end
     private :build_hierarchy
@@ -50,11 +50,11 @@ module Ldapter
     # Set a new base DN.  Generally, the base DN should be set when the
     # namespace is created and left unchanged.
     def base=(dn)
-      @base = Ldapter::DN(dn, self)
+      @base = Ldaptic::DN(dn, self)
     end
     # Access the base DN.
     def base
-      @base ||= Ldapter::DN(adapter.default_base_dn, self)
+      @base ||= Ldaptic::DN(adapter.default_base_dn, self)
     end
     alias dn base
 
@@ -64,7 +64,7 @@ module Ldapter
 
     # Find an RDN relative to the base.  This method is experimental.
     #
-    #   class L < Ldapter::Class(:base => "DC=ruby-lang,DC=org", ...)
+    #   class L < Ldaptic::Class(:base => "DC=ruby-lang,DC=org", ...)
     #   end
     #
     #   (L/{:cn => "Matz"}).dn #=> "CN=Matz,DC=ruby-lang,DC=org"
@@ -86,7 +86,7 @@ module Ldapter
       end
     end
 
-    # Like Ldapter::Entry#[]= for the root node.  Only works for assigning
+    # Like Ldaptic::Entry#[]= for the root node.  Only works for assigning
     # children.  This method is experimental.
     #
     #   MyCompany[:cn=>"New Employee"] = MyCompany::User.new
@@ -114,19 +114,19 @@ module Ldapter
       original_scope = options[:scope]
       options[:scope] ||= :subtree
       if !options[:scope].kind_of?(Integer) && options[:scope].respond_to?(:to_sym)
-        options[:scope] = Ldapter::SCOPES[options[:scope].to_sym]
+        options[:scope] = Ldaptic::SCOPES[options[:scope].to_sym]
       end
-      Ldapter::Errors.raise(ArgumentError.new("invalid scope #{original_scope.inspect}")) unless Ldapter::SCOPES.values.include?(options[:scope])
+      Ldaptic::Errors.raise(ArgumentError.new("invalid scope #{original_scope.inspect}")) unless Ldaptic::SCOPES.values.include?(options[:scope])
 
       options[:filter] ||= "(objectClass=*)"
       if [Hash, Proc, Method, Symbol, Array].include?(options[:filter].class)
-        options[:filter] = Ldapter::Filter(options[:filter])
+        options[:filter] = Ldaptic::Filter(options[:filter])
       end
 
       if options[:attributes].respond_to?(:to_ary)
-        options[:attributes] = options[:attributes].map {|x| Ldapter.encode(x)}
+        options[:attributes] = options[:attributes].map {|x| Ldaptic.encode(x)}
       elsif options[:attributes]
-        options[:attributes] = [Ldapter.encode(options[:attributes])]
+        options[:attributes] = [Ldaptic.encode(options[:attributes])]
       end
       if options[:attributes]
         options[:attributes] |= ["objectClass"]
@@ -145,7 +145,7 @@ module Ldapter
         # For a missing DN, the error will be raised automatically.  If the
         # DN does exist but is not returned (e.g., it doesn't match the given
         # filter), we'll simulate it instead.
-        Ldapter::Errors.raise(Ldapter::Errors::NoSuchObject.new("record not found for #{dn}"))
+        Ldaptic::Errors.raise(Ldaptic::Errors::NoSuchObject.new("record not found for #{dn}"))
       end
       objects.first
     end
@@ -187,7 +187,7 @@ module Ldapter
     #   the base), and <tt>:subtree</tt> (the base, children, and all
     #   descendants).  The default is <tt>:subtree</tt>.
     # * <tt>:filter</tt>: A standard LDAP filter.  This can be a string, an
-    #   Ldapter::Filter object, or parameters for Ldapter::Filter().
+    #   Ldaptic::Filter object, or parameters for Ldaptic::Filter().
     # * <tt>:limit</tt>: Maximum number of results to return.  If the value
     #   is a literal +true+, the first item is returned directly (or +nil+ if
     #   nothing was found).  For a literal +false+, an array always returned
@@ -197,7 +197,7 @@ module Ldapter
     #   Array but rather a String or a Symbol, an array of attributes is
     #   returned rather than an array of objects.
     # * <tt>:instantiate</tt>: If this is false, a raw hash is returned
-    #   rather than an Ldapter object.  Combined with a String or Symbol
+    #   rather than an Ldaptic object.  Combined with a String or Symbol
     #   argument to <tt>:attributes</tt>, a +false+ value here causes the
     #   attribute not to be typecast.
     #
@@ -228,7 +228,7 @@ module Ldapter
           entry = klass.instantiate(entry)
         end
         if one_attribute
-          entry = entry[Ldapter.encode(one_attribute)]
+          entry = entry[Ldaptic.encode(one_attribute)]
           entry = entry.one if entry.respond_to?(:one)
         end
         ary << entry
@@ -241,7 +241,7 @@ module Ldapter
 
     def normalize_attributes(attributes)
       attributes.inject({}) do |h, (k, v)|
-        h.update(Ldapter.encode(k) => v.respond_to?(:before_type_cast) ? v.before_type_cast : Array(v))
+        h.update(Ldaptic.encode(k) => v.respond_to?(:before_type_cast) ? v.before_type_cast : Array(v))
       end
     end
     private :normalize_attributes
@@ -259,7 +259,7 @@ module Ldapter
       if attributes.kind_of?(Hash)
         attributes = normalize_attributes(attributes)
       else
-        attributes = attributes.map {|(action, key, values)| [action, Ldapter.encode(key), Array(values)]}
+        attributes = attributes.map {|(action, key, values)| [action, Ldaptic.encode(key), Array(values)]}
       end
       adapter.modify(dn, attributes) unless attributes.empty?
     end
@@ -279,7 +279,7 @@ module Ldapter
     # Performs an LDAP compare.
     def compare(dn, key, value)
       log_dispatch(:compare, dn, key, value)
-      adapter.compare(dn, Ldapter.encode(key), Ldapter.encode(value))
+      adapter.compare(dn, Ldaptic.encode(key), Ldaptic.encode(value))
     end
 
     def dit_content_rule(oid)
@@ -316,14 +316,14 @@ module Ldapter
       @object_classes[klass.to_s.tr('-', '_').downcase]
     end
 
-    # Returns an Ldapter::Schema::AttibuteType object encapsulating server
+    # Returns an Ldaptic::Schema::AttibuteType object encapsulating server
     # provided information about an attribute type.
     #
     #   L.attribute_type(:cn).desc #=> "RFC2256: common name..."
     def attribute_type(attribute)
-      adapter.attribute_type(Ldapter.encode(attribute))
+      adapter.attribute_type(Ldaptic.encode(attribute))
     end
-    # Returns an Ldapter::Schema::LdapSyntax object encapsulating server
+    # Returns an Ldaptic::Schema::LdapSyntax object encapsulating server
     # provided information about the syntax of an attribute.
     #
     #    L.attribute_syntax(:cn).desc #=> "Directory String"
@@ -342,7 +342,7 @@ module Ldapter
       adapter.authenticate(dn, password)
     end
 
-    # Delegated to from Ldapter::Entry for Active Model compliance.
+    # Delegated to from Ldaptic::Entry for Active Model compliance.
     def model_name
       if defined?(ActiveSupport::ModelName)
         ActiveSupport::ModelName.new(name)

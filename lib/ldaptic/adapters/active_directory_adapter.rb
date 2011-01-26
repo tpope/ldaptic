@@ -1,7 +1,7 @@
-require 'ldapter/adapters/ldap_conn_adapter'
-require 'ldapter/adapters/active_directory_ext'
+require 'ldaptic/adapters/ldap_conn_adapter'
+require 'ldaptic/adapters/active_directory_ext'
 
-module Ldapter
+module Ldaptic
   module Adapters
     # ActiveDirectoryAdapter is a LDAPConnAdapter with some Active Directory
     # specific behaviors.  To help mitigate server timeout issues, this adapter
@@ -48,7 +48,7 @@ module Ldapter
             conn = new_connection(3268)
             dn = conn.search2("", 0, "(objectClass=*", ['defaultNamingContext']).first['defaultNamingContext']
             if dn
-              domain = Ldapter::DN(dn).rdns.map {|rdn| rdn[:dc]}.compact
+              domain = Ldaptic::DN(dn).rdns.map {|rdn| rdn[:dc]}.compact
               unless domain.empty?
                 username = [username, domain.join(".")].join("@")
               end

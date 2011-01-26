@@ -1,9 +1,9 @@
 require File.join(File.dirname(File.expand_path(__FILE__)),'test_helper')
-require 'ldapter'
+require 'ldaptic'
 
-class LdapterEntryTest < Test::Unit::TestCase
+class LdapticEntryTest < Test::Unit::TestCase
 
-  class Entry < Ldapter::Entry
+  class Entry < Ldaptic::Entry
     def self.namespace
       Namespace.new
     end

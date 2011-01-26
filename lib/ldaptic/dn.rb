@@ -1,15 +1,15 @@
-require 'ldapter/escape'
+require 'ldaptic/escape'
 
-module Ldapter
+module Ldaptic
 
-  # Instantiate a new Ldapter::DN object with the arguments given.  Unlike
-  # Ldapter::DN.new(dn), this method coerces the first argument to a string,
+  # Instantiate a new Ldaptic::DN object with the arguments given.  Unlike
+  # Ldaptic::DN.new(dn), this method coerces the first argument to a string,
   # unless it is already a string or an array.  If the first argument is nil,
   # nil is returned.
   def self.DN(dn, source = nil)
     return if dn.nil?
     dn = dn.dn if dn.respond_to?(:dn)
-    if dn.kind_of?(::Ldapter::DN)
+    if dn.kind_of?(::Ldaptic::DN)
       if source
         dn = dn.dup
         dn.source = source
@@ -30,36 +30,36 @@ module Ldapter
   class DN < ::String
 
     OID = '1.3.6.1.4.1.1466.115.121.1.12' unless defined? OID
-    #   Ldapter::DN[{:dc => 'com'}, {:dc => 'amazon'}]
+    #   Ldaptic::DN[{:dc => 'com'}, {:dc => 'amazon'}]
     #   => "dc=amazon,dc=com"
     def self.[](*args)
-      Ldapter::DN(args.reverse)
+      Ldaptic::DN(args.reverse)
     end
 
     attr_accessor :source
 
-    # Create a new Ldapter::DN object. dn can either be a string, or an array
+    # Create a new Ldaptic::DN object. dn can either be a string, or an array
     # of pairs.
     #
-    #   Ldapter::DN([{:cn=>"Thomas, David"}, {:dc=>"pragprog"}, {:dc=>"com"}])
+    #   Ldaptic::DN([{:cn=>"Thomas, David"}, {:dc=>"pragprog"}, {:dc=>"com"}])
     #   # => "CN=Thomas\\, David,DC=pragprog,DC=com"
     #
     # The optional second object specifies either an LDAP::Conn object or a
-    # Ldapter object to be used to find the DN with #find.
+    # Ldaptic object to be used to find the DN with #find.
     def initialize(dn, source = nil)
       @source = source
       dn = dn.dn if dn.respond_to?(:dn)
       if dn.respond_to?(:to_ary)
         dn = dn.map do |pair|
           if pair.kind_of?(Hash)
-            Ldapter::RDN(pair).to_str
+            Ldaptic::RDN(pair).to_str
           else
             pair
           end
         end * ','
       end
       if dn.include?(".") && !dn.include?("=")
-        dn = dn.split(".").map {|dc| "DC=#{Ldapter.escape(dc)}"} * ","
+        dn = dn.split(".").map {|dc| "DC=#{Ldaptic.escape(dc)}"} * ","
       end
       super(dn)
     end
@@ -93,14 +93,14 @@ module Ldapter
 
     # Convert the DN to an array of RDNs.
     #
-    #   Ldapter::DN("cn=Thomas\\, David,dc=pragprog,dc=com").rdns
+    #   Ldaptic::DN("cn=Thomas\\, David,dc=pragprog,dc=com").rdns
     #   # => [{:cn=>"Thomas, David"},{:dc=>"pragprog"},{:dc=>"com"}]
     def rdns
       rdn_strings.map {|rdn| RDN.new(rdn)}
     end
 
     def rdn_strings
-      Ldapter.split(self, ?,)
+      Ldaptic.split(self, ?,)
     end
 
     def to_a
@@ -114,7 +114,7 @@ module Ldapter
     end
 
     def parent
-      Ldapter::DN(rdns[1..-1], source)
+      Ldaptic::DN(rdns[1..-1], source)
     end
 
     def rdn
@@ -122,7 +122,7 @@ module Ldapter
     end
 
     def normalize
-      Ldapter::DN(rdns, source)
+      Ldaptic::DN(rdns, source)
     end
 
     def normalize!
@@ -133,15 +133,15 @@ module Ldapter
     # RFC4517 - Lightweight Directory Access Protocol (LDAP): Syntaxes and Matching Rules
     def ==(other)
       if other.respond_to?(:dn)
-        other = Ldapter::DN(other)
+        other = Ldaptic::DN(other)
       end
       normalize = lambda do |hash|
         hash.inject({}) do |m, (k, v)|
-          m[Ldapter.encode(k).upcase] = v
+          m[Ldaptic.encode(k).upcase] = v
           m
         end
       end
-      if other.kind_of?(Ldapter::DN)
+      if other.kind_of?(Ldaptic::DN)
         self.rdns == other.rdns
       else
         super
@@ -154,7 +154,7 @@ module Ldapter
     # the same as String#[]
 
     def [](*args)
-      if args.first.kind_of?(Hash) || args.first.kind_of?(Ldapter::DN)
+      if args.first.kind_of?(Hash) || args.first.kind_of?(Ldaptic::DN)
         send(:/, *args)
       else
         super
@@ -163,9 +163,9 @@ module Ldapter
 
     # Prepend an RDN to the DN.
     #
-    #   Ldapter::DN(:dc => "com")/{:dc => "foobar"} #=> "DC=foobar,DC=com"
+    #   Ldaptic::DN(:dc => "com")/{:dc => "foobar"} #=> "DC=foobar,DC=com"
     def /(*args)
-      Ldapter::DN(args.reverse + rdns, source)
+      Ldaptic::DN(args.reverse + rdns, source)
     end
 
     # With a Hash (and only with a Hash), prepends a RDN to the DN, modifying
@@ -203,8 +203,8 @@ module Ldapter
 
     def self.parse_string(string) #:nodoc:
 
-      Ldapter.split(string, ?+).inject({}) do |hash, pair|
-        k, v = Ldapter.split(pair, ?=).map {|x| Ldapter.unescape(x)}
+      Ldaptic.split(string, ?+).inject({}) do |hash, pair|
+        k, v = Ldaptic.split(pair, ?=).map {|x| Ldaptic.unescape(x)}
         hash[k.downcase.to_sym] = v
         hash
       end
@@ -227,7 +227,7 @@ module Ldapter
     end
 
     def /(*args)
-      Ldapter::DN([self]).send(:/, *args)
+      Ldaptic::DN([self]).send(:/, *args)
     end
 
     def to_rdn
@@ -236,7 +236,7 @@ module Ldapter
 
     def to_str
       collect do |k, v|
-        "#{k.kind_of?(String) ? k : Ldapter.encode(k).upcase}=#{Ldapter.escape(v)}"
+        "#{k.kind_of?(String) ? k : Ldaptic.encode(k).upcase}=#{Ldaptic.escape(v)}"
       end.sort.join("+")
     end
 
@@ -282,7 +282,7 @@ module Ldapter
       if other.respond_to?(:to_str)
         to_str.casecmp(other.to_str).zero?
       elsif other.kind_of?(Hash)
-        eql?(Ldapter::RDN(other)) rescue false
+        eql?(Ldaptic::RDN(other)) rescue false
       else
         super
       end
@@ -353,7 +353,7 @@ module Ldapter
       elsif key.respond_to?(:to_sym)
         key.to_sym.to_s
       else
-        raise TypeError, "keys in an Ldapter::RDN must be symbols", caller(1)
+        raise TypeError, "keys in an Ldaptic::RDN must be symbols", caller(1)
       end.downcase.to_sym
     end
 

@@ -1,4 +1,4 @@
-module Ldapter
+module Ldaptic
   class ErrorSet < Hash
     def initialize(base)
       @base = base

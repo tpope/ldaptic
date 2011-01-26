@@ -1,9 +1,9 @@
 require File.join(File.dirname(File.expand_path(__FILE__)),'test_helper')
-require 'ldapter'
+require 'ldaptic'
 require File.join(File.dirname(File.expand_path(__FILE__)),'/mock_adapter')
 
-class LdapterHierarchyTest < Test::Unit::TestCase
-  class Mock < Ldapter::Class(:adapter => :mock)
+class LdapticHierarchyTest < Test::Unit::TestCase
+  class Mock < Ldaptic::Class(:adapter => :mock)
   end
 
   def test_inheritance
@@ -24,7 +24,7 @@ class LdapterHierarchyTest < Test::Unit::TestCase
     assert_equal "Matsumoto", person.sn
     assert_equal %w"Matsumoto", person[:sn]
     assert_equal %w"Matsumoto", person['sn']
-    assert_equal Ldapter::DN("cn=Matz,dc=org"), person.dn
+    assert_equal Ldaptic::DN("cn=Matz,dc=org"), person.dn
     assert_equal "CN=Matz", person.rdn
     inspect = person.inspect
     assert_raise(TypeError) { person.distinguishedName = "Why" }

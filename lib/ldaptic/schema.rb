@@ -1,4 +1,4 @@
-module Ldapter
+module Ldaptic
   # RFC4512 - LDAP: Directory Information Models
   module Schema
 
@@ -197,7 +197,7 @@ module Ldapter
         syntax_attribute && syntax_attribute[/\{(.*)\}/, 1].to_i
       end
       def syntax_object(*args)
-        Ldapter::SYNTAXES[syntax_oid]
+        Ldaptic::SYNTAXES[syntax_oid]
       end
       alias syntax syntax_object
     end
@@ -215,9 +215,9 @@ module Ldapter
     class LdapSyntax < AbstractDefinition
       attr_ldap_qdstring   :desc
 
-      # Returns the appropriate parser from the Ldapter::Syntaxes module.
+      # Returns the appropriate parser from the Ldaptic::Syntaxes module.
       def object
-        Ldapter::Syntaxes.for(desc.delete(" "))
+        Ldaptic::Syntaxes.for(desc.delete(" "))
       end
     end
 
@@ -243,4 +243,4 @@ module Ldapter
   end
 end
 
-require 'ldapter/syntaxes'
+require 'ldaptic/syntaxes'

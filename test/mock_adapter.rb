@@ -1,8 +1,8 @@
 $:.unshift(File.join(File.dirname(__FILE__),'..','lib')).uniq!
-require 'ldapter/adapters'
-require 'ldapter/adapters/abstract_adapter'
+require 'ldaptic/adapters'
+require 'ldaptic/adapters/abstract_adapter'
 
-class Ldapter::Adapters::MockAdapter < Ldapter::Adapters::AbstractAdapter
+class Ldaptic::Adapters::MockAdapter < Ldaptic::Adapters::AbstractAdapter
   register_as(:mock)
 
   def schema(arg = nil)

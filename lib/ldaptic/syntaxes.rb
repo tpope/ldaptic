@@ -1,7 +1,7 @@
-require 'ldapter/schema'
-require 'ldapter/errors'
+require 'ldaptic/schema'
+require 'ldaptic/errors'
 
-module Ldapter
+module Ldaptic
 
   # RFC2252.  Second column is "Human Readable"
   syntax_string = <<-EOF
@@ -72,7 +72,7 @@ EOF
     if h == "N"
       hash[:x_not_human_readable] = "TRUE"
     end
-    syntax = Ldapter::Schema::LdapSyntax.allocate
+    syntax = Ldaptic::Schema::LdapSyntax.allocate
     syntax.instance_variable_set(:@oid, oid)
     syntax.instance_variable_set(:@attributes, hash)
     SYNTAXES[oid] = syntax
@@ -84,8 +84,8 @@ EOF
   module Syntaxes
     # Returns the class for a given syntax name.  Falls back to
     # OctetString if there is not a more specific handler.
-    #   Ldapter::Syntaxes.for("Generalized Time")
-    #   #=> Ldapter::Syntaxes::GeneralizedTime
+    #   Ldaptic::Syntaxes.for("Generalized Time")
+    #   #=> Ldaptic::Syntaxes::GeneralizedTime
     def self.for(string)
       string = string.delete(' ')
       if const_defined?(string)
@@ -111,7 +111,7 @@ EOF
       end
 
       def format(value)
-        Ldapter.encode(value.kind_of?(Symbol) ? value.to_s : value)
+        Ldaptic.encode(value.kind_of?(Symbol) ? value.to_s : value)
       end
 
       def error(value)
@@ -171,7 +171,7 @@ EOF
     class DN < Abstract
 
       def parse(string)
-        ::Ldapter::DN(string, @object).freeze
+        ::Ldaptic::DN(string, @object).freeze
       end
 
     end
@@ -240,7 +240,7 @@ EOF
     class LDAPSyntaxDescription < Abstract
 
       def parse(string)
-        Ldapter::Schema::LdapSyntax.new(string)
+        Ldaptic::Schema::LdapSyntax.new(string)
       end
 
     end
@@ -298,7 +298,7 @@ EOF
       class_eval(<<-EOS, __FILE__, __LINE__.succ)
         class #{syntax}Description < Abstract
           def parse(string)
-            Ldapter::Schema::#{syntax}.new(string)
+            Ldaptic::Schema::#{syntax}.new(string)
           end
         end
       EOS

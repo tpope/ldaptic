@@ -20,12 +20,12 @@ Rake::RDocTask.new do |rdoc|
   rdoc.rdoc_dir = 'doc'
   rdoc.rdoc_files.add('README.rdoc', 'lib')
   rdoc.main     = 'README.rdoc'
-  rdoc.title    = 'Ldapter'
+  rdoc.title    = 'Ldaptic'
   rdoc.options << '--inline-source'
   rdoc.options << '-d' if `which dot` =~ /\/dot/
 end
 
-spec = eval(File.read(File.join(File.dirname(__FILE__), 'ldapter.gemspec')))
+spec = eval(File.read(File.join(File.dirname(__FILE__), 'ldaptic.gemspec')))
 Rake::GemPackageTask.new(spec) do |p|
   p.gem_spec = spec
 end

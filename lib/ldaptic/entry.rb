@@ -1,10 +1,10 @@
-require 'ldapter/attribute_set'
-require 'ldapter/error_set'
+require 'ldaptic/attribute_set'
+require 'ldaptic/error_set'
 
-module Ldapter
+module Ldaptic
 
-  # When a new Ldapter namespace is created, a Ruby class hierarchy is
-  # contructed that mirrors the server's object classes.  Ldapter::Entry
+  # When a new Ldaptic namespace is created, a Ruby class hierarchy is
+  # contructed that mirrors the server's object classes.  Ldaptic::Entry
   # serves as the base class for this hierarchy.
   class Entry
     # Constructs a deep copy of a set of LDAP attributes, normalizing them to
@@ -41,7 +41,7 @@ module Ldapter
       end
 
       def has_attribute?(attribute)
-        attribute = Ldapter.encode(attribute)
+        attribute = Ldaptic.encode(attribute)
         may.include?(attribute) || must.include?(attribute)
       end
 
@@ -132,7 +132,7 @@ module Ldapter
       #
       #   L::User.human_attribute_name(:givenName) #=> "Given name"
       def human_attribute_name(attribute, options={})
-        attribute = Ldapter.encode(attribute)
+        attribute = Ldaptic.encode(attribute)
         if at = namespace.attribute_type(attribute)
           attribute = at.verbose_name
         end
@@ -154,7 +154,7 @@ module Ldapter
           logger.warn "#{name}: invalid object class for #{attributes.inspect}"
         end
         obj = allocate
-        obj.instance_variable_set(:@dn, ::Ldapter::DN(Array(attributes.delete('dn')).first, obj))
+        obj.instance_variable_set(:@dn, ::Ldaptic::DN(Array(attributes.delete('dn')).first, obj))
         obj.instance_variable_set(:@original_attributes, attributes)
         obj.instance_variable_set(:@attributes, {})
         obj.instance_eval { common_initializations; after_load }
@@ -172,7 +172,7 @@ module Ldapter
     end
 
     def initialize(data = {})
-      Ldapter::Errors.raise(TypeError.new("abstract class initialized")) if self.class.oid.nil? || self.class.abstract?
+      Ldaptic::Errors.raise(TypeError.new("abstract class initialized")) if self.class.oid.nil? || self.class.abstract?
       @attributes = {}
       data = data.dup
       if dn = data.delete('dn') || data.delete(:dn)
@@ -273,9 +273,9 @@ module Ldapter
     # #method_missing delegates to this method, method names with underscores
     # map to attributes with hyphens.
     def read_attribute(key)
-      key = Ldapter.encode(key)
+      key = Ldaptic.encode(key)
       @attributes[key] ||= ((@original_attributes || {}).fetch(key, [])).dup
-      Ldapter::AttributeSet.new(self, key, @attributes[key])
+      Ldaptic::AttributeSet.new(self, key, @attributes[key])
     end
     protected :read_attribute
 
@@ -313,11 +313,11 @@ module Ldapter
 
     # Note the values are not typecast and thus must be strings.
     def modify_attribute(action, key, *values)
-      key = Ldapter.encode(key)
-      values.flatten!.map! {|v| Ldapter.encode(v)}
+      key = Ldaptic.encode(key)
+      values.flatten!.map! {|v| Ldaptic.encode(v)}
       @original_attributes[key] ||= []
       virgin   = @original_attributes[key].dup
-      original = Ldapter::AttributeSet.new(self, key, @original_attributes[key])
+      original = Ldaptic::AttributeSet.new(self, key, @original_attributes[key])
       original.__send__(action, values)
       begin
         namespace.modify(dn, [[action, key, values]])
@@ -379,7 +379,7 @@ module Ldapter
     end
 
     def may_must(attribute)
-      attribute = Ldapter.encode(attribute)
+      attribute = Ldaptic.encode(attribute)
       if must.include?(attribute)
         :must
       elsif may.include?(attribute)
@@ -389,13 +389,13 @@ module Ldapter
 
     def respond_to?(method, *) #:nodoc:
       both = may + must
-      super || (both + both.map {|x| "#{x}="} + both.map {|x| "#{x}-before-type-cast"}).include?(Ldapter.encode(method.to_sym))
+      super || (both + both.map {|x| "#{x}="} + both.map {|x| "#{x}-before-type-cast"}).include?(Ldaptic.encode(method.to_sym))
     end
 
     # Delegates to +read_attribute+ or +write_attribute+.  Pops an element out
     # of its set if the attribute is marked SINGLE-VALUE.
     def method_missing(method, *args, &block)
-      attribute = Ldapter.encode(method)
+      attribute = Ldaptic.encode(method)
       if attribute[-1] == ?=
         attribute.chop!
         if may_must(attribute)
@@ -418,7 +418,7 @@ module Ldapter
       super(method, *args, &block)
     end
 
-    # Searches for children.  This is identical to Ldapter::Base#search, only
+    # Searches for children.  This is identical to Ldaptic::Base#search, only
     # the default base is the current object's DN.
     def search(options, &block)
       if options[:base].kind_of?(Hash)
@@ -467,7 +467,7 @@ module Ldapter
     end
 
     def errors
-      @errors ||= Ldapter::ErrorSet.new(self)
+      @errors ||= Ldaptic::ErrorSet.new(self)
     end
 
     def valid?
@@ -532,7 +532,7 @@ module Ldapter
       new = search(:scope => :base, :limit => true)
       @original_attributes = new.instance_variable_get(:@original_attributes)
       @attributes          = new.instance_variable_get(:@attributes)
-      @dn                  = Ldapter::DN(new.dn, self)
+      @dn                  = Ldaptic::DN(new.dn, self)
       @children            = {}
       self
     end
@@ -553,11 +553,11 @@ module Ldapter
 
     def rename(new_rdn, delete_old = nil)
       old_rdn = rdn
-      if new_rdn.kind_of?(Ldapter::DN)
+      if new_rdn.kind_of?(Ldaptic::DN)
         new_root = new_rdn.parent
         new_rdn = new_rdn.rdn
       else
-        new_rdn = Ldapter::RDN(new_rdn)
+        new_rdn = Ldaptic::RDN(new_rdn)
         new_root = nil
       end
       if delete_old.nil?
@@ -571,7 +571,7 @@ module Ldapter
             end
         end
       end
-      old_dn = Ldapter::DN(@dn, self)
+      old_dn = Ldaptic::DN(@dn, self)
       @dn = nil
       if new_root
         self.dn = new_root / new_rdn
@@ -592,9 +592,9 @@ module Ldapter
 
     def dn=(value)
       if @dn
-        Ldapter::Errors.raise(Ldapter::Error.new("can't reassign DN"))
+        Ldaptic::Errors.raise(Ldaptic::Error.new("can't reassign DN"))
       end
-      @dn = ::Ldapter::DN(value, self)
+      @dn = ::Ldaptic::DN(value, self)
       write_attributes_from_rdn(rdn)
     end
 
@@ -610,7 +610,7 @@ module Ldapter
     end
 
     def write_attributes_from_rdn(rdn, attributes = @attributes)
-      Ldapter::RDN(rdn).each do |k, v|
+      Ldaptic::RDN(rdn).each do |k, v|
         attributes[k.to_s.downcase] ||= []
         attributes[k.to_s.downcase] |= [v]
       end
@@ -618,27 +618,27 @@ module Ldapter
 
     def cached_child(rdn = nil)
       return self if rdn.nil? || rdn.empty?
-      rdn = Ldapter::RDN(rdn)
+      rdn = Ldaptic::RDN(rdn)
       return @children[rdn] if @children.has_key?(rdn)
       child = search(:base => rdn, :scope => :base, :limit => true)
       child.instance_variable_set(:@parent, self)
       @children[rdn] = child
-    rescue Ldapter::Errors::NoSuchObject
+    rescue Ldaptic::Errors::NoSuchObject
     end
 
     def assign_child(rdn, child)
       unless child.respond_to?(:dn)
-        Ldapter::Errors.raise(TypeError.new("#{child.class} cannot be a child"))
+        Ldaptic::Errors.raise(TypeError.new("#{child.class} cannot be a child"))
       end
       if child.dn
-        Ldapter::Errors.raise(Ldapter::Error.new("#{child.class} already has a DN of #{child.dn}"))
+        Ldaptic::Errors.raise(Ldaptic::Error.new("#{child.class} already has a DN of #{child.dn}"))
       end
-      rdn = Ldapter::RDN(rdn)
+      rdn = Ldaptic::RDN(rdn)
       if cached_child(rdn)
-        Ldapter::Errors.raise(Ldapter::Error.new("child #{[rdn, dn].join(",")} already exists"))
+        Ldaptic::Errors.raise(Ldaptic::Error.new("child #{[rdn, dn].join(",")} already exists"))
       end
       @children[rdn] = child
-      child.dn = Ldapter::DN(dn/rdn, child)
+      child.dn = Ldaptic::DN(dn/rdn, child)
       child.instance_variable_set(:@parent, self)
     end
 

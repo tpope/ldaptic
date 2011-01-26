@@ -1,4 +1,4 @@
-module Ldapter
+module Ldaptic
 
   # Encode an object with LDAP semantics.  Generally this is just to_s, but
   # dates and booleans get special treatment.
@@ -24,7 +24,7 @@ module Ldapter
   #
   # If the first argument is not a string, it is handed off to LDAP::encode.
   def self.escape(string, allow_asterisks = false)
-    string = Ldapter.encode(string)
+    string = Ldaptic.encode(string)
     enc = lambda { |l| "\\%02X" % l.ord }
     string.gsub!(/[()\\\0-\37"+,;<>]/, &enc)
     string.gsub!(/\A[# ]| \Z/, &enc)
@@ -74,9 +74,9 @@ module Ldapter
   # Split on a given character where it is not escaped.  Either an integer or
   # string represenation of the character may be used.
   #
-  #   Ldapter.split("a*b", '*')    # => ["a","b"]
-  #   Ldapter.split("a\\*b", '*')  # => ["a\\*b"]
-  #   Ldapter.split("a\\\\*b", ?*) # => ["a\\\\","b"]
+  #   Ldaptic.split("a*b", '*')    # => ["a","b"]
+  #   Ldaptic.split("a\\*b", '*')  # => ["a\\*b"]
+  #   Ldaptic.split("a\\\\*b", ?*) # => ["a\\\\","b"]
   def self.split(string, character)
     return [] if string.empty?
     array = [""]

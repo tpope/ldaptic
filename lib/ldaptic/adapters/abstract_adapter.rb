@@ -1,7 +1,7 @@
-require 'ldapter/escape'
-require 'ldapter/errors'
+require 'ldaptic/escape'
+require 'ldaptic/errors'
 
-module Ldapter
+module Ldaptic
   module Adapters
     # Subclasse must implement search, add, modify, delete, and rename.  These
     # methods should return 0 on success and non-zero on failure.  The failure
@@ -11,14 +11,14 @@ module Ldapter
 
       # When implementing an adapter, +register_as+ must be called to associate
       # the adapter with a name.  The adapter name must mimic the filename.
-      # The following might be found in ldapter/adapters/some_adapter.rb.
+      # The following might be found in ldaptic/adapters/some_adapter.rb.
       #
       #   class SomeAdapter < AbstractAdapter
       #     register_as(:some)
       #   end
       def self.register_as(name)
-        require 'ldapter/adapters'
-        Ldapter::Adapters.register(name, self)
+        require 'ldaptic/adapters'
+        Ldaptic::Adapters.register(name, self)
       end
 
       def initialize(options)
@@ -30,9 +30,9 @@ module Ldapter
       def root_dse(attrs = nil)
         result = search(
           :base => "",
-          :scope => Ldapter::SCOPES[:base],
+          :scope => Ldaptic::SCOPES[:base],
           :filter => "(objectClass=*)",
-          :attributes => attrs && [attrs].flatten.map {|a| Ldapter.encode(a)},
+          :attributes => attrs && [attrs].flatten.map {|a| Ldaptic.encode(a)},
           :disable_pagination => true
         ) { |x| break x }
         return if result.kind_of?(Fixnum)
@@ -47,7 +47,7 @@ module Ldapter
         @subschema_dn ||= root_dse(['subschemaSubentry'])['subschemaSubentry'].first
         search(
           :base => @subschema_dn,
-          :scope => Ldapter::SCOPES[:base],
+          :scope => Ldaptic::SCOPES[:base],
           :filter => "(objectClass=subschema)",
           :attributes => attrs
         ) { |x| return x }
@@ -69,7 +69,7 @@ module Ldapter
       # Returns a hash of attribute types, keyed by both OID and name.
       def attribute_types
         @attribute_types ||= construct_schema_hash('attributeTypes',
-          Ldapter::Schema::AttributeType)
+          Ldaptic::Schema::AttributeType)
       end
 
       def attribute_type(key = nil)
@@ -85,23 +85,23 @@ module Ldapter
       # Returns a hash of DIT content rules, keyed by both OID and name.
       def dit_content_rules
         @dit_content_rules ||= construct_schema_hash('dITContentRules',
-          Ldapter::Schema::DITContentRule)
+          Ldaptic::Schema::DITContentRule)
       end
 
       # Returns a hash of object classes, keyed by both OID and name.
       def object_classes
         @object_classes ||= construct_schema_hash('objectClasses',
-          Ldapter::Schema::ObjectClass)
+          Ldaptic::Schema::ObjectClass)
       end
 
       # Default compare operation, emulated with a search.
       def compare(dn, attr, value)
-        search(:base => dn, :scope => Ldapter::SCOPES[:base], :filter => "(#{attr}=#{Ldapter.escape(value)})") { return true }
+        search(:base => dn, :scope => Ldaptic::SCOPES[:base], :filter => "(#{attr}=#{Ldaptic.escape(value)})") { return true }
         false
       end
 
       def logger
-        @logger || Ldapter.logger
+        @logger || Ldaptic.logger
       end
 
       private

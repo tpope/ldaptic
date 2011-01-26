@@ -1,12 +1,12 @@
 require File.join(File.dirname(File.expand_path(__FILE__)),'test_helper')
-require 'ldapter'
+require 'ldaptic'
 require File.join(File.dirname(File.expand_path(__FILE__)),'/mock_adapter')
 require 'active_model'
 
-class LdapterActiveModelTest < Test::Unit::TestCase
+class LdapticActiveModelTest < Test::Unit::TestCase
   include ActiveModel::Lint::Tests
 
-  class Mock < Ldapter::Class(:adapter => :mock)
+  class Mock < Ldaptic::Class(:adapter => :mock)
   end
 
   def setup

@@ -1,6 +1,6 @@
-require 'ldapter/adapters/abstract_adapter'
+require 'ldaptic/adapters/abstract_adapter'
 
-module Ldapter
+module Ldaptic
   module Adapters
     class NetLDAPAdapter < AbstractAdapter
 
@@ -8,7 +8,7 @@ module Ldapter
 
       def initialize(options)
         require 'net/ldap'
-        require 'ldapter/adapters/net_ldap_ext'
+        require 'ldaptic/adapters/net_ldap_ext'
         if defined?(::Net::LDAP) && options.kind_of?(::Net::LDAP)
           options = {:adapter => :net_ldap, :connection => option}
         else
@@ -163,7 +163,7 @@ module Ldapter
       def handle_errors
         result = yield if block_given?
         err = @connection.get_operation_result
-        Ldapter::Errors.raise_unless_zero(err.code, err.message)
+        Ldaptic::Errors.raise_unless_zero(err.code, err.message)
         result
       end
 

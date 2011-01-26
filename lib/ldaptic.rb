@@ -1,25 +1,25 @@
 #!/usr/bin/env ruby
 
-require 'ldapter/dn'
-require 'ldapter/filter'
-require 'ldapter/errors'
-require 'ldapter/schema'
-require 'ldapter/syntaxes'
-require 'ldapter/adapters'
-require 'ldapter/entry'
-require 'ldapter/methods'
+require 'ldaptic/dn'
+require 'ldaptic/filter'
+require 'ldaptic/errors'
+require 'ldaptic/schema'
+require 'ldaptic/syntaxes'
+require 'ldaptic/adapters'
+require 'ldaptic/entry'
+require 'ldaptic/methods'
 
 # = Getting started
 #
-# See the methods of the Ldapter module (below) for information on connecting.
+# See the methods of the Ldaptic module (below) for information on connecting.
 #
-# See the Ldapter::Methods module for information on searching with your
+# See the Ldaptic::Methods module for information on searching with your
 # connection object.
 #
-# Search results are Ldapter::Entry objects.  See the documentation for this
+# Search results are Ldaptic::Entry objects.  See the documentation for this
 # class for information on manipulating and updating them, as well as creating
 # new entries.
-module Ldapter
+module Ldaptic
 
   SCOPES = {
     :base     => 0, # ::LDAP::LDAP_SCOPE_BASE,
@@ -46,14 +46,14 @@ module Ldapter
   end
 
   # Returns an object that can be assigned directly to a variable.  This allows
-  # for an "anonymous" Ldapter object.
-  #   @my_company = Ldapter::Object(options)
+  # for an "anonymous" Ldaptic object.
+  #   @my_company = Ldaptic::Object(options)
   #   @my_company::User.class_eval do
   #     alias login sAMAccountName
   #   end
   def self.Object(options={}, &block)
     base = ::Module.new do
-      include Ldapter::Module(options)
+      include Ldaptic::Module(options)
     end
     if block_given?
       base.class_eval(&block)
@@ -61,11 +61,11 @@ module Ldapter
     base
   end
 
-  # Similar to Ldapter::Class, accepting the same options.  Instead of
+  # Similar to Ldaptic::Class, accepting the same options.  Instead of
   # returning an anonymous class that activates upon inheritance, it returns an
   # anonymous module that activates upon inclusion.
   #   module MyCompany
-  #     include Ldapter::Module(options)
+  #     include Ldaptic::Module(options)
   #     # This class and many others are created automatically based on
   #     # information from the server.
   #     class User
@@ -76,15 +76,15 @@ module Ldapter
   #   me = MyCompany.search(:filter => {:cn => "Name, My"}).first
   #   puts me.login
   def self.Module(options={})
-    Ldapter::Module.new(options)
+    Ldaptic::Module.new(options)
   end
 
-  # The core constructor of Ldapter.  This method returns an anonymous class
+  # The core constructor of Ldaptic.  This method returns an anonymous class
   # which can then be inherited from.
   #
   # The new class is not intended to be instantiated, instead serving as a
   # namespace. Included in this namespace is a set of class methods, as found
-  # in Ldapter::Methods, and a class hierarchy mirroring the object classes
+  # in Ldaptic::Methods, and a class hierarchy mirroring the object classes
   # found on the server.
   #
   #   options = {
@@ -94,7 +94,7 @@ module Ldapter
   #     :password => "mypassword"
   #   }
   #
-  #   class MyCompany < Ldapter::Class(options)
+  #   class MyCompany < Ldaptic::Class(options)
   #     # This class and many others are created automatically based on
   #     # information from the server.
   #     class User
@@ -105,11 +105,11 @@ module Ldapter
   #   me = MyCompany.search(:filter => {:cn => "Name, My"}).first
   #   puts me.login
   #
-  # Options given to this method are relayed to Ldapter::Adapters.for.  The
+  # Options given to this method are relayed to Ldaptic::Adapters.for.  The
   # documentation for this method should be consulted for further information.
   def self.Class(options={})
     klass = ::Class.new(Class)
-    klass.instance_variable_set(:@options, Ldapter::Adapters.for(options))
+    klass.instance_variable_set(:@options, Ldaptic::Adapters.for(options))
     klass
   end
 
@@ -117,7 +117,7 @@ module Ldapter
     alias Namespace Class
   end
 
-  # An instance of this subclass of ::Module is returned by the Ldapter::Module
+  # An instance of this subclass of ::Module is returned by the Ldaptic::Module
   # method.
   class Module < ::Module #:nodoc:
     def initialize(options={})
@@ -126,19 +126,19 @@ module Ldapter
     end
     def append_features(base)
       base.extend(Methods)
-      base.instance_variable_set(:@adapter, Ldapter::Adapters.for(@options))
+      base.instance_variable_set(:@adapter, Ldaptic::Adapters.for(@options))
       base.module_eval { build_hierarchy }
     end
   end
 
-  # The anonymous class returned by the Ldapter::Class method descends from
+  # The anonymous class returned by the Ldaptic::Class method descends from
   # this class.
   class Class #:nodoc:
     class << self
       # Callback which triggers the magic.
       def inherited(subclass)
         if options = @options
-          subclass.class_eval { include Ldapter::Module.new(options) }
+          subclass.class_eval { include Ldaptic::Module.new(options) }
         else
           subclass.instance_variable_set(:@adapter, @adapter)
         end
