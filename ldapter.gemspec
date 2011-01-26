@@ -6,7 +6,7 @@ Gem::Specification.new do |s|
   s.authors             = ["Tim Pope"]
   s.email               = "ruby@tpope.o"+'rg'
   s.homepage            = "http://github.com/tpope/ldapter"
-  s.files = [ "Rakefile", "setup.rb", "README.rdoc", "LICENSE" ]
+  s.files = [ "Rakefile", "README.rdoc", "LICENSE" ]
   s.files = s.files + Dir.glob("lib/**/*.rb")
   s.files = s.files + Dir.glob("test/**/*")
 
