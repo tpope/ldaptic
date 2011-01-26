@@ -38,6 +38,7 @@ module Ldapter
     end
 
     def errors
+      return ['is forbidden'] if forbidden? && !empty?
       errors = []
       if single_value? && size > 1
         errors << "does not accept multiple values"
@@ -194,6 +195,12 @@ module Ldapter
           Ldapter::Errors.raise(NotImplementedError.new)
         end
       EOS
+    end
+
+    # Returns +true+ if the attribute is marked neither MUST nor MAY in the
+    # object class.
+    def forbidden?
+      !(@entry.must + @entry.may).include?(@name)
     end
 
     # Returns +true+ if the attribute is marked MUST in the object class.

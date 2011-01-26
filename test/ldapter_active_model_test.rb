@@ -27,6 +27,9 @@ class LdapterActiveModelTest < Test::Unit::TestCase
     assert_equal ['Age must be an integer'], @model.errors.full_messages
     @model.age = 42
     assert @model.valid?
+    @model[:userPassword] = 'lol'
+    assert @model.invalid?
+    assert_equal ['User password is forbidden'], @model.errors.full_messages
   end
 
   def test_before_type_cast
