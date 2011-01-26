@@ -302,7 +302,7 @@ module Ldaptic
     # Changes are not committed to the server until #save is called.
     def write_attribute(key, values)
       set = read_attribute(key)
-      if values.respond_to?(:to_str) && set.syntax_object && set.syntax_object.error("1\n1")
+      if values.respond_to?(:to_str) && !set.single_value? && set.syntax_object && set.syntax_object.error("1\n1")
         values = values.split(/\r?\n/)
       elsif values == ''
         values = []
