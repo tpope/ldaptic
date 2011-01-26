@@ -244,11 +244,12 @@ module Ldapter
     def inspect
       str = "#<#{self.class.inspect} #{dn}"
       (@original_attributes||{}).merge(@attributes).each do |k, values|
+        next if values.empty?
         s = (values.size == 1 ? "" : "s")
         at = namespace.attribute_type(k)
         syntax = namespace.attribute_syntax(k)
         if at && syntax && !syntax.x_not_human_readable? && syntax.desc != "Octet String"
-          str << " " << k << ": " << values.inspect
+          str << " " << k << ": " << values.inspect[1..-2]
         else
           str << " " << k << ": "
           if !at
