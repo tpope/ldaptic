@@ -290,7 +290,7 @@ module Ldapter
     # Returns a hash of attributes.
     def attributes
       (@original_attributes||{}).merge(@attributes).keys.inject({}) do |hash, key|
-        hash[key] = read_attribute(key)
+        hash[key] = read_attribute(key, true)
         hash
       end
     end
@@ -299,7 +299,7 @@ module Ldapter
       @attributes.reject do |k, v|
         (@original_attributes || {})[k].to_a == v
       end.keys.inject({}) do |hash, key|
-        hash[key] = read_attribute(key)
+        hash[key] = read_attribute(key, true)
         hash
       end
     end
