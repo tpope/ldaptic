@@ -248,19 +248,21 @@ module Ldaptic
 
     # Performs an LDAP add.
     def add(dn, attributes)
-      log_dispatch(:add, dn, attributes)
       attributes = normalize_attributes(attributes)
+      log_dispatch(:add, dn, attributes)
       adapter.add(dn, attributes)
     end
 
     # Performs an LDAP modify.
     def modify(dn, attributes)
-      log_dispatch(:modify, dn, attributes)
       if attributes.kind_of?(Hash)
         attributes = normalize_attributes(attributes)
       else
-        attributes = attributes.map {|(action, key, values)| [action, Ldaptic.encode(key), Array(values)]}
+        attributes = attributes.map do |(action, key, values)|
+          [action, Ldaptic.encode(key), values.respond_to?(:before_type_cast) ? values.before_type_cast : Array(values)]
+        end
       end
+      log_dispatch(:modify, dn, attributes)
       adapter.modify(dn, attributes) unless attributes.empty?
     end
 
