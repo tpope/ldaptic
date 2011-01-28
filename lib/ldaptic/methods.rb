@@ -140,14 +140,14 @@ module Ldaptic
     private :search_options
 
     def find_one(dn, options)
-      objects = search(options.merge(:base => dn, :scope => :base, :limit => false))
-      unless objects.size == 1
+      object = search(options.merge(:base => dn, :scope => :base, :limit => true))
+      unless object
         # For a missing DN, the error will be raised automatically.  If the
         # DN does exist but is not returned (e.g., it doesn't match the given
         # filter), we'll simulate it instead.
         Ldaptic::Errors.raise(Ldaptic::Errors::NoSuchObject.new("record not found for #{dn}"))
       end
-      objects.first
+      object
     end
     private :find_one
 
