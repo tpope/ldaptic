@@ -201,12 +201,8 @@ module Ldaptic
       end
       alias syntax syntax_object
 
-      def equality_testable(value)
-        Ldaptic.encode(value)
-      end
-
-      def match?(one, two)
-        equality_testable(one) == equality_testable(two)
+      def matchable(value)
+        Ldaptic::MatchingRules.for(equality).new.matchable(Ldaptic.encode(value))
       end
 
     end
@@ -253,3 +249,4 @@ module Ldaptic
 end
 
 require 'ldaptic/syntaxes'
+require 'ldaptic/matching_rules'

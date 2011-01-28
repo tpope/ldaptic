@@ -104,9 +104,8 @@ module Ldaptic
       @entry.compare(@name, target)
     end
 
-    # Adds the given attributes, discarding duplicates.  Currently, a duplicate
-    # is determined by == (case sensitive) rather than by the server (typically
-    # case insensitive).  All arrays are flattened.
+    # Adds the given attributes, discarding duplicates.  All arrays are
+    # flattened.
     def add(*attributes)
       dest = @target.dup
       safe_array(attributes).each do |attribute|
@@ -155,16 +154,13 @@ module Ldaptic
 
     # Remove the given attributes given, functioning more or less like
     # Array#delete, except accepting multiple arguments.
-    #
-    # Two passes are made to find each element, one case sensitive and one
-    # ignoring case, before giving up.
     def delete(*attributes, &block)
       return clear if attributes.flatten.empty?
       dest = @target.dup
       ret = []
       safe_array(attributes).each do |attribute|
         ret << dest.delete(attribute) do
-          match = dest.detect {|x| x.downcase == attribute.downcase}
+          match = dest.detect {|x| matchable(x) == matchable(attribute)}
           if match
             dest.delete(match)
           else
@@ -297,7 +293,11 @@ module Ldaptic
     end
 
     def matchable(value)
-      format(value)
+      if @type
+        @type.matchable(value)
+      else
+        format(value)
+      end
     end
 
     def safe_array(attributes)
