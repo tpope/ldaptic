@@ -200,6 +200,15 @@ module Ldaptic
         Ldaptic::SYNTAXES[syntax_oid]
       end
       alias syntax syntax_object
+
+      def equality_testable(value)
+        Ldaptic.encode(value)
+      end
+
+      def match?(one, two)
+        equality_testable(one) == equality_testable(two)
+      end
+
     end
 
     class MatchingRule < NameDescObsoleteDefiniton

@@ -77,6 +77,28 @@ module Ldaptic
       @target.empty?
     end
 
+    def index(*args, &block)
+      if block_given? || args.size != 1
+        return to_a.index(*args, &block)
+      else
+        target = matchable(args.first)
+        @target.each_with_index do |candidate, index|
+          return index if matchable(candidate) == target
+        end
+      end
+      nil
+    end
+    alias find_index index
+    alias rindex index
+
+    def include?(target)
+      !!index(target)
+    end
+
+    def exclude?(target)
+      !index(target)
+    end
+
     # Adds the given attributes, discarding duplicates.  Currently, a duplicate
     # is determined by == (case sensitive) rather than by the server (typically
     # case insensitive).  All arrays are flattened.
@@ -102,7 +124,16 @@ module Ldaptic
     def replace(*attributes)
       attributes = safe_array(attributes)
       user_modification_guard
-      @target.replace(attributes)
+      seen = {}
+      filtered = []
+      attributes.each do |value|
+        matchable = matchable(value)
+        unless seen[matchable]
+          filtered << value
+          seen[matchable] = true
+        end
+      end
+      @target.replace(filtered)
       self
     end
 
@@ -158,8 +189,7 @@ module Ldaptic
     alias map! collect!
 
     def insert(index, *objects)
-      user_modification_guard
-      @target.insert(index, *safe_array(objects))
+      replace(@target.dup.insert(index, *safe_array(objects)))
       self
     end
 
@@ -259,6 +289,10 @@ module Ldaptic
       else
         value
       end
+    end
+
+    def matchable(value)
+      format(value)
     end
 
     def safe_array(attributes)

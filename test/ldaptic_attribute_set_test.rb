@@ -35,6 +35,7 @@ class LdapticAttributeSetTest < Test::Unit::TestCase
     assert_equal ["foo", "bar"], @description
     assert_same @description, @description.unshift([["baz"]])
     assert_equal ["baz", "foo", "bar"], @description
+    assert_equal 1, @description.index('foo')
     assert_equal "foo", @description.delete("foo")
     assert_nil   @description.delete("foo")
     @description.clear
