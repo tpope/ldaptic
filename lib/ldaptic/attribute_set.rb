@@ -107,11 +107,7 @@ module Ldaptic
     # Adds the given attributes, discarding duplicates.  All arrays are
     # flattened.
     def add(*attributes)
-      dest = @target.dup
-      safe_array(attributes).each do |attribute|
-        dest.push(attribute) unless include?(attribute)
-      end
-      replace(dest)
+      replace(@target + safe_array(attributes))
     end
     alias <<     add
     alias concat add
