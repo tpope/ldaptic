@@ -274,7 +274,7 @@ module Ldaptic
 
     # Performs an LDAP modrdn.
     def rename(dn, new_rdn, delete_old, *args)
-      log_dispatch(:delete, dn, new_rdn, delete_old, *args)
+      log_dispatch(:rename, dn, new_rdn, delete_old, *args)
       adapter.rename(dn, new_rdn.to_str, delete_old, *args)
     end
 
