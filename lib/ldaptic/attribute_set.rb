@@ -31,9 +31,9 @@ module Ldaptic
       @syntax = @entry.namespace.attribute_syntax(@name)
       @target = target
       if @type.nil?
-        @entry.logger "Unknown type for attribute #@name"
+        @entry.logger.warn "Unknown type for attribute #@name"
       elsif @syntax.nil?
-        @entry.logger "Unknown syntax #{@type.syntax_oid} for attribute #{@name}"
+        @entry.logger.warn "Unknown syntax #{@type.syntax_oid} for attribute #{@name}"
       end
     end
 
