@@ -99,6 +99,11 @@ module Ldaptic
       !index(target)
     end
 
+    # Like #include?, but asks the server rather than checking locally.
+    def compare(target)
+      @entry.compare(@name, target)
+    end
+
     # Adds the given attributes, discarding duplicates.  Currently, a duplicate
     # is determined by == (case sensitive) rather than by the server (typically
     # case insensitive).  All arrays are flattened.
