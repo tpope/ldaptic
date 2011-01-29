@@ -107,4 +107,9 @@ class LdapticDNTest < Test::Unit::TestCase
     assert_raise(TypeError) { Ldaptic::RDN(Object.new => "whee") }
   end
 
+  def test_domain
+    assert_equal 'example.com', Ldaptic::DN('ou=Users,dc=example,dc=com').domain
+    assert_nil Ldaptic::DN('ou=Users').domain
+  end
+
 end

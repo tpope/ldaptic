@@ -53,9 +53,8 @@ module Ldaptic
             conn = new_connection(3268)
             dn = conn.search2("", 0, "(objectClass=*)", ['defaultNamingContext']).first['defaultNamingContext']
             if dn
-              domain = Ldaptic::DN(dn).rdns.map {|rdn| rdn[:dc]}.compact
-              unless domain.empty?
-                username = [username, domain.join(".")].join("@")
+              if domain = Ldaptic::DN(dn).domain
+                username = [username, domain].join('@')
               end
             end
           end

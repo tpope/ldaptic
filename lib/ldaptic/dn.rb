@@ -113,6 +113,12 @@ module Ldaptic
       end
     end
 
+    # Join all DC elements with periods.
+    def domain
+      components = rdns.map {|rdn| rdn[:dc]}.compact
+      components.join('.') unless components.empty?
+    end
+
     def parent
       Ldaptic::DN(rdns[1..-1], source)
     end
