@@ -70,7 +70,7 @@ module Ldaptic
       end
 
       def with_writer(&block)
-        with_port(389, &block)
+        with_port(@options[:port] || 389, &block)
       end
 
     end
