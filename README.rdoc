@@ -39,7 +39,7 @@ Entries are retrieved using the search method.  Named parameters include
 :base, :filter, :sort, :limit, :scope, and :attributes.  All are optional.
 
   entries = Example.search(
-    :filter => {:objectClass => 'inetOrgPerson'}
+    :filter => {:objectClass => 'inetOrgPerson'},
     :sort => :cn,
     :limit => 10
   )
