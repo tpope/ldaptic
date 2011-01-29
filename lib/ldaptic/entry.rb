@@ -369,12 +369,12 @@ module Ldaptic
       self['objectClass'].map {|c| namespace.object_class(c)} - self.class.ldap_ancestors
     end
 
-    def must(all = true)
-      self.class.must(all) + aux.map {|a|a.must(false)}.flatten
+    def must
+      (self.class.must + aux.map {|a| a.must(false)}.flatten).uniq
     end
 
-    def may(all = true)
-      self.class.may(all)  + aux.map {|a|a.may(false)}.flatten
+    def may
+      (self.class.may + aux.map {|a| a.may(false)}.flatten).uniq - must
     end
 
     def may_must(attribute)
