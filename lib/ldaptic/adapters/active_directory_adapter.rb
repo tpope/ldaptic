@@ -46,7 +46,7 @@ module Ldaptic
             username = [@options[:domain], username].join("\\")
           else
             conn = new_connection(3268)
-            dn = conn.search2("", 0, "(objectClass=*", ['defaultNamingContext']).first['defaultNamingContext']
+            dn = conn.search2("", 0, "(objectClass=*)", ['defaultNamingContext']).first['defaultNamingContext']
             if dn
               domain = Ldaptic::DN(dn).rdns.map {|rdn| rdn[:dc]}.compact
               unless domain.empty?
