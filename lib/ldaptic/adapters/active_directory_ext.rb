@@ -1,3 +1,5 @@
+require 'date'
+
 # Converts an integer representing the number of microseconds since January 1,
 # 1600 to a DateTime.
 def DateTime.microsoft(tinies)
