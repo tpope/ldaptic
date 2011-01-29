@@ -48,11 +48,18 @@ module Ldaptic
       def create_accessors #:nodoc:
         to_be_evaled = ""
         (may(false) + must(false)).each do |attr|
-          method = attr.to_s.tr_s('-_', '_-')
-          to_be_evaled << <<-RUBY
-          def #{method}() read_attribute('#{attr}').one end
-          def #{method}=(value) write_attribute('#{attr}', value) end
-          RUBY
+          if type = namespace.attribute_type(attr)
+            names = type.names
+          else
+            names = [attr]
+          end
+          names.each do |name|
+            method = name.to_s.tr_s('-_', '_-')
+            to_be_evaled << <<-RUBY
+            def #{method}() read_attribute('#{attr}').one end
+            def #{method}=(value) write_attribute('#{attr}', value) end
+            RUBY
+          end
         end
         class_eval(to_be_evaled, __FILE__, __LINE__)
       end
@@ -273,7 +280,11 @@ module Ldaptic
     # #method_missing delegates to this method, method names with underscores
     # map to attributes with hyphens.
     def read_attribute(key)
-      key = Ldaptic.encode(key)
+      if type = namespace.attribute_type(key)
+        key = type.names.first
+      else
+        key = Ldaptic.encode(key)
+      end
       @attributes[key] ||= ((@original_attributes || {}).fetch(key, [])).dup
       Ldaptic::AttributeSet.new(self, key, @attributes[key])
     end
@@ -369,25 +380,41 @@ module Ldaptic
       self['objectClass'].map {|c| namespace.object_class(c)} - self.class.ldap_ancestors
     end
 
-    def must
-      (self.class.must + aux.map {|a| a.must(false)}.flatten).uniq
+    def must(include_aliases = false)
+      attrs = (self.class.must + aux.map {|a| a.must(false)}.flatten).uniq
+      if include_aliases
+        attrs.map do |attr|
+          type = namespace.attribute_type(attr)
+          type ? type.names : attr
+        end.flatten
+      else
+        attrs
+      end
     end
 
-    def may
-      (self.class.may + aux.map {|a| a.may(false)}.flatten).uniq - must
+    def may(include_aliases = false)
+      attrs = (self.class.may + aux.map {|a| a.may(false)}.flatten).uniq - must
+      if include_aliases
+        attrs.map do |attr|
+          type = namespace.attribute_type(attr)
+          type ? type.names : attr
+        end.flatten
+      else
+        attrs
+      end
     end
 
     def may_must(attribute)
       attribute = Ldaptic.encode(attribute)
-      if must.include?(attribute)
+      if must(true).include?(attribute)
         :must
-      elsif may.include?(attribute)
+      elsif may(true).include?(attribute)
         :may
       end
     end
 
     def respond_to?(method, *) #:nodoc:
-      both = may + must
+      both = may(true) + must(true)
       super || (both + both.map {|x| "#{x}="} + both.map {|x| "#{x}-before-type-cast"}).include?(Ldaptic.encode(method.to_sym))
     end
 

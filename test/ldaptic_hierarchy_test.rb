@@ -11,6 +11,7 @@ class LdapticHierarchyTest < Test::Unit::TestCase
     assert_raise(NoMethodError) { Mock.new }
     assert_equal Mock::Top, Mock::Person.superclass
     assert Mock::Person.method_defined?(:sn)
+    assert Mock::Person.method_defined?(:surname)
     assert !Mock::Top.method_defined?(:sn)
     assert_equal [], Mock::Top.aux
     assert_equal %w(simpleSecurityObject), Mock::Person.aux
