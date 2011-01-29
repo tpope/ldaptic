@@ -357,7 +357,6 @@ module Ldaptic
       namespace.compare(dn, key, value)
     end
 
-    # attr_reader :attributes
     def attribute_names
       attributes.keys
     end

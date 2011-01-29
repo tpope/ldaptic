@@ -75,13 +75,13 @@ module Ldaptic
       filter = "(objectClass=*)"
       if source.respond_to?(:search2_ext)
         source.search2(
-          self.to_s,
+          to_s,
           scope,
           filter
         )
       elsif source.respond_to?(:search)
         Array(source.search(
-          :base => self.to_s,
+          :base => to_s,
           :scope => scope,
           :filter => filter,
           :limit => 1
@@ -142,12 +142,10 @@ module Ldaptic
         end
       end
       if other.kind_of?(Ldaptic::DN)
-        self.rdns == other.rdns
+        rdns == other.rdns
       else
         super
       end
-    # rescue
-      # super
     end
 
     # Pass in one or more hashes to augment the DN.  Otherwise, this behaves
@@ -338,7 +336,7 @@ module Ldaptic
     end
 
     def merge(hash)
-      self.dup.update(hash)
+      dup.update(hash)
     end
 
     def delete(key)
