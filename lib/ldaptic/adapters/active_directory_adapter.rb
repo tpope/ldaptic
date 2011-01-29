@@ -3,6 +3,11 @@ require 'ldaptic/adapters/active_directory_ext'
 
 module Ldaptic
   module Adapters
+    # Before using this adapter, try the :ldap_conn adapter.  The notes below
+    # were originally thought to apply to all Active Directory servers, but now
+    # I suspect they are peculiarities of a former employer's setup.  This
+    # adapter is a candidate for removal.
+    #
     # ActiveDirectoryAdapter is a LDAPConnAdapter with some Active Directory
     # specific behaviors.  To help mitigate server timeout issues, this adapter
     # binds on each request and unbinds afterwards.  For search requests, the

@@ -30,10 +30,8 @@ a dynamically created module into a namespace of your choosing.
   end
 
 The adapter can usually be omitted as it defaults to :ldap_conn or :net_ldap,
-based on which of the above two gems can be found (though you might want to use
-the :active_directory adapter, which depends on ruby-ldap, instead).  If the
-base is omitted, it will use the first naming context on the server (usually
-what you want).
+based on which of the above two gems can be found.  If the base is omitted, it
+will use the first naming context on the server (usually what you want).
 
 Entries are retrieved using the search method.  Named parameters include
 :base, :filter, :sort, :limit, :scope, and :attributes.  All are optional.
@@ -88,10 +86,6 @@ For more information, see in particular Ldaptic::Methods (for namespace
 methods like search), Ldaptic::Entry, and Ldaptic::AttributeSet.
 
 == To Do
-
-* Verify everything still works.  The tests take care of much of this, but
-  there are no integration tests for the adapters.  In particular, I have no
-  way to verify the Active Directory adapter still works.
 
 * The test suite (reflecting my fledgling testing abilities from 2007) is more
   smoke test than BDD.  Perhaps switch to RSpec in the quest to rectify this.
