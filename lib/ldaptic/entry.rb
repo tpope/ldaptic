@@ -176,7 +176,7 @@ module Ldaptic
       @attributes = {}
       data = data.dup
       if dn = data.delete('dn') || data.delete(:dn)
-        dn.first if dn.kind_of?(Array)
+        dn = dn.first if dn.kind_of?(Array)
         self.dn = dn
       end
       merge_attributes(data)
