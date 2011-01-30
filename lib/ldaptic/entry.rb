@@ -461,7 +461,10 @@ module Ldaptic
     alias find /
 
     def fetch(dn = self.dn, options = {}) #:nodoc:
-      search({:base => dn}.merge(options))
+      if dn.kind_of?(Hash)
+        dn = self.dn/dn
+      end
+      namespace.fetch(dn, options)
     end
 
     # If a Hash or a String containing "=" is given, the argument is treated as
