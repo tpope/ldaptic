@@ -52,6 +52,7 @@ module Ldaptic
     def base=(dn)
       @base = Ldaptic::DN(dn, self)
     end
+    alias dn= base=
     # Access the base DN.
     def base
       @base ||= Ldaptic::DN(adapter.default_base_dn, self)
