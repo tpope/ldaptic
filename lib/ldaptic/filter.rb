@@ -144,7 +144,7 @@ module Ldaptic
       def process
         "(#{@array*''})" if @array.compact.size > 1
       end
-      def to_net_ldap_filter #:nodoc
+      def to_net_ldap_filter #:nodoc:
         @array[1..-1].inject {|m, o| m.to_net_ldap_filter.send(@array.first, o.to_net_ldap_filter)}
       end
     end
