@@ -34,11 +34,10 @@ based on which of the above two gems can be found.  If the base is omitted, it
 will use the first naming context on the server (usually what you want).
 
 Entries are retrieved using the search method.  Named parameters include
-:base, :filter, :sort, :limit, :scope, and :attributes.  All are optional.
+:base, :scope, :filter, :attributes, :scope, and :limit.  All are optional.
 
   entries = Example.search(
     :filter => {:objectClass => 'inetOrgPerson'},
-    :sort => :cn,
     :limit => 10
   )
 

@@ -153,10 +153,6 @@ module Ldaptic
       end
 
       def search_parameters(options = {})
-        case options[:sort]
-        when Proc, Method then s_attr, s_proc = nil, options[:sort]
-        else s_attr, s_proc = options[:sort], nil
-        end
         [
           options[:base],
           options[:scope],
@@ -165,8 +161,6 @@ module Ldaptic
           options[:attributes_only],
           options[:timeout].to_i,
           ((options[:timeout].to_f % 1) * 1e6).round,
-          s_attr.to_s,
-          s_proc
         ]
       end
 

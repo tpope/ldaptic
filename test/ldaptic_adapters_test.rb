@@ -11,7 +11,7 @@ class LdapticAdaptersTest < Test::Unit::TestCase
 
   def test_should_parameterize_search_options
     assert_equal(
-      ["DC=org", 0, "(objectClass=*)", nil, false, 1, 10_000, "", nil],
+      ["DC=org", 0, "(objectClass=*)", nil, false, 1, 10_000],
       @ldap_conn.instance_eval { search_parameters(
         :base => "DC=org",
         :scope => 0,
