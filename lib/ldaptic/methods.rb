@@ -242,7 +242,7 @@ module Ldaptic
 
     def normalize_attributes(attributes)
       attributes.inject({}) do |h, (k, v)|
-        h.update(Ldaptic.encode(k) => v.respond_to?(:before_type_cast) ? v.before_type_cast : Array(v))
+        h.update(Ldaptic.encode(k) => v.respond_to?(:before_type_cast) ? v.before_type_cast : [v].flatten.compact)
       end
     end
     private :normalize_attributes
@@ -260,7 +260,7 @@ module Ldaptic
         attributes = normalize_attributes(attributes)
       else
         attributes = attributes.map do |(action, key, values)|
-          [action, Ldaptic.encode(key), values.respond_to?(:before_type_cast) ? values.before_type_cast : Array(values)]
+          [action, Ldaptic.encode(key), values.respond_to?(:before_type_cast) ? values.before_type_cast : [values].flatten.compact]
         end
       end
       log_dispatch(:modify, dn, attributes)

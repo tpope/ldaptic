@@ -297,7 +297,7 @@ module Ldaptic
     end
 
     def safe_array(attributes)
-      Array(attributes).flatten.compact.map {|x| format(x)}
+      [attributes].flatten.compact.map {|x| format(x)}
     end
 
     def typecast(value)

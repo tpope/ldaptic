@@ -151,7 +151,7 @@ module Ldaptic
           logger.warn "#{name}: invalid object class for #{attributes.inspect}"
         end
         obj = allocate
-        obj.instance_variable_set(:@dn, ::Ldaptic::DN(Array(attributes.delete('dn')).first, obj))
+        obj.instance_variable_set(:@dn, ::Ldaptic::DN([attributes.delete('dn')].flatten.first, obj))
         obj.instance_variable_set(:@original_attributes, attributes)
         obj.instance_variable_set(:@attributes, {})
         obj.instance_eval { common_initializations; after_load }
