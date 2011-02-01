@@ -262,7 +262,7 @@ module Ldaptic
     end
 
     def to_s
-      "#<#{self.class} #{dn}>"
+      dn || ''
     end
 
     # Reads an attribute and typecasts it if neccessary.  If the argument given
