@@ -7,16 +7,6 @@ module Ldaptic
   # contructed that mirrors the server's object classes.  Ldaptic::Entry
   # serves as the base class for this hierarchy.
   class Entry
-    # Constructs a deep copy of a set of LDAP attributes, normalizing them to
-    # arrays as appropriate.  The returned hash has a default value of [].
-    def self.clone_ldap_hash(attributes) #:nodoc:
-      hash = Hash.new
-      attributes.each do |k, v|
-        k = k.kind_of?(Symbol) ? k.to_s.tr('_', '-') : k.dup
-        hash[k] = Array(v).map {|x| x.dup rescue x}
-      end
-      hash
-    end
 
     # For Active Model compliance.  Delegates to #namespace.
     def self.model_name
