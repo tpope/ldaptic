@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = "ldaptic"
-  s.version     = "0.2.1"
+  s.version     = "0.2.2"
 
   s.summary     = 'Object-oriented schema-aware LDAP wrapper'
   s.description = 'Include a parameterized dynamic module in a namespace and get a full LDAP class hierarchy at your disposal.'
